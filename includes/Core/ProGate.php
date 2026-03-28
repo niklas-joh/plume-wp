@@ -15,6 +15,10 @@ namespace WP_AI_Mind\Core {
 		private const OPTION_KEY = 'wp_ai_mind_licence_status';
 
 		public static function is_pro(): bool {
+			// Dev override: define WP_AI_MIND_PRO in wp-config.php or an mu-plugin.
+			if ( defined( 'WP_AI_MIND_PRO' ) ) {
+				return (bool) WP_AI_MIND_PRO;
+			}
 			// When Freemius SDK is loaded, delegate to it.
 			// wam_fs() is the Freemius bootstrap function defined in wp-ai-mind.php.
 			if ( function_exists( 'wam_fs' ) ) {
