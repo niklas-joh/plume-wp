@@ -59,9 +59,10 @@ class AbstractProviderTest extends TestCase {
 		return new class( $failures_before_success ) extends AbstractProvider {
 			private int $calls = 0;
 			public function __construct( private int $fail_count ) {}
-			public function get_slug(): string  { return 'test'; }
-			public function get_models(): array { return []; }
-			public function is_available(): bool { return true; }
+			public function get_slug(): string         { return 'test'; }
+			public function get_models(): array        { return []; }
+			public function get_default_model(): string { return 'test-model'; }
+			public function is_available(): bool       { return true; }
 			public function generate_image( string $p, array $o = [] ): int { return 0; }
 			protected function do_complete( CompletionRequest $r ): CompletionResponse {
 				if ( $this->calls++ < $this->fail_count ) {
