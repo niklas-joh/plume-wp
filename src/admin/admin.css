@@ -65,7 +65,7 @@
 
 .wpaim-conv-item:hover,
 .wpaim-conv-item.is-active {
-	background: color-mix(in srgb, var(--wp-admin-theme-color) 8%, white);
+	background: color-mix(in srgb, var(--wp-admin-theme-color) 8%, #fff);
 }
 
 .wpaim-conv-item__title {
@@ -124,8 +124,8 @@
 }
 
 .wpaim-bubble--error .wpaim-bubble__content {
-	background: color-mix(in srgb, #cc1818 8%, white);
-	border-color: color-mix(in srgb, #cc1818 30%, white);
+	background: color-mix(in srgb, #cc1818 8%, #fff);
+	border-color: color-mix(in srgb, #cc1818 30%, #fff);
 	color: var(--wp-components-color-error, #cc1818);
 }
 
@@ -687,7 +687,7 @@
 	align-items: center;
 	gap: 3px;
 	padding: 2px var(--space-2);
-	background: color-mix(in srgb, var(--wp-admin-theme-color) 8%, white);
+	background: color-mix(in srgb, var(--wp-admin-theme-color) 8%, #fff);
 	border: 1px solid rgba(0, 0, 0, 0.1);
 	border-radius: var(--radius-sm);
 	font-size: var(--text-xs);
