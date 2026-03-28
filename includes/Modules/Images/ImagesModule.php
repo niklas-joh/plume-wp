@@ -40,9 +40,10 @@ class ImagesModule {
 			'wp-ai-mind-images',
 			'wpAiMindData',
 			[
-				'nonce'   => \wp_create_nonce( 'wp_rest' ),
-				'restUrl' => \esc_url_raw( \rest_url( 'wp-ai-mind/v1' ) ),
-				'isPro'   => \wp_ai_mind_is_pro(),
+				'nonce'    => \wp_create_nonce( 'wp_rest' ),
+				'restUrl'  => \esc_url_raw( \rest_url( 'wp-ai-mind/v1' ) ),
+				'isPro'    => \wp_ai_mind_is_pro(),
+				'adminUrl' => \esc_url_raw( \admin_url() ),
 			]
 		);
 

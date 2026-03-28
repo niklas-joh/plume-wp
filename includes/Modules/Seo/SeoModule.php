@@ -14,6 +14,7 @@ class SeoModule {
 	public static function register(): void {
 		\add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
 		\add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
+		\add_action( 'rest_api_init', [ self::class, 'register_seo_status_field' ] );
 	}
 
 	public static function enqueue_assets( string $hook ): void {
@@ -43,9 +44,10 @@ class SeoModule {
 			'wp-ai-mind-seo',
 			'wpAiMindData',
 			[
-				'nonce'   => \wp_create_nonce( 'wp_rest' ),
-				'restUrl' => \esc_url_raw( \rest_url( 'wp-ai-mind/v1' ) ),
-				'isPro'   => \wp_ai_mind_is_pro(),
+				'nonce'    => \wp_create_nonce( 'wp_rest' ),
+				'restUrl'  => \esc_url_raw( \rest_url( 'wp-ai-mind/v1' ) ),
+				'isPro'    => \wp_ai_mind_is_pro(),
+				'adminUrl' => \esc_url_raw( \admin_url() ),
 			]
 		);
 
@@ -248,5 +250,65 @@ class SeoModule {
 			],
 			200
 		);
+	}
+
+	public static function register_seo_status_field(): void {
+		foreach ( [ 'post', 'page' ] as $post_type ) {
+			\register_rest_field(
+				$post_type,
+				'wpaim_seo_status',
+				[
+					'get_callback'    => [ self::class, 'get_seo_status' ],
+					'update_callback' => null,
+					'schema'          => [
+						'type'       => 'object',
+						'context'    => [ 'view' ],
+						'properties' => [
+							'meta_title'     => [
+								'type' => 'string',
+								'enum' => [ 'filled', 'empty' ],
+							],
+							'og_description' => [
+								'type' => 'string',
+								'enum' => [ 'filled', 'empty' ],
+							],
+							'excerpt'        => [
+								'type' => 'string',
+								'enum' => [ 'filled', 'empty' ],
+							],
+							'alt_text'       => [
+								'type' => 'string',
+								'enum' => [ 'filled', 'empty' ],
+							],
+						],
+					],
+				]
+			);
+		}
+	}
+
+	public static function get_seo_status( array $post_data ): array {
+		$post_id = $post_data['id'];
+
+		$yoast_title = \get_post_meta( $post_id, '_yoast_wpseo_title', true );
+		$meta_title  = $yoast_title ? $yoast_title : \get_post_meta( $post_id, 'rank_math_title', true );
+
+		$yoast_desc     = \get_post_meta( $post_id, '_yoast_wpseo_metadesc', true );
+		$og_description = $yoast_desc ? $yoast_desc : \get_post_meta( $post_id, 'rank_math_description', true );
+
+		$post    = \get_post( $post_id );
+		$excerpt = $post->post_excerpt ?? '';
+
+		$thumb_id = \get_post_thumbnail_id( $post_id );
+		$alt_text = $thumb_id
+			? \get_post_meta( $thumb_id, '_wp_attachment_image_alt', true )
+			: '';
+
+		return [
+			'meta_title'     => $meta_title ? 'filled' : 'empty',
+			'og_description' => $og_description ? 'filled' : 'empty',
+			'excerpt'        => $excerpt ? 'filled' : 'empty',
+			'alt_text'       => $alt_text ? 'filled' : 'empty',
+		];
 	}
 }
