@@ -38,9 +38,8 @@ class ChatPage {
 			$default_models      = $default_provider->get_models();
 			$default_model_id    = $default_provider->get_default_model();
 			$default_model_label = $default_models[ $default_model_id ] ?? ucfirst( $default_slug );
-		} catch ( \Throwable $e ) {
+		} catch ( \Throwable $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
 			// Leave default label as 'AI' if factory fails.
-			unset( $e );
 		}
 
 		wp_localize_script(
