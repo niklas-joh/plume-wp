@@ -65,12 +65,12 @@ class ChatRestController {
 					'callback'            => [ $this, 'send_message' ],
 					'permission_callback' => [ $this, 'check_permission' ],
 					'args'                => [
-						'content'  => [
+						'content'         => [
 							'type'              => 'string',
 							'required'          => true,
 							'sanitize_callback' => 'sanitize_textarea_field',
 						],
-						'provider' => [
+						'provider'        => [
 							'type'    => 'string',
 							'default' => '',
 						],
@@ -125,13 +125,13 @@ class ChatRestController {
 		);
 	}
 
-	public function list_conversations( \WP_REST_Request $request ): \WP_REST_Response {
+	public function list_conversations( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
 		$store = $this->make_store();
 		return rest_ensure_response( $store->list_for_user( get_current_user_id() ) );
 	}
 
 	public function create_conversation( \WP_REST_Request $request ): \WP_REST_Response {
-		$store = $this->make_store();
+		$store         = $this->make_store();
 		$post_id_param = $request->get_param( 'post_id' );
 		$id            = $store->create(
 			$request->get_param( 'title' ),
@@ -146,11 +146,11 @@ class ChatRestController {
 	}
 
 	public function send_message( \WP_REST_Request $request ): \WP_REST_Response {
-		$conv_id       = (int) $request->get_param( 'id' );
-		$content       = $request->get_param( 'content' );
+		$conv_id        = (int) $request->get_param( 'id' );
+		$content        = $request->get_param( 'content' );
 		$provider_param = $request->get_param( 'provider' );
 		$provider_slug  = ! empty( $provider_param ) ? $provider_param : \get_option( 'wp_ai_mind_default_provider', 'claude' );
-		$model         = $request->get_param( 'model' );
+		$model          = $request->get_param( 'model' );
 
 		$store = $this->make_store();
 
@@ -190,11 +190,13 @@ class ChatRestController {
 
 			if ( ! $provider->is_available() ) {
 				return new \WP_REST_Response(
-					[ 'message' => sprintf(
-						/* translators: %s: provider slug */
-						__( 'No API key configured for "%s". Please add one in WP AI Mind → Settings.', 'wp-ai-mind' ),
-						$provider_slug
-					) ],
+					[
+						'message' => sprintf(
+																/* translators: %s: provider slug */
+							__( 'No API key configured for "%s". Please add one in WP AI Mind → Settings.', 'wp-ai-mind' ),
+							$provider_slug
+						),
+					],
 					422
 				);
 			}
@@ -313,10 +315,10 @@ class ChatRestController {
 		return rest_ensure_response( [ 'deleted' => true ] );
 	}
 
-	public function list_providers( \WP_REST_Request $request ): \WP_REST_Response {
-		$factory  = $this->make_provider_factory();
-		$all      = $factory->get_all();
-		$data     = [];
+	public function list_providers( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
+		$factory = $this->make_provider_factory();
+		$all     = $factory->get_all();
+		$data    = [];
 		foreach ( $all as $provider ) {
 			$data[] = [
 				'slug'         => $provider->get_slug(),
@@ -328,8 +330,8 @@ class ChatRestController {
 	}
 
 	public function search_posts( \WP_REST_Request $request ): \WP_REST_Response {
-		$q          = trim( (string) $request->get_param( 'q' ) );
-		$post_types = array_values(
+		$q            = trim( (string) $request->get_param( 'q' ) );
+		$post_types   = array_values(
 			array_filter(
 				get_post_types( [ 'public' => true ], 'names' ),
 				fn( $pt ) => 'attachment' !== $pt
@@ -346,7 +348,7 @@ class ChatRestController {
 				'orderby'        => 'relevance',
 			]
 		);
-		$data = [];
+		$data  = [];
 		foreach ( $query->posts as $post ) {
 			$type_obj   = get_post_type_object( $post->post_type );
 			$type_label = $type_obj ? $type_obj->labels->singular_name : $post->post_type;

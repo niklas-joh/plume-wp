@@ -57,7 +57,7 @@ abstract class AbstractProvider implements ProviderInterface {
 		];
 
 		$attachment_id = media_handle_sideload( $file_array, 0, $prompt );
-		@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		wp_delete_file( $tmp );
 
 		if ( is_wp_error( $attachment_id ) ) {
 			throw new ProviderException( 'Failed to save image: ' . $attachment_id->get_error_message(), $this->get_slug() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
@@ -69,11 +69,11 @@ abstract class AbstractProvider implements ProviderInterface {
 
 	// ── Retry logic ───────────────────────────────────────────────────────────
 
-	private function with_retry( callable $fn ): CompletionResponse {
+	private function with_retry( callable $callback ): CompletionResponse {
 		$last_exception = null;
 		for ( $attempt = 0; $attempt <= self::MAX_RETRIES; $attempt++ ) {
 			try {
-				return $fn();
+				return $callback();
 			} catch ( ProviderException $e ) {
 				$last_exception = $e;
 				if ( ! $e->is_retryable() || self::MAX_RETRIES === $attempt ) {

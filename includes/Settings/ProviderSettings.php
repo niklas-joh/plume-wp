@@ -43,11 +43,11 @@ class ProviderSettings {
 	private static function encrypt( string $plain ): string {
 		$iv         = random_bytes( openssl_cipher_iv_length( self::CIPHER ) );
 		$ciphertext = openssl_encrypt( $plain, self::CIPHER, self::secret(), 0, $iv );
-		return base64_encode( $iv . '::' . $ciphertext );
+		return base64_encode( $iv . '::' . $ciphertext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding encrypted API key, not obfuscation.
 	}
 
 	private static function decrypt( string $encoded ): string {
-		$decoded = base64_decode( $encoded, true );
+		$decoded = base64_decode( $encoded, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding encrypted API key, not obfuscation.
 		if ( false === $decoded || ! str_contains( $decoded, '::' ) ) {
 			return '';
 		}

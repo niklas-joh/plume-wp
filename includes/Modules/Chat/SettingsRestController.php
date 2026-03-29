@@ -48,7 +48,7 @@ class SettingsRestController {
 	 * @param \WP_REST_Request $request Incoming REST request.
 	 * @return \WP_REST_Response
 	 */
-	public function get_settings( \WP_REST_Request $request ): \WP_REST_Response {
+	public function get_settings( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
 		$provider_settings = $this->make_provider_settings();
 
 		$data = [

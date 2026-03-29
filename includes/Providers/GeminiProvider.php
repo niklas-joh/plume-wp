@@ -82,8 +82,8 @@ class GeminiProvider extends AbstractProvider {
 
 		// Decode base64 directly to temp file (avoids second HTTP request).
 		$tmp_file = tempnam( sys_get_temp_dir(), 'wpaim_img_' );
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		file_put_contents( $tmp_file, base64_decode( $b64 ) );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Writing AI-generated image to temp file; WP_Filesystem is not available in this context.
+		file_put_contents( $tmp_file, base64_decode( $b64 ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Decoding AI-generated image data; temp file write before media_handle_sideload.
 		$ext      = str_contains( $mime, 'png' ) ? 'png' : 'jpg';
 		$filename = 'imagen3-' . time() . '.' . $ext;
 
@@ -99,8 +99,7 @@ class GeminiProvider extends AbstractProvider {
 			0,
 			$prompt
 		);
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		@unlink( $tmp_file );
+		wp_delete_file( $tmp_file );
 
 		if ( is_wp_error( $attachment_id ) ) {
 			throw new ProviderException(

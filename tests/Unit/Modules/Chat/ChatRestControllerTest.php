@@ -148,6 +148,7 @@ class ChatRestControllerTest extends TestCase {
 
         // Provider mock.
         $provider_mock = $this->createMock( \WP_AI_Mind\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
         $provider_mock->method( 'supports_tools' )->willReturn( true );
         $provider_mock->method( 'complete' )->willReturnOnConsecutiveCalls( $tool_response, $final_response );
 
@@ -228,6 +229,7 @@ class ChatRestControllerTest extends TestCase {
         $this->tool_executor->method( 'execute' )->willReturn( [ 'name' => 'Test Site' ] );
 
         $provider_mock = $this->createMock( \WP_AI_Mind\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
         $provider_mock->method( 'supports_tools' )->willReturn( true );
         // Always returns a tool call response.
         $provider_mock->method( 'complete' )->willReturn( $tool_response );

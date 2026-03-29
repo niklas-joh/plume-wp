@@ -10,7 +10,7 @@ class GeneratorModule {
 		\add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
 	}
 
-	public static function enqueue_assets( string $hook ): void {
+	public static function enqueue_assets( string $hook ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by admin_enqueue_scripts hook signature.
 		// Only load on the generator admin page
 		if ( ! isset( $_GET['page'] ) || 'wp-ai-mind-generator' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;

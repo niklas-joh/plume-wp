@@ -15,12 +15,12 @@ class Autoloader {
 		return (bool) self::$registered;
 	}
 
-	public static function load( string $class ): void {
+	public static function load( string $class_name ): void {
 		$prefix = 'WP_AI_Mind\\';
-		if ( ! str_starts_with( $class, $prefix ) ) {
+		if ( ! str_starts_with( $class_name, $prefix ) ) {
 			return;
 		}
-		$relative = substr( $class, strlen( $prefix ) );
+		$relative = substr( $class_name, strlen( $prefix ) );
 		// WP_AI_MIND_DIR is set in the WordPress bootstrap (wp-ai-mind.php).
 		// In unit test context it is not defined, so fall back to plugin root.
 		$base = defined( 'WP_AI_MIND_DIR' ) ? WP_AI_MIND_DIR : dirname( __DIR__, 2 ) . '/';

@@ -16,7 +16,7 @@ class UsageModule {
 		add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
 	}
 
-	public static function enqueue_assets( string $hook ): void {
+	public static function enqueue_assets( string $hook ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by admin_enqueue_scripts hook signature.
 		if ( ! isset( $_GET['page'] ) || 'wp-ai-mind-usage' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
@@ -69,7 +69,7 @@ class UsageModule {
 		);
 	}
 
-	public static function get_usage( \WP_REST_Request $request ): \WP_REST_Response {
+	public static function get_usage( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
 		global $wpdb;
 
 		$table = Schema::table( 'usage_log' );
