@@ -10,6 +10,7 @@ jobs:
   phpcs:
     name: PHPCS
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -27,6 +28,7 @@ jobs:
   phpunit:
     name: PHPUnit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -45,6 +47,7 @@ jobs:
   js-lint:
     name: JS / CSS Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
