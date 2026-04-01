@@ -26,7 +26,7 @@ class SeoStatusFieldTest extends TestCase {
 		Functions\when( 'get_post_meta' )->justReturn( '' );
 		Functions\when( 'get_post_thumbnail_id' )->justReturn( 0 );
 
-		$post               = new \stdClass();
+		$post               = new \WP_Post();
 		$post->post_excerpt = '';
 		Functions\when( 'get_post' )->justReturn( $post );
 
@@ -49,7 +49,7 @@ class SeoStatusFieldTest extends TestCase {
 			->with( 42, 'rank_math_description', true )
 			->andReturn( '' );
 		Functions\when( 'get_post_thumbnail_id' )->justReturn( 0 );
-		$post               = new \stdClass();
+		$post               = new \WP_Post();
 		$post->post_excerpt = '';
 		Functions\when( 'get_post' )->justReturn( $post );
 
@@ -65,7 +65,7 @@ class SeoStatusFieldTest extends TestCase {
 				return '';
 			} );
 		Functions\when( 'get_post_thumbnail_id' )->justReturn( 0 );
-		$post               = new \stdClass();
+		$post               = new \WP_Post();
 		$post->post_excerpt = '';
 		Functions\when( 'get_post' )->justReturn( $post );
 
@@ -77,7 +77,7 @@ class SeoStatusFieldTest extends TestCase {
 	public function test_excerpt_detected_as_filled(): void {
 		Functions\when( 'get_post_meta' )->justReturn( '' );
 		Functions\when( 'get_post_thumbnail_id' )->justReturn( 0 );
-		$post               = new \stdClass();
+		$post               = new \WP_Post();
 		$post->post_excerpt = 'A nice summary.';
 		Functions\when( 'get_post' )->justReturn( $post );
 
@@ -93,7 +93,7 @@ class SeoStatusFieldTest extends TestCase {
 				return '';
 			} );
 		Functions\when( 'get_post_thumbnail_id' )->justReturn( 99 );
-		$post               = new \stdClass();
+		$post               = new \WP_Post();
 		$post->post_excerpt = '';
 		Functions\when( 'get_post' )->justReturn( $post );
 
@@ -105,7 +105,7 @@ class SeoStatusFieldTest extends TestCase {
 	public function test_alt_text_empty_when_no_featured_image(): void {
 		Functions\when( 'get_post_meta' )->justReturn( '' );
 		Functions\when( 'get_post_thumbnail_id' )->justReturn( 0 );
-		$post               = new \stdClass();
+		$post               = new \WP_Post();
 		$post->post_excerpt = '';
 		Functions\when( 'get_post' )->justReturn( $post );
 

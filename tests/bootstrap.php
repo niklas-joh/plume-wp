@@ -33,6 +33,15 @@ if ( ! class_exists( 'WP_Error' ) ) {
 	}
 }
 
+if ( ! class_exists( 'WP_Post' ) ) {
+	class WP_Post {
+		public int    $ID           = 0;
+		public string $post_title   = '';
+		public string $post_content = '';
+		public string $post_excerpt = '';
+	}
+}
+
 if ( ! class_exists( 'WP_REST_Request' ) ) {
 	class WP_REST_Request {
 		private array $params     = [];

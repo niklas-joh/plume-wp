@@ -28,8 +28,12 @@ export default function PostListTable( { tabs, WorkArea, columns = [] } ) {
 				};
 
 				const [ postsRes, pagesRes ] = await Promise.all( [
-					fetchEndpoint( '/wp/v2/posts?per_page=100&_embed=1&context=edit' ),
-					fetchEndpoint( '/wp/v2/pages?per_page=100&_embed=1&context=edit' ),
+					fetchEndpoint(
+						'/wp/v2/posts?per_page=100&_embed=1&context=edit'
+					),
+					fetchEndpoint(
+						'/wp/v2/pages?per_page=100&_embed=1&context=edit'
+					),
 				] );
 
 				const merged = [ ...postsRes.data, ...pagesRes.data ].sort(
@@ -37,7 +41,8 @@ export default function PostListTable( { tabs, WorkArea, columns = [] } ) {
 				);
 				setPosts( merged );
 
-				const totalFetched = postsRes.data.length + pagesRes.data.length;
+				const totalFetched =
+					postsRes.data.length + pagesRes.data.length;
 				const totalAvailable = postsRes.total + pagesRes.total;
 				if ( totalAvailable > totalFetched ) {
 					setTruncated( true );
@@ -97,8 +102,8 @@ export default function PostListTable( { tabs, WorkArea, columns = [] } ) {
 		<div className="wpaim-post-list">
 			{ truncated && (
 				<div className="wpaim-list-notice">
-					⚠ Showing the 100 most recent posts and pages. Your site has
-					more content that is not listed here.
+					⚠ Showing the 100 most recent posts and pages. Your site
+					has more content that is not listed here.
 				</div>
 			) }
 			<div className="wpaim-list-toolbar">
