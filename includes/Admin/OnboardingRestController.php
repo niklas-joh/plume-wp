@@ -33,8 +33,17 @@ class OnboardingRestController {
 						'enum'              => [ 'openai', 'claude', 'gemini' ],
 					],
 					'api_keys'       => [
-						'type'     => 'object',
-						'required' => false,
+						'type'                 => 'object',
+						'required'             => false,
+						'additionalProperties' => [
+							'type' => 'string',
+						],
+						'sanitize_callback'    => static function ( $value ) {
+							if ( ! is_array( $value ) ) {
+								return [];
+							}
+							return array_map( 'sanitize_text_field', $value );
+						},
 					],
 					'image_provider' => [
 						'type'              => 'string',

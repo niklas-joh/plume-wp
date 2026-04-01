@@ -1,0 +1,51 @@
+name: Auto-fix CI Failures
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  autofix:
+    name: Claude CI Auto-fix
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      !startsWith(github.event.workflow_run.head_branch, 'claude-auto-fix-ci-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@aee99972d0cfa0c47a4563e6fca42d7a5a0cb9bd  # v1
+        with:
+          # Max plan: use OAuth token (run `claude setup-token` locally, store as CLAUDE_CODE_OAUTH_TOKEN)
+          # API key:  uncomment the line below and remove claude_code_oauth_token
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          prompt: |
+            The CI workflow just failed on branch `${{ github.event.workflow_run.head_branch }}`.
+
+            Steps:
+            1. Run `gh run view ${{ github.event.workflow_run.id }} --log-failed --repo ${{ github.repository }}` to read the exact error output.
+            2. Identify the root cause (PHPCS violation, PHPUnit failure, or JS/CSS lint error).
+            3. Fix only the failing code — do not refactor unrelated areas.
+            4. Slugify the source branch name and commit your changes to a new branch named
+               `claude-auto-fix-ci-<slugified-branch>` (replace `/` with `-`, truncate to 50 chars).
+            5. Open a pull request against `${{ github.event.workflow_run.head_branch }}` with a clear description of what failed and what was changed.
+
+            Constraints:
+            - PHP: follow WordPress Coding Standards (PHPCS ruleset in phpcs.xml.dist). Prefix functions with `nj_` or use `WP_AI_Mind\` namespace.
+            - JS/CSS: fix only what the linter flags — do not change formatting elsewhere.
+            - PHPUnit: fix the code under test, not the tests themselves, unless the test assertion is clearly wrong.
+            - Do NOT bump version numbers, modify composer.lock, or change package-lock.json.
+
+          claude_args: "--max-turns 15 --allowedTools Bash(git:*),Bash(gh:*),Bash(composer:*),Bash(npm:*),Bash(npx:*),Bash(./vendor/bin/phpcs:*),Bash(./vendor/bin/phpunit:*),Read,Edit,MultiEdit,Write,Glob,Grep,LS"
