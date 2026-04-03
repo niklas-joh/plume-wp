@@ -51,6 +51,15 @@ jobs:
             - Security concerns
             - Test coverage
 
+            ### Step 0 — Ensure required labels exist
+
+            Before creating any issues, make sure these labels exist (ignore errors if they already do):
+
+              gh label create "code-review" --color "#0075ca" --description "Found during code review" --repo ${{ github.repository }} 2>/dev/null || true
+              gh label create "blocking"    --color "#b60205" --description "Blocking issue"            --repo ${{ github.repository }} 2>/dev/null || true
+              gh label create "enhancement" --color "#a2eeef" --description "Improvement or suggestion"  --repo ${{ github.repository }} 2>/dev/null || true
+              gh label create "auto-fix"    --color "#e4e669" --description "Claude will auto-fix this"  --repo ${{ github.repository }} 2>/dev/null || true
+
             ### Step 1 — Create issues for follow-up items (do this FIRST to capture URLs)
 
             For any finding that warrants independent follow-up (bug, non-trivial improvement,
@@ -100,5 +109,5 @@ jobs:
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options
-          claude_args: '--allowed-tools "Bash(gh pr comment:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue create:*),Bash(gh issue list:*)"'
+          claude_args: "--allowedTools Bash(gh:*),Read,Glob,Grep"
 
