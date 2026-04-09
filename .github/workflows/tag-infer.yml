@@ -101,55 +101,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          PAYLOAD=$(python3 -c "
-import json, os
-
-tags_raw = os.environ.get('EXISTING_TAGS', '').strip()
-tags = [t for t in tags_raw.split() if t]
-commits = os.environ.get('COMMITS', '').strip()
-base   = os.environ.get('PR_BASE_BRANCH', 'develop')
-title  = os.environ.get('PR_TITLE', '')
-branch = os.environ.get('PR_BRANCH', '')
-
-content = '''You are a semantic tagger for a WordPress plugin repository.
-
-Given this PR, choose the best semantic tag slug.
-
-PR title: {title}
-PR branch: {branch}
-PR base branch: {base}
-Recent commits:
-{commits}
-
-Existing semantic tags (reuse if this PR clearly extends one of them):
-{tags}
-
-Rules:
-- Prefix options:
-    feat/      new feature (targets develop) - minor version bump
-    feat!/     breaking change (targets develop) - MAJOR version bump
-    fix/       bug fix (targets develop) - patch version bump
-    hotfix/    emergency fix targeting main - patch version bump
-  If PR base branch is \"main\", the prefix MUST be hotfix/
-  If the PR title or commits contain \"!\" or \"BREAKING CHANGE\", use feat!/
-- Slug: lowercase, hyphens only, max 4 words
-  Examples: feat/ai-chat, fix/api-key-validation, feat!/remove-legacy-api
-- Reuse an existing tag slug if this PR clearly extends that work
-- Otherwise create a new descriptive slug
-- Respond with ONLY valid JSON, no markdown fences:
-  {{"tag":"feat/example","action":"reuse","reasoning":"one sentence"}}
-  where action is \"reuse\" or \"create\"'''.format(
-    title=title, branch=branch, base=base, commits=commits or '(no commits yet)',
-    tags=chr(10).join(tags) if tags else '(none yet)'
-  )
-
-data = {
-    'model': 'claude-haiku-4-5-20251001',
-    'max_tokens': 256,
-    'messages': [{'role': 'user', 'content': content}]
-}
-print(json.dumps(data))
-")
+          # Build the request payload via helper script (avoids inline Python in YAML).
+          PAYLOAD=$(python3 .github/scripts/infer_tag_payload.py)
 
           RESPONSE=$(curl -sf https://api.anthropic.com/v1/messages \
             -H "x-api-key: ${ANTHROPIC_API_KEY}" \
@@ -157,24 +110,11 @@ print(json.dumps(data))
             -H "content-type: application/json" \
             -d "$PAYLOAD")
 
-          TAG=$(echo "$RESPONSE" | python3 -c "
-import sys, json
-r = json.load(sys.stdin)
-t = json.loads(r['content'][0]['text'])
-print(t['tag'])
-")
-          ACTION=$(echo "$RESPONSE" | python3 -c "
-import sys, json
-r = json.load(sys.stdin)
-t = json.loads(r['content'][0]['text'])
-print(t['action'])
-")
-          REASONING=$(echo "$RESPONSE" | python3 -c "
-import sys, json
-r = json.load(sys.stdin)
-t = json.loads(r['content'][0]['text'])
-print(t['reasoning'])
-")
+          # Parse tag, action, reasoning from the response (one value per line).
+          PARSED=$(echo "$RESPONSE" | python3 .github/scripts/parse_infer_response.py)
+          TAG=$(echo "$PARSED"      | sed -n '1p')
+          ACTION=$(echo "$PARSED"   | sed -n '2p')
+          REASONING=$(echo "$PARSED" | sed -n '3p')
 
           # Validate: must match feat/, feat!/, fix/, or hotfix/ + slug
           if ! echo "$TAG" | grep -qP '^(feat[!]?|fix|hotfix)/[a-z0-9][a-z0-9-]*$'; then
