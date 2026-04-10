@@ -24,7 +24,7 @@ name: Infer Semantic Tag
 #   fix/<slug>    patch version bump — bug fix targeting develop
 #   hotfix/<slug> patch version bump — emergency fix targeting main directly
 #
-# Required secret: ANTHROPIC_API_KEY (used by Claude Code CLI for authentication)
+# Required secret: CLAUDE_CODE_OAUTH_TOKEN (same token used by all other Claude Code workflows)
 
 on:
   pull_request:
@@ -94,7 +94,7 @@ jobs:
       - name: Call Claude Code to infer semantic tag
         id: infer
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           PR_TITLE:       ${{ github.event.pull_request.title }}
           PR_BRANCH:      ${{ github.event.pull_request.head.ref }}
           PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
@@ -104,8 +104,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-            echo "::warning::ANTHROPIC_API_KEY secret is not configured — skipping semantic tag inference."
+          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+            echo "::warning::CLAUDE_CODE_OAUTH_TOKEN secret is not configured — skipping semantic tag inference."
             exit 0
           fi
 
