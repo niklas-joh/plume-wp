@@ -106,15 +106,15 @@
 	transition: opacity 0.1s, color 0.1s, background 0.1s;
 }
 
+.wpaim-conv-item__delete:hover {
+	color: var(--color-error);
+	background: color-mix(in srgb, var(--color-error) 10%, #fff);
+}
+
 .wpaim-conv-item:hover .wpaim-conv-item__delete,
 .wpaim-conv-item.is-active .wpaim-conv-item__delete {
 	opacity: 1;
 	pointer-events: auto;
-}
-
-.wpaim-conv-item__delete:hover {
-	color: var(--color-error);
-	background: color-mix(in srgb, var(--color-error) 10%, #fff);
 }
 
 /* ── Main area ── */
