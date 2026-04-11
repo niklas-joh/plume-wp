@@ -5,6 +5,7 @@ export default function ConversationHistory( {
 	activeId,
 	onSelect,
 	onDelete,
+	deletingIds = new Set(),
 } ) {
 	if ( conversations.length === 0 ) {
 		return (
@@ -50,6 +51,7 @@ export default function ConversationHistory( {
 						aria-label={ `Delete conversation: ${
 							conv.title || 'Untitled'
 						}` }
+						disabled={ deletingIds.has( conv.id ) }
 					>
 						<Trash2 size={ 12 } strokeWidth={ 1.5 } />
 					</button>
