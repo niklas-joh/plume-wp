@@ -87,9 +87,6 @@ export default function ChatApp() {
 	}
 
 	async function deleteConversation( convId ) {
-		if ( ! window.confirm( 'Delete this conversation? This cannot be undone.' ) ) {
-			return;
-		}
 		if ( deletingIds.has( convId ) ) {
 			return;
 		}
@@ -108,7 +105,9 @@ export default function ChatApp() {
 			} else {
 				// eslint-disable-next-line no-console
 				console.error( 'Failed to delete conversation:', e );
-				setDeleteError( 'Failed to delete conversation. Please try again.' );
+				setDeleteError(
+					'Failed to delete conversation. Please try again.'
+				);
 			}
 		} finally {
 			setDeletingIds( ( prev ) => {
