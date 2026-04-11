@@ -77,6 +77,9 @@ export default function ChatApp() {
 	}
 
 	async function deleteConversation( convId ) {
+		if ( ! window.confirm( 'Delete this conversation? This cannot be undone.' ) ) {
+			return;
+		}
 		try {
 			await apiFetch( {
 				path: `/wp-ai-mind/v1/conversations/${ convId }`,
