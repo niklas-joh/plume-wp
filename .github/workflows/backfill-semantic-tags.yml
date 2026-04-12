@@ -61,6 +61,7 @@ jobs:
           # needs a new slug. We update this list after each successful inference
           # so that PRs processed later in the run benefit from earlier decisions.
           EXISTING_TAGS=$(git tag -l 'feat/*' 'feat!/*' 'fix/*' 'hotfix/*' \
+            'chore/*' 'docs/*' 'refactor/*' 'test/*' 'ci/*' 'perf/*' \
             | head -30 | tr '\n' ' ' || true)
 
           EXISTING_TAGS="$EXISTING_TAGS" python3 - <<'PYEOF'
@@ -80,7 +81,7 @@ jobs:
           )
           pr_list = json.loads(r.stdout)
 
-          SEMANTIC_RE = re.compile(r'^(feat[!]?|fix|hotfix): ')
+          SEMANTIC_RE = re.compile(r'^(feat[!]?|fix|hotfix|chore|docs|refactor|test|ci|perf): ')
 
           # Exclude:
           # • main→develop sync PRs (headRefName == "main") — they carry no feature work
@@ -98,7 +99,11 @@ jobs:
               print("Mode                  : DRY RUN — no labels or tags will be written")
           print()
 
-          COLOURS = {'feat!/': 'b60205', 'feat/': '0075ca', 'fix/': 'e4e669', 'hotfix/': 'ff6b35'}
+          COLOURS = {
+              'feat!/': 'b60205', 'feat/': '0075ca', 'fix/': 'e4e669', 'hotfix/': 'ff6b35',
+              'perf/': 'e6824d', 'chore/': 'cccccc', 'docs/': '0e8a16',
+              'refactor/': '5319e7', 'test/': '006b75', 'ci/': '1d76db',
+          }
 
           for pr in to_tag:
               number = pr['number']
@@ -134,7 +139,16 @@ jobs:
                   "Existing semantic tags (reuse if this PR clearly extends one of them):\n"
                   + ('\n'.join(existing_tags) if existing_tags else '(none yet)') + "\n\n"
                   "Rules:\n"
-                  "- Prefix options: feat/ (new feature), feat!/ (breaking change), fix/ (bug fix)\n"
+                  "- Prefix options (choose the single best match):\n"
+                  "    feat/      new feature — minor version bump\n"
+                  "    feat!/     breaking change — MAJOR version bump\n"
+                  "    fix/       bug fix — patch version bump\n"
+                  "    perf/      performance improvement — patch version bump\n"
+                  "    chore/     maintenance, deps, tooling — no version bump\n"
+                  "    docs/      documentation only — no version bump\n"
+                  "    refactor/  code restructuring, no behaviour change — no version bump\n"
+                  "    test/      test changes only — no version bump\n"
+                  "    ci/        CI/CD pipeline changes — no version bump\n"
                   "  Base is develop, so never use hotfix/\n"
                   "- Slug: lowercase, hyphens only, max 4 words\n"
                   "- Reuse an existing slug if this PR clearly extends that work\n"
@@ -183,7 +197,7 @@ jobs:
               tag       = parsed.get('tag', '')
               reasoning = parsed.get('reasoning', '')
 
-              if not re.match(r'^(feat[!]?|fix|hotfix)/[a-z0-9][a-z0-9-]*$', tag):
+              if not re.match(r'^(feat[!]?|fix|hotfix|chore|docs|refactor|test|ci|perf)/[a-z0-9][a-z0-9-]*$', tag):
                   print(f"  ✗ Invalid tag format '{tag}' — skipping\n")
                   continue
 

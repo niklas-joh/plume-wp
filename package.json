@@ -3,7 +3,7 @@
   "version": "0.3.0-beta.1",
   "private": true,
   "scripts": {
-    "prepare": "GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) && mkdir -p \"$GIT_DIR/hooks\" && cp scripts/pre-commit \"$GIT_DIR/hooks/pre-commit\" && chmod +x \"$GIT_DIR/hooks/pre-commit\"",
+    "prepare": "GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) && mkdir -p \"$GIT_DIR/hooks\" && cp scripts/pre-commit \"$GIT_DIR/hooks/pre-commit\" && chmod +x \"$GIT_DIR/hooks/pre-commit\" && cp scripts/commit-msg \"$GIT_DIR/hooks/commit-msg\" && chmod +x \"$GIT_DIR/hooks/commit-msg\"",
     "build": "wp-scripts build",
     "start": "wp-scripts start",
     "lint:js": "wp-scripts lint-js",
@@ -16,6 +16,8 @@
     "marked": "^17.0.4"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/release-notes-generator": "^14.0.0",
     "@wordpress/element": ">=6.0.0",
@@ -27,5 +29,15 @@
   },
   "wp-scripts-config": {
     "webpack": "./webpack.config.js"
+  },
+  "commitlint": {
+    "extends": ["@commitlint/config-conventional"],
+    "rules": {
+      "scope-empty": [2, "never"],
+      "type-enum": [2, "always", [
+        "feat", "fix", "hotfix", "perf",
+        "chore", "docs", "refactor", "test", "ci", "style", "build", "revert"
+      ]]
+    }
   }
 }

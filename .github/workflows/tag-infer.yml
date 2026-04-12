@@ -5,7 +5,8 @@ name: Infer Semantic Tag
 # infer-and-tag:
 #   • Calls claude-haiku-4-5 to infer the best semantic tag for the PR.
 #   • Creates/updates a GitHub label (feat: <slug>, feat!: <slug>, fix: <slug>,
-#     hotfix: <slug>) and applies it to the PR.
+#     hotfix: <slug>, chore: <slug>, docs: <slug>, refactor: <slug>, test: <slug>,
+#     ci: <slug>, perf: <slug>) and applies it to the PR.
 #   • Force-updates the matching git tag (feat/<slug> etc.) to the PR head SHA.
 #   • Posts a comment explaining the assignment and how to override.
 #
@@ -17,10 +18,16 @@ name: Infer Semantic Tag
 # prevent an infinite retrigger loop.
 #
 # Tag schema:
-#   feat/<slug>   minor version bump — new feature targeting develop
-#   feat!/<slug>  MAJOR version bump — breaking change targeting develop
-#   fix/<slug>    patch version bump — bug fix targeting develop
-#   hotfix/<slug> patch version bump — emergency fix targeting main directly
+#   feat/<slug>     minor version bump — new feature targeting develop
+#   feat!/<slug>    MAJOR version bump — breaking change targeting develop
+#   fix/<slug>      patch version bump — bug fix targeting develop
+#   hotfix/<slug>   patch version bump — emergency fix targeting main directly
+#   perf/<slug>     patch version bump — performance improvement
+#   chore/<slug>    no version bump   — maintenance, deps, tooling
+#   docs/<slug>     no version bump   — documentation
+#   refactor/<slug> no version bump   — code restructuring
+#   test/<slug>     no version bump   — test changes
+#   ci/<slug>       no version bump   — CI/CD pipeline
 #
 # Required secret: CLAUDE_CODE_OAUTH_TOKEN (same token used by all other Claude Code workflows)
 
@@ -69,13 +76,14 @@ jobs:
             --jq '[.commits[-15:][].messageHeadline] | join("\n")' \
             2>/dev/null || echo "")
 
-          EXISTING_TAGS=$(git tag -l 'feat/*' 'feat!/*' 'fix/*' 'hotfix/*' 2>/dev/null \
+          EXISTING_TAGS=$(git tag -l 'feat/*' 'feat!/*' 'fix/*' 'hotfix/*' \
+            'chore/*' 'docs/*' 'refactor/*' 'test/*' 'ci/*' 'perf/*' 2>/dev/null \
             | head -20 | tr '\n' ' ' || true)
 
           EXISTING_PR_LABELS=$(gh pr view "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --json labels \
-            --jq '[.labels[].name | select(test("^(feat[!]?|fix|hotfix): "))] | join(" ")' \
+            --jq '[.labels[].name | select(test("^(feat[!]?|fix|hotfix|chore|docs|refactor|test|ci|perf): "))] | join(" ")' \
             2>/dev/null || echo "")
 
           {
@@ -139,11 +147,17 @@ jobs:
               "Existing semantic tags across all PRs (reuse if this PR clearly extends one):\n"
               + ('\n'.join(tags) if tags else '(none yet)') + "\n\n"
               "Rules:\n"
-              "- Prefix options:\n"
+              "- Prefix options (choose the single best match):\n"
               "    feat/      new feature (targets develop) — minor version bump\n"
               "    feat!/     breaking change (targets develop) — MAJOR version bump\n"
               "    fix/       bug fix (targets develop) — patch version bump\n"
               "    hotfix/    emergency fix targeting main — patch version bump\n"
+              "    perf/      performance improvement — patch version bump\n"
+              "    chore/     maintenance, deps, tooling — no version bump\n"
+              "    docs/      documentation only — no version bump\n"
+              "    refactor/  code restructuring, no behaviour change — no version bump\n"
+              "    test/      test changes only — no version bump\n"
+              "    ci/        CI/CD pipeline changes — no version bump\n"
               '  If PR base branch is "main", the prefix MUST be hotfix/\n'
               '  If the PR title or commits contain "!" or "BREAKING CHANGE", use feat!/\n'
               "- Slug: lowercase, hyphens only, max 4 words\n"
@@ -237,8 +251,8 @@ jobs:
           ACTION=$(printf '%s' "$PARSED"    | sed -n '2p')
           REASONING=$(printf '%s' "$PARSED" | sed -n '3p')
 
-          # Validate: must match feat/, feat!/, fix/, or hotfix/ + slug
-          if ! echo "$TAG" | grep -qP '^(feat[!]?|fix|hotfix)/[a-z0-9][a-z0-9-]*$'; then
+          # Validate: must match a known CC prefix + slug
+          if ! echo "$TAG" | grep -qP '^(feat[!]?|fix|hotfix|chore|docs|refactor|test|ci|perf)/[a-z0-9][a-z0-9-]*$'; then
             echo "::warning::Inferred tag '${TAG}' has invalid format — skipping tagging."
             exit 0
           fi
@@ -265,11 +279,17 @@ jobs:
           LABEL_NAME=$(echo "$TAG" | sed 's|/|: |')
 
           case "$TAG" in
-            feat!/*)  COLOR="b60205" ;;   # red   — breaking/major
-            feat/*)   COLOR="0075ca" ;;   # blue  — feature
-            fix/*)    COLOR="e4e669" ;;   # yellow — fix
-            hotfix/*) COLOR="ff6b35" ;;   # orange — hotfix
-            *)        COLOR="cccccc" ;;
+            feat!/*)    COLOR="b60205" ;;   # red        — breaking/major
+            feat/*)     COLOR="0075ca" ;;   # blue       — feature
+            fix/*)      COLOR="e4e669" ;;   # yellow     — fix
+            hotfix/*)   COLOR="ff6b35" ;;   # orange     — hotfix
+            perf/*)     COLOR="e6824d" ;;   # amber      — performance
+            chore/*)    COLOR="cccccc" ;;   # grey       — maintenance
+            docs/*)     COLOR="0e8a16" ;;   # green      — documentation
+            refactor/*) COLOR="5319e7" ;;   # purple     — refactoring
+            test/*)     COLOR="006b75" ;;   # teal       — tests
+            ci/*)       COLOR="1d76db" ;;   # dark blue  — CI/CD
+            *)          COLOR="cccccc" ;;
           esac
 
           echo "name=$LABEL_NAME"   >> "$GITHUB_OUTPUT"
@@ -305,7 +325,7 @@ jobs:
           EXISTING_SEMANTIC=$(gh pr view "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --json labels \
-            --jq '[.labels[].name | select(test("^(feat[!]?|fix|hotfix): "))] | .[]' \
+            --jq '[.labels[].name | select(test("^(feat[!]?|fix|hotfix|chore|docs|refactor|test|ci|perf): "))] | .[]' \
             2>/dev/null || echo "")
 
           while IFS= read -r OLD_LABEL; do

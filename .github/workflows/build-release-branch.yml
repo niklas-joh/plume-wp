@@ -84,12 +84,14 @@ jobs:
 
           git fetch --tags
 
-          # List all semantic labels in the repo (feat:, feat!:, fix: only).
+          # List version-bumping semantic labels (feat:, feat!:, fix:, perf:).
+          # chore/docs/refactor/test/ci are intentionally excluded — they don't
+          # affect the version and are never included in releases.
           ALL_SEM_LABELS=$(gh label list \
             --repo "${{ github.repository }}" \
             --limit 200 \
             --json name \
-            --jq '[.[].name | select(test("^(feat[!]?|fix): "))] | .[]')
+            --jq '[.[].name | select(test("^(feat[!]?|fix|perf): "))] | .[]')
 
           if [ -z "$ALL_SEM_LABELS" ]; then
             echo "::error::No semantic labels found. Ensure tag-infer.yml has run on at least one merged PR."

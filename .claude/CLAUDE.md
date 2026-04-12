@@ -8,12 +8,15 @@
 ## Local Setup (fresh clone)
 
 ```bash
-npm install   # installs dependencies AND the pre-commit hook via the prepare script
+npm install   # installs dependencies AND the pre-commit + commit-msg hooks via the prepare script
 composer install
 ```
 
 The pre-commit hook (`scripts/pre-commit`) automatically runs `npm run build` and stages
 the compiled `assets/` whenever `src/` files are committed. No manual build step needed.
+
+The commit-msg hook (`scripts/commit-msg`) runs commitlint to enforce Conventional Commits
+with mandatory scope on every local commit.
 
 ---
 
@@ -35,24 +38,37 @@ the compiled `assets/` whenever `src/` files are committed. No manual build step
 ### Pull Request Rules
 
 - Feature/fix/chore PRs target `develop`. Only hotfixes and `release/vX.Y.Z` branches target `main` directly (see "PR targets" section below).
-- PR title must follow Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`.
+- PR title must follow Conventional Commits with mandatory scope: `feat(scope):`, `fix(scope):`, `chore(scope):`, `docs(scope):`, `refactor(scope):`, `test(scope):`, `ci(scope):`, `perf(scope):`.
 - Include a short summary and a test plan in the PR body.
 - Request review before merging — do not self-merge without explicit user instruction.
 
 ### Commit Message Convention
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+Follow [Conventional Commits](https://www.conventionalcommits.org/). **Scope is mandatory.**
 
 ```
-<type>(<optional scope>): <short summary>
+<type>(<scope>): <short summary>
 
 [optional body]
 ```
 
+| Type | Version bump | When to use |
+|---|---|---|
+| `feat` | minor | New user-facing feature |
+| `fix` | patch | Bug fix |
+| `hotfix` | patch | Emergency fix targeting `main` directly |
+| `perf` | patch | Performance improvement |
+| `chore` | none | Maintenance, dependency updates, tooling |
+| `docs` | none | Documentation only |
+| `refactor` | none | Code restructuring, no behaviour change |
+| `test` | none | Test changes only |
+| `ci` | none | CI/CD pipeline changes |
+
 Examples:
 - `feat(chat): add streaming response support`
 - `fix(api): handle missing API key gracefully`
-- `chore: bump version to 0.3.0`
+- `chore(deps): bump wp-scripts to v31`
+- `ci(workflows): add nightly sync job`
 
 ---
 
@@ -109,12 +125,18 @@ The repo uses an AI-powered semantic tagging system. Understand it before touchi
 
 ### Semantic tag schema
 
-| Tag / label prefix | Version bump | PR targets | Meaning |
-|---|---|---|---|
-| `feat/<slug>` / `feat: <slug>` | minor | `develop` | New feature |
-| `feat!/<slug>` / `feat!: <slug>` | **major** | `develop` | Breaking change |
-| `fix/<slug>` / `fix: <slug>` | patch | `develop` | Bug fix |
-| `hotfix/<slug>` / `hotfix: <slug>` | patch | `main` | Emergency fix bypassing develop |
+| Tag / label prefix | Version bump | In releases | PR targets | Meaning |
+|---|---|---|---|---|
+| `feat/<slug>` / `feat: <slug>` | minor | yes | `develop` | New feature |
+| `feat!/<slug>` / `feat!: <slug>` | **major** | yes | `develop` | Breaking change |
+| `fix/<slug>` / `fix: <slug>` | patch | yes | `develop` | Bug fix |
+| `hotfix/<slug>` / `hotfix: <slug>` | patch | yes | `main` | Emergency fix bypassing develop |
+| `perf/<slug>` / `perf: <slug>` | patch | yes | `develop` | Performance improvement |
+| `chore/<slug>` / `chore: <slug>` | none | no | `develop` | Maintenance, deps, tooling |
+| `docs/<slug>` / `docs: <slug>` | none | no | `develop` | Documentation |
+| `refactor/<slug>` / `refactor: <slug>` | none | no | `develop` | Code restructuring |
+| `test/<slug>` / `test: <slug>` | none | no | `develop` | Test changes |
+| `ci/<slug>` / `ci: <slug>` | none | no | `develop` | CI/CD pipeline |
 
 ### How it works
 
@@ -123,14 +145,14 @@ The repo uses an AI-powered semantic tagging system. Understand it before touchi
 3. On merge, `tag-infer.yml` moves the git tag to the merge commit SHA so `git checkout feat/<slug>` always resolves to the final merged state.
 4. Multiple PRs that are part of the same feature receive the **same** semantic label (the AI reuses existing slugs when it detects continuity). This bundles them as a group.
 5. The `release-ready` label on **any one PR** in a semantic group signals "include this whole group in the next release."
-6. Running the `Build Release Branch` workflow (`workflow_dispatch`) collects all semantic labels (`feat:`, `feat!:`, `fix:`) whose group has a `release-ready` PR, cherry-picks **all** merged PRs in each matching group onto a `release/vX.Y.Z` branch, bumps versions, and opens a PR to `main`.
+6. Running the `Build Release Branch` workflow (`workflow_dispatch`) collects all version-bumping semantic labels (`feat:`, `feat!:`, `fix:`, `perf:`) whose group has a `release-ready` PR, cherry-picks **all** merged PRs in each matching group onto a `release/vX.Y.Z` branch, bumps versions, and opens a PR to `main`. `chore:`, `docs:`, `refactor:`, `test:`, `ci:` groups are never included in releases.
 7. When that PR merges, `tag-release-merge.yml` creates the `vX.Y.Z` tag → `release.yml` builds the zip.
 
 ### Agent rules for this system
 
 - **NEVER apply `release-ready` to a PR automatically.** It is a deliberate human release decision. Only apply it when explicitly instructed by the user.
 - **NEVER trigger `build-release-branch.yml`** (or any release workflow) without explicit user instruction.
-- **NEVER create, move, or delete `feat/*`, `feat!/*`, `fix/*`, or `hotfix/*` git tags manually.** They are managed exclusively by `tag-infer.yml`.
+- **NEVER create, move, or delete semantic git tags (`feat/*`, `feat!/*`, `fix/*`, `hotfix/*`, `perf/*`, `chore/*`, `docs/*`, `refactor/*`, `test/*`, `ci/*`) manually.** They are managed exclusively by `tag-infer.yml`.
 - **NEVER push `v*` tags directly.** Tags are created by `tag-release-merge.yml` on PR merge.
 - PRs from agents targeting `develop` should follow the same Conventional Commits convention as all other PRs — this is critical for `semantic-release` to correctly derive the version bump.
 - If the AI assigns an incorrect tag, override it by editing the semantic label on the PR — `tag-infer.yml` will retrigger automatically on the `labeled` event.
@@ -140,13 +162,14 @@ The repo uses an AI-powered semantic tagging system. Understand it before touchi
 When the user asks "what features are queued for release?" or similar:
 
 ```bash
-# List all semantic tags (feat/, fix/, hotfix/)
-git tag -l 'feat/*' 'feat!/*' 'fix/*' 'hotfix/*' --sort=version:refname
+# List all semantic tags
+git tag -l 'feat/*' 'feat!/*' 'fix/*' 'hotfix/*' 'perf/*' \
+  'chore/*' 'docs/*' 'refactor/*' 'test/*' 'ci/*' --sort=version:refname
 
 # List all PRs with a semantic label and their release-ready status
 gh pr list --repo niklas-joh/wp-ai-mind --state merged \
   --json number,title,labels,state \
-  --jq '.[] | select(.labels[].name | test("^(feat[!]?|fix|hotfix): ")) | {number,title,labels:[.labels[].name]}'
+  --jq '.[] | select(.labels[].name | test("^(feat[!]?|fix|hotfix|perf|chore|docs|refactor|test|ci): ")) | {number,title,labels:[.labels[].name]}'
 
 # Check a specific PR
 gh pr view <PR_NUMBER> --repo niklas-joh/wp-ai-mind \

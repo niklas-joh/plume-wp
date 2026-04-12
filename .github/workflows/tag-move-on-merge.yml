@@ -49,7 +49,7 @@ jobs:
           LABEL=$(gh pr view "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --json labels \
-            --jq '[.labels[].name | select(test("^(feat[!]?|fix|hotfix): "))] | first // ""')
+            --jq '[.labels[].name | select(test("^(feat[!]?|fix|hotfix|chore|docs|refactor|test|ci|perf): "))] | first // ""')
 
           if [ -z "$LABEL" ]; then
             echo "No semantic label on PR #${PR_NUMBER} — skipping tag move."
