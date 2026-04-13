@@ -2,23 +2,36 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+    branches: [main]
+
+# Prevent concurrent releases (e.g. two fast merges)
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
-    name: Build & Release
+    name: Semantic release
     runs-on: ubuntu-latest
+    # Skip the version-bump commit that semantic-release itself pushes back.
+    # Without this guard the workflow would trigger itself in an infinite loop.
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    
     permissions:
-      contents: write
+      contents: write     # push tags + version-bump commit"
+      issues: write       # create/comment on issues
+      pull-requests: write  # comment on PRs
+
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0          # full history so semantic-release can read all tags
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: npm
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -28,15 +41,14 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
-      - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-dist --no-dev
+      - name: Install PHP dependencies (production only)
+        run: composer install --no-dev --prefer-dist --no-interaction
 
-      - name: Build & package
-        run: ./bin/build-wporg.sh
+      - name: Build assets
+        run: npm run build
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/wp-ai-mind-*.zip
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
+      - name: Release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

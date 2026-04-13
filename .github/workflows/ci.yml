@@ -2,9 +2,23 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
+  commitlint:
+    name: Commit convention (PR title)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Lint PR title
+        # The PR title becomes the squash-merge commit message on main,
+        # which is what semantic-release reads to determine version bumps.
+        run: echo "${{ github.event.pull_request.title }}" | npx commitlint
   phpcs:
     name: PHPCS
     runs-on: ubuntu-latest
