@@ -16,7 +16,12 @@
     "marked": "^17.0.4"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.0",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
     "@semantic-release/release-notes-generator": "^14.0.0",
     "@wordpress/element": ">=6.0.0",
     "@wordpress/scripts": "^31.8.0",
@@ -27,5 +32,11 @@
   },
   "wp-scripts-config": {
     "webpack": "./webpack.config.js"
+  },
+  "commitlint": {
+    "extends": ["@commitlint/config-conventional"],
+    "rules": {
+      "scope-empty": [2, "never"]
+    }
   }
 }
