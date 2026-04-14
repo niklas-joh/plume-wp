@@ -26,6 +26,74 @@ class ChatRestControllerTest extends TestCase {
         parent::tearDown();
     }
 
+    // ── create_conversation ───────────────────────────────────────────────────
+
+    public function test_create_conversation_returns_200_with_conversation_data(): void {
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'create' )->willReturn( 7 );
+        $store_mock->method( 'get_conversation' )->with( 7 )->willReturn(
+            [ 'id' => 7, 'title' => 'My convo', 'updated_at' => '2026-01-01 00:00:00' ]
+        );
+
+        $controller = new class( $this->tool_registry, $this->tool_executor, $store_mock ) extends ChatRestController {
+            private \WP_AI_Mind\DB\ConversationStore $store_override;
+            public function __construct(
+                ToolRegistry $tr,
+                ToolExecutor $te,
+                \WP_AI_Mind\DB\ConversationStore $store
+            ) {
+                parent::__construct( $tr, $te );
+                $this->store_override = $store;
+            }
+            protected function make_store(): \WP_AI_Mind\DB\ConversationStore {
+                return $this->store_override;
+            }
+        };
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_body_params( [ 'title' => 'My convo', 'post_id' => 0 ] );
+
+        $response = $controller->create_conversation( $request );
+
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertArrayHasKey( 'id', $response->data );
+        $this->assertArrayHasKey( 'title', $response->data );
+        $this->assertArrayHasKey( 'updated_at', $response->data );
+    }
+
+    public function test_create_conversation_returns_500_when_db_insert_fails(): void {
+        Functions\when( '__' )->alias( fn( $s ) => $s );
+
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'create' )->willReturn( 0 );
+        $store_mock->method( 'get_conversation' )->willReturn( null );
+
+        $controller = new class( $this->tool_registry, $this->tool_executor, $store_mock ) extends ChatRestController {
+            private \WP_AI_Mind\DB\ConversationStore $store_override;
+            public function __construct(
+                ToolRegistry $tr,
+                ToolExecutor $te,
+                \WP_AI_Mind\DB\ConversationStore $store
+            ) {
+                parent::__construct( $tr, $te );
+                $this->store_override = $store;
+            }
+            protected function make_store(): \WP_AI_Mind\DB\ConversationStore {
+                return $this->store_override;
+            }
+        };
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_body_params( [ 'title' => '', 'post_id' => 0 ] );
+
+        $response = $controller->create_conversation( $request );
+
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
+        $this->assertSame( 500, $response->get_status() );
+        $this->assertInstanceOf( \WP_Error::class, $response->data );
+    }
+
     // ── Route registration ─────────────────────────────────────────────────────
 
     public function test_register_routes_registers_expected_endpoints(): void {
