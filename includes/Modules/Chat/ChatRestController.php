@@ -139,7 +139,7 @@ class ChatRestController {
 		);
 		$conversation = $store->get_conversation( $id );
 		if ( null === $conversation ) {
-			return new \WP_REST_Response( new \WP_Error( 'create_failed', __( 'Failed to create conversation.', 'wp-ai-mind' ) ), 500 );
+			return new \WP_REST_Response( [ 'message' => __( 'Failed to create conversation.', 'wp-ai-mind' ) ], 500 );
 		}
 		return rest_ensure_response( $conversation );
 	}
