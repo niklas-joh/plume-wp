@@ -1,5 +1,6 @@
 /* global navigator */
-import { Trash2 } from 'lucide-react';
+import { useState } from '@wordpress/element';
+import { Trash2, Check, X } from 'lucide-react';
 
 export default function ConversationHistory( {
 	conversations,
@@ -8,6 +9,8 @@ export default function ConversationHistory( {
 	onDelete,
 	deletingIds = new Set(),
 } ) {
+	const [ confirmingId, setConfirmingId ] = useState( null );
+
 	if ( conversations.length === 0 ) {
 		return (
 			<div className="wpaim-sidebar__empty">
@@ -44,18 +47,46 @@ export default function ConversationHistory( {
 								: '—' }
 						</span>
 					</button>
-					<button
-						className="wpaim-conv-item__delete wpaim-btn wpaim-btn--ghost"
-						onClick={ () => onDelete( conv.id ) }
-						type="button"
-						title="Delete conversation"
-						aria-label={ `Delete conversation: ${
-							conv.title || 'Untitled'
-						}` }
-						disabled={ deletingIds.has( conv.id ) }
-					>
-						<Trash2 size={ 12 } strokeWidth={ 1.5 } />
-					</button>
+					{ confirmingId === conv.id ? (
+						<span className="wpaim-conv-item__confirm">
+							<button
+								className="wpaim-conv-item__confirm-yes wpaim-btn wpaim-btn--ghost"
+								onClick={ () => {
+									setConfirmingId( null );
+									onDelete( conv.id );
+								} }
+								type="button"
+								title="Confirm delete"
+								aria-label={ `Confirm delete conversation: ${
+									conv.title || 'Untitled'
+								}` }
+							>
+								<Check size={ 12 } strokeWidth={ 1.5 } />
+							</button>
+							<button
+								className="wpaim-conv-item__confirm-no wpaim-btn wpaim-btn--ghost"
+								onClick={ () => setConfirmingId( null ) }
+								type="button"
+								title="Cancel delete"
+								aria-label="Cancel delete"
+							>
+								<X size={ 12 } strokeWidth={ 1.5 } />
+							</button>
+						</span>
+					) : (
+						<button
+							className="wpaim-conv-item__delete wpaim-btn wpaim-btn--ghost"
+							onClick={ () => setConfirmingId( conv.id ) }
+							type="button"
+							title="Delete conversation"
+							aria-label={ `Delete conversation: ${
+								conv.title || 'Untitled'
+							}` }
+							disabled={ deletingIds.has( conv.id ) }
+						>
+							<Trash2 size={ 12 } strokeWidth={ 1.5 } />
+						</button>
+					) }
 				</div>
 			) ) }
 		</nav>
