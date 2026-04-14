@@ -26,6 +26,112 @@ class ChatRestControllerTest extends TestCase {
         parent::tearDown();
     }
 
+    // ── list_conversations ────────────────────────────────────────────────────
+
+    public function test_list_conversations_returns_only_expected_keys(): void {
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        // Store returns rows with extra internal columns that must not be exposed.
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'list_for_user' )->with( 1 )->willReturn( [
+            [
+                'id'         => '5',
+                'title'      => 'Hello',
+                'updated_at' => '2026-01-10 12:00:00',
+                'user_id'    => '1',
+                'post_id'    => '42',
+            ],
+        ] );
+
+        $controller = new class( $this->tool_registry, $this->tool_executor, $store_mock ) extends ChatRestController {
+            private \WP_AI_Mind\DB\ConversationStore $store_override;
+            public function __construct(
+                ToolRegistry $tr,
+                ToolExecutor $te,
+                \WP_AI_Mind\DB\ConversationStore $store
+            ) {
+                parent::__construct( $tr, $te );
+                $this->store_override = $store;
+            }
+            protected function make_store(): \WP_AI_Mind\DB\ConversationStore {
+                return $this->store_override;
+            }
+        };
+
+        $request  = new \WP_REST_Request( 'GET' );
+        $response = $controller->list_conversations( $request );
+
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertIsArray( $response->data );
+        $this->assertCount( 1, $response->data );
+
+        $item = $response->data[0];
+        $this->assertArrayHasKey( 'id', $item );
+        $this->assertArrayHasKey( 'title', $item );
+        $this->assertArrayHasKey( 'updated_at', $item );
+        $this->assertArrayNotHasKey( 'user_id', $item, 'user_id must not be exposed in the response.' );
+        $this->assertArrayNotHasKey( 'post_id', $item, 'post_id must not be exposed in the response.' );
+    }
+
+    public function test_list_conversations_casts_id_to_int(): void {
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'list_for_user' )->willReturn( [
+            [ 'id' => '99', 'title' => 'Test', 'updated_at' => '2026-02-01 00:00:00', 'user_id' => '1' ],
+        ] );
+
+        $controller = new class( $this->tool_registry, $this->tool_executor, $store_mock ) extends ChatRestController {
+            private \WP_AI_Mind\DB\ConversationStore $store_override;
+            public function __construct(
+                ToolRegistry $tr,
+                ToolExecutor $te,
+                \WP_AI_Mind\DB\ConversationStore $store
+            ) {
+                parent::__construct( $tr, $te );
+                $this->store_override = $store;
+            }
+            protected function make_store(): \WP_AI_Mind\DB\ConversationStore {
+                return $this->store_override;
+            }
+        };
+
+        $request  = new \WP_REST_Request( 'GET' );
+        $response = $controller->list_conversations( $request );
+
+        $this->assertSame( 99, $response->data[0]['id'], 'id must be cast to int, not returned as a string.' );
+    }
+
+    public function test_list_conversations_returns_empty_array_when_no_conversations(): void {
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'list_for_user' )->willReturn( [] );
+
+        $controller = new class( $this->tool_registry, $this->tool_executor, $store_mock ) extends ChatRestController {
+            private \WP_AI_Mind\DB\ConversationStore $store_override;
+            public function __construct(
+                ToolRegistry $tr,
+                ToolExecutor $te,
+                \WP_AI_Mind\DB\ConversationStore $store
+            ) {
+                parent::__construct( $tr, $te );
+                $this->store_override = $store;
+            }
+            protected function make_store(): \WP_AI_Mind\DB\ConversationStore {
+                return $this->store_override;
+            }
+        };
+
+        $request  = new \WP_REST_Request( 'GET' );
+        $response = $controller->list_conversations( $request );
+
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( [], $response->data );
+    }
+
     // ── create_conversation ───────────────────────────────────────────────────
 
     public function test_create_conversation_returns_200_with_conversation_data(): void {
