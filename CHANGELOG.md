@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/niklas-joh/wp-ai-mind/compare/v1.0.0...v1.0.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* **tests:** guard putenv cleanup with try/finally ([#154](https://github.com/niklas-joh/wp-ai-mind/issues/154)) ([08f0a4c](https://github.com/niklas-joh/wp-ai-mind/commit/08f0a4c1416e6ec3b9d0fbb5fff69659dd689f37)), closes [#108](https://github.com/niklas-joh/wp-ai-mind/issues/108)
+
 # 1.0.0 (2026-04-14)
 
 
