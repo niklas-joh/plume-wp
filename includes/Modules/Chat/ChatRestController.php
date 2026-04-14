@@ -126,22 +126,41 @@ class ChatRestController {
 	}
 
 	public function list_conversations( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
-		$store = $this->make_store();
-		return rest_ensure_response( $store->list_for_user( get_current_user_id() ) );
+		$store         = $this->make_store();
+		$conversations = $store->list_for_user( get_current_user_id() );
+		$response      = array_map(
+			fn( $c ) => [
+				'id'         => (int) $c['id'],
+				'title'      => $c['title'],
+				'updated_at' => $c['updated_at'],
+			],
+			$conversations
+		);
+		return rest_ensure_response( $response );
 	}
 
-	public function create_conversation( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+	public function create_conversation( \WP_REST_Request $request ): \WP_REST_Response {
 		$store         = $this->make_store();
 		$post_id_param = $request->get_param( 'post_id' );
 		$id            = $store->create(
 			$request->get_param( 'title' ),
 			! empty( $post_id_param ) ? (int) $post_id_param : null
 		);
+		if ( 0 === $id ) {
+			return new \WP_REST_Response( [ 'message' => __( 'Failed to create conversation.', 'wp-ai-mind' ) ], 500 );
+		}
 		$conversation = $store->get_conversation( $id );
 		if ( null === $conversation ) {
-			return new \WP_Error( 'create_failed', __( 'Failed to create conversation.', 'wp-ai-mind' ), [ 'status' => 500 ] );
+			return new \WP_REST_Response( [ 'message' => __( 'Failed to retrieve conversation.', 'wp-ai-mind' ) ], 500 );
 		}
-		return rest_ensure_response( $conversation );
+		return new \WP_REST_Response(
+			[
+				'id'         => (int) $conversation['id'],
+				'title'      => $conversation['title'],
+				'updated_at' => $conversation['updated_at'],
+			],
+			201
+		);
 	}
 
 	public function get_messages( \WP_REST_Request $request ): \WP_REST_Response {
