@@ -91,7 +91,8 @@ class ChatRestControllerTest extends TestCase {
 
         $this->assertInstanceOf( \WP_REST_Response::class, $response );
         $this->assertSame( 500, $response->get_status() );
-        $this->assertInstanceOf( \WP_Error::class, $response->data );
+        $this->assertIsArray( $response->data );
+        $this->assertArrayHasKey( 'message', $response->data );
     }
 
     // ── Route registration ─────────────────────────────────────────────────────
