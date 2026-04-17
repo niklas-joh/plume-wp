@@ -21,6 +21,7 @@
 | Null-object pattern | `empty_doc()` returns a fully-shaped array | Callers never need to null-check; feature flags default to `false` |
 | Proactive refresh | Refresh when token has < 5 minutes remaining | Prevents mid-request token expiry without adding a second HTTP round-trip |
 | Login/register REST endpoints | `permission_callback => __return_true` | Auth endpoints exist before WP session; nonce not available on first load |
+| **Multi-user model** | **One NJ account per WordPress site (site-wide `wp_options`)** | **Design constraint:** All WordPress users on a site share a single NJ account and entitlement tier. A WP Editor using the plugin authenticates as the same NJ account as the WP Admin. `POST /nj/logout` invalidates the token for every WP user simultaneously. This is intentional for single-owner installs (the primary use-case) and avoids the complexity of per-WP-user NJ account mapping. Sites with multiple WP users who each need independent NJ accounts are out of scope for this phase — see Risk Notes for migration path. |
 
 ---
 
@@ -693,3 +694,9 @@ git commit -m "feat(auth): wire NJ_Auth and NJ_Entitlement into plugin bootstrap
 - **`wp_options` for tokens is readable by any code with database access.** The access JWT is short-lived (1 h) — same risk as any plugin storing an API key. The refresh token (30-day lifetime) is encrypted with AES-256-CBC using `AUTH_KEY`/`AUTH_SALT` before storage, so a raw database read cannot be used to silently obtain new access tokens. If `AUTH_KEY` is not defined (non-standard WP setup), encryption will produce an empty string and the token will not be stored — treat this as a startup-time misconfiguration.
 - **First page load after transient expiry adds ~100–300ms latency** (one HTTP call to the Worker). This is a cold-cache penalty once per hour per WordPress request — acceptable.
 - **`__return_true` on auth endpoints** means any WordPress visitor can attempt login/register. This is intentional — the rate limiting is enforced by the Worker (Phase 7). The WordPress REST endpoint is just a proxy.
+- **Single NJ account per WordPress site (multi-user UX implications).** Because tokens are stored in `wp_options`, the plugin operates under a single shared NJ identity for the entire WordPress site. Concrete consequences:
+  - Any WP user with plugin access (Admin, Editor, Author) uses the same NJ account and entitlement tier.
+  - `POST /nj/logout` clears the shared token, ending the session for *all* WP users on the site at once — not just the user who triggered the logout.
+  - If a lower-privileged WP user changes the NJ password or rotates credentials, it affects every other WP user immediately.
+  - This model is safe and correct for the intended single-owner install. It becomes confusing on sites where multiple WP users independently expect their own NJ sessions.
+  - **If per-WP-user isolation is needed in the future**, the migration path is to replace the `wp_options` keys with `user_meta` keyed by `get_current_user_id()` and scope the `wpaim_entitlement` transient to `wpaim_entitlement_{user_id}`. The `NJ_Auth` and `NJ_Entitlement` class interfaces would not need to change — only the storage keys. This migration is deferred until there is a concrete multi-user use-case.

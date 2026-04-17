@@ -68,7 +68,7 @@ Week 5–7                                      ████ Phase 6: React UI
 | User account storage | Cloudflare D1 (SQLite) | Co-located with Worker; zero extra infra; free at low volume |
 | Password hashing | PBKDF2-SHA256, 100k iterations | bcrypt unavailable in Web Crypto API; PBKDF2 is the standard alternative |
 | JWT implementation | HMAC-SHA256 via Web Crypto API | No external library deps; native in CF Workers |
-| Token storage (WP) | `wp_options` for both tokens | Consistent with existing ProviderSettings pattern |
+| Token storage (WP) | `wp_options` for both tokens | Consistent with existing ProviderSettings pattern. **Design constraint: one NJ account per WordPress site** — all WP users share the same token; `POST /nj/logout` ends the session site-wide. Intentional for single-owner installs; see phase-2 Risk Notes for multi-user migration path. |
 | Entitlement caching | 1-hour WP transient | Matches JWT expiry window; balances freshness vs HTTP overhead |
 | Proxy routing | `ProxyProvider` implements `ProviderInterface` | Plugs into existing provider pattern; zero changes to ChatRestController |
 | `nj_resolve_provider()` | Global function loaded eagerly | Same pattern as `wp_ai_mind_is_pro()` was; available to all code |
