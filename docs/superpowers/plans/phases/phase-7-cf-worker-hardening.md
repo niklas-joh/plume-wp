@@ -8,7 +8,41 @@
 
 **Tech Stack:** Cloudflare Workers (TypeScript), Cloudflare Durable Objects, Cloudflare KV (usage tracking only), Wrangler CLI, Vitest.
 
-**Depends on:** Phase 3 complete (Worker chat endpoint live).
+**Depends on:** Phase 3 complete (Worker chat endpoint live, `src/tier-config.ts` in place).
+
+---
+
+## Task 0: Pre-implementation Reuse Audit
+
+> **Mandatory.** Complete before writing any new Worker code.
+
+- [ ] **Step 0.1: Read existing `src/tier-config.ts`**
+
+```bash
+cat wp-ai-mind-proxy/src/tier-config.ts
+# Understand TierConfig shape. The refactored chat.ts in this phase must import getTierConfig()
+# and NOT redefine PLAN_LIMITS locally.
+```
+
+- [ ] **Step 0.2: Read existing `src/chat.ts`** (Phase 3 version)
+
+```bash
+cat wp-ai-mind-proxy/src/chat.ts
+# Understand what already exists. The refactor replaces the Anthropic-only implementation
+# with provider adapters, but must preserve model allowlist and per-tier cap logic.
+```
+
+- [ ] **Step 0.3: Read existing `src/utils.ts` and `src/middleware.ts`**
+
+```bash
+cat wp-ai-mind-proxy/src/utils.ts
+cat wp-ai-mind-proxy/src/middleware.ts
+# Import from these — do not re-implement json(), requireAuth(), etc.
+```
+
+- [ ] **Step 0.4: List what can be reused from Phases 1–3**
+
+Before implementing Task 4 (provider adapters), confirm which utilities from `src/utils.ts` the adapters can reuse (hint: `json()` is useful for error responses).
 
 ---
 
@@ -486,6 +520,8 @@ Expected: no errors
 - [ ] Replace the entire `handleChat` function in `wp-ai-mind-proxy/src/chat.ts` with the following implementation. Add the new imports at the top of the file:
 
 ```typescript
+import { yyyyMM, secondsUntilMonthEnd, nextMonthStart, json } from './utils'; // reuse from Phase 1
+import { getTierConfig } from './tier-config'; // single source of truth — no local PLAN_LIMITS
 import { anthropicAdapter } from './providers/anthropic';
 import { openaiAdapter }    from './providers/openai';
 import { geminiAdapter }    from './providers/gemini';
@@ -496,23 +532,6 @@ import type { Env, AuthUser } from './types';
 - [ ] Replace `handleChat` with:
 
 ```typescript
-const PLAN_LIMITS: Record<string, number | null> = {
-    free:  50_000,
-    trial: 300_000,
-    pro:   null,
-};
-
-function yyyyMM(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function secondsUntilMonthEnd(): number {
-    const now  = new Date();
-    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return Math.floor((next.getTime() - now.getTime()) / 1000);
-}
-
 function getAdapter(provider: string): ProviderAdapter {
     switch (provider) {
         case 'openai':  return openaiAdapter;
@@ -530,29 +549,47 @@ function getApiKey(provider: string, env: Env): string {
 }
 
 export async function handleChat(req: Request, env: Env, user: AuthUser): Promise<Response> {
-    const limit = PLAN_LIMITS[user.plan] ?? null;
+    const config        = getTierConfig(user.plan);  // all limits/allowlists from tier-config
+    const limit         = config.tokens_per_month;
+    const allowedModels = config.allowed_models;
 
-    // Enforce token limits for free/trial users.
+    // Step 1: Enforce token limits for managed tiers (free, trial, pro_managed).
     if (limit !== null) {
         const monthKey = `usage:${user.sub}:${yyyyMM()}`;
         const used     = parseInt((await env.USAGE_KV.get(monthKey)) ?? '0', 10);
         if (used >= limit) {
-            return new Response(JSON.stringify({
+            return json({
                 error:     'token_limit_exceeded',
                 used,
                 limit,
-                resets_at: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
-            }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+                resets_at: nextMonthStart(),
+            }, 429);
         }
     }
 
-    const body     = await req.json<Record<string, unknown> & { provider?: string; stream?: boolean }>();
-    const provider = (body.provider as string | undefined) ?? 'anthropic';
-    const isStream = body.stream === true;
-    const adapter  = getAdapter(provider);
-    const apiKey   = getApiKey(provider, env);
+    const body           = await req.json<Record<string, unknown> & { provider?: string; stream?: boolean }>();
+    const requestedModel = (body.model as string | undefined) ?? 'claude-haiku-4-5';
+    const provider       = (body.provider as string | undefined) ?? 'anthropic';
+    const isStream       = body.stream === true;
 
-    const upstreamReq  = adapter.buildRequest(body as any, apiKey);
+    // Step 2: Validate model against tier allowlist (managed tiers only).
+    if (allowedModels.length > 0 && !allowedModels.includes(requestedModel)) {
+        return json({ error: 'model_not_allowed', requested_model: requestedModel, allowed_models: allowedModels }, 403);
+    }
+
+    // Step 3: Apply per-request max_tokens cap.
+    const maxCap = config.max_tokens_per_request;
+    const patchedBody = {
+        ...body,
+        model:      requestedModel,
+        max_tokens: maxCap !== null
+            ? Math.min((body.max_tokens as number | undefined) ?? maxCap, maxCap)
+            : body.max_tokens,
+    };
+
+    const adapter      = getAdapter(provider);
+    const apiKey       = getApiKey(provider, env);
+    const upstreamReq  = adapter.buildRequest(patchedBody as any, apiKey);
     const upstreamResp = await fetch(upstreamReq);
 
     if (!upstreamResp.ok) {
@@ -569,7 +606,7 @@ export async function handleChat(req: Request, env: Env, user: AuthUser): Promis
         });
     }
 
-    // For streaming: pipe body directly without buffering.
+    // Step 4: For streaming — pipe body directly without buffering.
     if (isStream) {
         const { readable, writable } = new TransformStream();
         upstreamResp.body!.pipeTo(writable);
@@ -583,7 +620,7 @@ export async function handleChat(req: Request, env: Env, user: AuthUser): Promis
         });
     }
 
-    // Non-streaming: update KV usage.
+    // Step 5: Non-streaming — update KV usage for managed tiers.
     if (limit !== null) {
         const cloned   = upstreamResp.clone();
         const respData = await cloned.json<{
@@ -788,13 +825,52 @@ curl -X POST https://wp-ai-mind-proxy.YOUR_SUBDOMAIN.workers.dev/v1/chat \
 
 ---
 
+## Task 13: Post-implementation Code Reuse Verification
+
+> **Mandatory.** Run before marking Phase 7 complete.
+
+- [ ] **Step 13.1: No local plan constants in chat.ts**
+
+```bash
+grep -n "PLAN_LIMITS\|50_000\|300_000\|2_000_000\|claude-haiku\|claude-sonnet" \
+  wp-ai-mind-proxy/src/chat.ts
+# Expected: 0 matches — all limits and model names come from getTierConfig()
+```
+
+- [ ] **Step 13.2: No provider-specific logic outside providers/ directory**
+
+```bash
+grep -n "api.anthropic\|openai.com\|googleapis" wp-ai-mind-proxy/src/chat.ts
+# Expected: 0 matches — all provider URLs are encapsulated in adapter files
+```
+
+- [ ] **Step 13.3: Utils are imported, not re-implemented**
+
+```bash
+grep -n "yyyyMM\|secondsUntilMonthEnd\|nextMonthStart" wp-ai-mind-proxy/src/chat.ts
+# Expected: only import declaration; no function re-definitions
+```
+
+- [ ] **Step 13.4: Full Vitest suite passes**
+
+```bash
+cd wp-ai-mind-proxy && npx vitest run
+# Expected: all tests pass
+```
+
+---
+
 ## Acceptance Criteria
 
 - [ ] `POST /v1/auth/token` returns `429` after 10 attempts from the same IP within 15 minutes (enforced by `RateLimiterDO` — strongly consistent, no race condition)
 - [ ] `POST /v1/auth/register` is also rate-limited with the same 15-minute window via `RateLimiterDO`
 - [ ] Streaming: `POST /v1/chat` with `stream: true` returns `Content-Type: text/event-stream` with tokens arriving incrementally (verified via `wrangler dev` + curl)
+- [ ] `pro_managed` user requesting Sonnet via `stream: true` → streams correctly; model allowlist still enforced
+- [ ] Free user requesting Sonnet via `stream: true` → 403 `model_not_allowed` (no stream started)
 - [ ] OpenAI requests proxied correctly — model `gpt-4o-mini` routes via `openaiAdapter`
 - [ ] Gemini requests proxied correctly — model `gemini-1.5-flash` routes via `geminiAdapter`
+- [ ] Token usage counted correctly for both Anthropic (input/output_tokens) and OpenAI (prompt/completion_tokens) response shapes
 - [ ] Error events logged as structured JSON to Cloudflare Workers dashboard (Logs tab)
 - [ ] Staging environment deployable via `wrangler deploy --env staging` with isolated D1 + KV bindings
+- [ ] `src/chat.ts` has zero local plan constants (no PLAN_LIMITS, no hardcoded model names outside tier-config)
 - [ ] All Vitest tests pass: `npx vitest run` exits 0

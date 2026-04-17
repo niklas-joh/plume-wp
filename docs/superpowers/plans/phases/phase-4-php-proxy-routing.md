@@ -12,15 +12,55 @@
 
 ---
 
+## Task 0: Pre-implementation Reuse Audit
+
+> **Mandatory.** Complete before writing any new PHP classes.
+
+- [ ] **Step 0.1: Read `ProviderInterface` and `AbstractProvider`**
+
+```bash
+cat includes/Providers/ProviderInterface.php
+cat includes/Providers/AbstractProvider.php
+# ProxyProvider MUST extend AbstractProvider and implement ProviderInterface.
+# Do not create a parallel hierarchy.
+```
+
+- [ ] **Step 0.2: Read existing Provider implementations**
+
+```bash
+ls includes/Providers/
+# Review ClaudeProvider.php (or similar) to understand the pattern ProxyProvider must follow.
+# ProxyProvider.php should follow the same structure — no bespoke patterns.
+```
+
+- [ ] **Step 0.3: Read `NJ_Entitlement::feature()` and `NJ_Entitlement::get()`**
+
+```bash
+grep -n "feature\|get\|allowed_models" includes/Entitlement/NJ_Entitlement.php
+# Understand what data is available (including allowed_models from Phase 2) before
+# implementing ProxyProvider's model-selection logic.
+```
+
+- [ ] **Step 0.4: Confirm `nj_resolve_provider()` does not already exist**
+
+```bash
+grep -rn "nj_resolve_provider" . --include="*.php"
+# If it exists, read it before modifying — do not duplicate.
+```
+
+---
+
 ## Design Decisions
 
 | Decision | Choice | Reason |
 |----------|--------|--------|
 | ProxyProvider slug | `'proxy'` | Distinguishable from real provider slugs; logged in any debug output |
-| Free tier model | `claude-haiku-4-5` | Cheapest capable model; qualitative incentive to upgrade to Pro for model choice |
-| Max output tokens (free) | 1,000 | Hard cap enforced in Worker too; prevents runaway single responses |
+| Free/trial model | `claude-haiku-4-5` (forced) | Cheapest capable model; qualitative incentive to upgrade |
+| `pro_managed` model | Requested model forwarded to Worker | Worker validates against allowlist from `tier-config.ts`; plugin UI uses `allowed_models` from entitlement |
+| Max output tokens (free/trial) | 1,000 (from Worker tier-config) | Hard cap enforced by Worker; plugin honours it locally too |
+| Max output tokens (pro_managed) | 8,000 (from Worker tier-config) | Worker enforces final cap |
 | Simulated streaming | Word-by-word token split | Real SSE passthrough is Phase 7; this gives users the streaming UX immediately |
-| Tool calling | `supports_tools() = false` on ProxyProvider | Tool calls require own API key (Pro plan); prevents misconfigured requests |
+| Tool calling | `supports_tools() = false` on ProxyProvider | Tool calls require own API key (`pro` BYOK); prevents misconfigured requests |
 | UsageLogger removal | Remove `maybe_log()` call from AbstractProvider | Worker KV is the authoritative logger; plugin-side logging is redundant |
 
 ---
@@ -299,19 +339,37 @@ class ProxyProvider extends AbstractProvider {
     public function supports_tools(): bool       { return false; } // Tool calls require Pro plan.
 
     public function get_models(): array {
-        return [
-            'claude-haiku-4-5' => [
-                'name'           => __( 'Claude Haiku (Free tier)', 'wp-ai-mind' ),
-                'input_per_mtok' => 0,
+        // Return available models from the entitlement payload (populated by Worker tier-config).
+        // For free/trial this is just Haiku. For pro_managed it includes Sonnet, Opus, etc.
+        $entitlement    = \WP_AI_Mind\Entitlement\NJ_Entitlement::get();
+        $allowed_models = (array) ( $entitlement['allowed_models'] ?? [ 'claude-haiku-4-5' ] );
+
+        $models = [];
+        foreach ( $allowed_models as $model_id ) {
+            $models[ $model_id ] = [
+                'name'            => $model_id,
+                'input_per_mtok'  => 0, // Cost absorbed by platform.
                 'output_per_mtok' => 0,
-            ],
-        ];
+            ];
+        }
+        return $models;
     }
 
     protected function do_complete( CompletionRequest $request ): CompletionResponse {
+        $entitlement    = \WP_AI_Mind\Entitlement\NJ_Entitlement::get();
+        $can_select     = (bool) ( $entitlement['features']['model_selection'] ?? false );
+        $allowed_models = (array) ( $entitlement['allowed_models'] ?? [] );
+
+        // Respect model selection for pro_managed; force Haiku for free/trial.
+        if ( $can_select && ! empty( $request->model ) && in_array( $request->model, $allowed_models, true ) ) {
+            $model = $request->model;
+        } else {
+            $model = $this->get_default_model(); // 'claude-haiku-4-5' for free/trial
+        }
+
         $body = [
-            'model'      => 'claude-haiku-4-5',
-            'max_tokens' => min( (int) $request->max_tokens, 1000 ),
+            'model'      => $model,
+            'max_tokens' => (int) $request->max_tokens, // Worker enforces the per-tier cap
             'messages'   => $request->messages,
         ];
 
@@ -395,15 +453,17 @@ if ( ! function_exists( 'nj_resolve_provider' ) ) {
      * Returns the correct ProviderInterface for the current authenticated user.
      *
      * Routing rules:
-     * - Pro plan + own_key feature: returns the named direct provider (user's own API key)
-     * - Free / trial authenticated: returns ProxyProvider (routes via Worker)
-     * - Not authenticated: returns ProxyProvider (is_available() = false; caller checks this)
+     * - own_key feature (Pro BYOK): returns a direct provider using the user's own API key.
+     *   Worker is bypassed — no platform cost for BYOK requests.
+     * - pro_managed / trial / free (authenticated): returns ProxyProvider.
+     *   ProxyProvider routes via the Worker, which enforces per-tier limits and model allowlists.
+     * - Not authenticated: returns ProxyProvider (is_available() = false; caller must check this).
      *
-     * @param string $provider_slug Optional provider slug for Pro users ('claude', 'openai', etc.)
+     * @param string $provider_slug Optional provider slug for Pro BYOK users ('claude', 'openai', etc.)
      */
     function nj_resolve_provider( string $provider_slug = '' ): \WP_AI_Mind\Providers\ProviderInterface {
         if ( \nj_feature( 'own_key' ) ) {
-            // Pro path: use the user's own API key with a direct provider.
+            // Pro BYOK path: direct provider with user's own API key; Worker not involved.
             $factory = new \WP_AI_Mind\Providers\ProviderFactory(
                 new \WP_AI_Mind\Settings\ProviderSettings()
             );
@@ -412,7 +472,8 @@ if ( ! function_exists( 'nj_resolve_provider' ) ) {
                 : $factory->make_default();
         }
 
-        // Free / trial path: always route via Worker (slug ignored — Worker only speaks Claude).
+        // Pro Managed / trial / free path: always route via Worker.
+        // ProxyProvider respects model_selection feature flag internally.
         return new \WP_AI_Mind\Providers\ProxyProvider();
     }
 }
@@ -491,10 +552,46 @@ git commit -m "refactor(providers): remove maybe_log from AbstractProvider (logg
 
 ---
 
+## Task 5: Post-implementation Code Reuse Verification
+
+> **Mandatory.** Run before marking Phase 4 complete.
+
+- [ ] **Step 5.1: No hardcoded plan names in ProxyProvider**
+
+```bash
+grep -n "pro_managed\|free\|trial\|plan ===" includes/Providers/ProxyProvider.php
+# Expected: 0 matches — ProxyProvider uses nj_feature() and entitlement data, not plan name strings
+```
+
+- [ ] **Step 5.2: No hardcoded model names in ProxyProvider**
+
+```bash
+grep -n "claude-haiku\|claude-sonnet\|claude-opus" includes/Providers/ProxyProvider.php
+# Expected: only in get_default_model() return value; model lists come from entitlement payload
+```
+
+- [ ] **Step 5.3: AbstractProvider contract still honoured**
+
+```bash
+grep -n "do_complete\|do_stream\|get_slug\|is_available\|get_models" includes/Providers/ProxyProvider.php
+# Expected: all required ProviderInterface methods are implemented
+```
+
+- [ ] **Step 5.4: Full test suite passes**
+
+```bash
+./vendor/bin/phpunit tests/Unit/ --colors=always
+# Expected: all tests pass including new ProxyProvider tests
+```
+
+---
+
 ## Phase 4 Acceptance Criteria
 
-- [ ] Free/trial user chat request routes via `ProxyProvider` → Worker → Anthropic (verify via network/debug log)
-- [ ] Pro user chat request routes via direct `ClaudeProvider` (Worker not involved)
+- [ ] Free/trial user chat request routes via `ProxyProvider` → Worker → Anthropic (verify via network/debug log), model forced to Haiku
+- [ ] `pro_managed` user chat request routes via `ProxyProvider` → Worker, requested model forwarded; Worker validates against allowlist
+- [ ] Pro BYOK user chat request routes via direct `ClaudeProvider` (Worker not involved)
+- [ ] `ProxyProvider::get_models()` returns Haiku only for free/trial; returns full allowed_models list for pro_managed
 - [ ] `ProxyProvider::is_available()` returns `false` when not authenticated
 - [ ] `ProxyProvider::generate_image()` throws 403 `ProviderException`
 - [ ] `ProxyProvider::supports_tools()` returns `false`

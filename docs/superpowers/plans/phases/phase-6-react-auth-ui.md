@@ -12,6 +12,35 @@
 
 ---
 
+## Task 0: Pre-implementation Reuse Audit
+
+> **Mandatory.** Complete before writing any new React components.
+
+- [ ] **Step 0.1: Audit existing React components**
+
+```bash
+find src/admin/ -name "*.jsx" -o -name "*.js" | sort
+# Review existing components before creating new ones.
+# Reuse existing UI patterns (modals, buttons, forms) rather than creating bespoke versions.
+```
+
+- [ ] **Step 0.2: Audit existing `@wordpress/components` usage**
+
+```bash
+grep -rn "@wordpress/components\|@wordpress/element" src/ --include="*.jsx" --include="*.js" | head -20
+# Use the same WP component imports already used in the project. Do not introduce new UI libraries.
+```
+
+- [ ] **Step 0.3: Understand localized data shape**
+
+Review what `window.wpAiMindData` contains after Phase 2/5 (especially `entitlement.features` and `entitlement.allowed_models`). All UI decisions must read from this object — never hardcode plan names or feature checks in JSX.
+
+- [ ] **Step 0.4: Plan component responsibilities (SRP)**
+
+Before writing code, write a one-line responsibility statement for each new component. If a component has more than one responsibility, split it.
+
+---
+
 ## Design Decisions
 
 | Decision | Choice | Reason |
@@ -30,20 +59,23 @@
 ## File Map
 
 **New files:**
-- `src/admin/auth/AuthContext.jsx`
-- `src/admin/auth/AuthApp.jsx`
-- `src/admin/auth/LoginForm.jsx`
-- `src/admin/auth/SignupForm.jsx`
-- `src/admin/shared/UsageMeter.jsx`
-- `src/admin/shared/UpgradeModal.jsx`
-- `src/admin/shared/UsageWarning.jsx`
-- `src/admin/shared/constants.js`
+- `src/admin/auth/AuthContext.jsx` — auth state + entitlement context (SRP: state management only)
+- `src/admin/auth/AuthApp.jsx` — auth gate (SRP: renders auth forms OR children)
+- `src/admin/auth/LoginForm.jsx` — login form (SRP: login flow only)
+- `src/admin/auth/SignupForm.jsx` — signup form (SRP: signup flow only)
+- `src/admin/shared/UsageMeter.jsx` — token usage bar (hidden for `plan === 'pro'` or `plan === 'none'`)
+- `src/admin/shared/UpgradeModal.jsx` — upgrade CTA modal (SRP: shown on 429 only)
+- `src/admin/shared/UsageWarning.jsx` — inline warning near limit
+- `src/admin/shared/ModelSelector.jsx` — model dropdown (shown when `entitlement.features.model_selection === true`)
+- `src/admin/shared/constants.js` — URLs only (no logic)
 
 **Modified files:**
 - `src/admin/index.js` — wrap all React roots in `AuthProvider`; show `AuthApp` when unauthenticated
-- `src/admin/settings/ProvidersTab.jsx` — conditional API key section (Pro only; non-Pro sees upgrade CTA)
-- `src/admin/components/Chat/ChatApp.jsx` — 429 error → show `UpgradeModal`
+- `src/admin/settings/ProvidersTab.jsx` — conditional API key section (Pro BYOK only, gated by `entitlement.features.own_key`)
+- `src/admin/components/Chat/ChatApp.jsx` — 429 error → show `UpgradeModal`; show `ModelSelector` when `model_selection` feature enabled
 - `src/admin/dashboard/DashboardApp.jsx` — show `UsageMeter` + `UsageWarning`
+
+**IMPORTANT:** All feature decisions in JSX must read from `entitlement.features.*` or `entitlement.allowed_models`. Never write `plan === 'pro_managed'` or `plan === 'pro'` in component code — use the feature flag instead. This makes tier changes a config-only update.
 
 ---
 
@@ -1268,6 +1300,135 @@ git commit -m "feat(dashboard): add UsageMeter and UsageWarning to dashboard"
 
 ---
 
+## Task 9b: ModelSelector Component
+
+**Files:** Create `src/admin/shared/ModelSelector.jsx`, modify `src/admin/components/Chat/ChatApp.jsx`
+
+**Responsibility (SRP):** `ModelSelector` renders a model dropdown from the `entitlement.allowed_models` list and calls `onChange` with the selected value. It has no knowledge of chat requests or API calls.
+
+- [ ] **Step 9b.1: Create `src/admin/shared/ModelSelector.jsx`**
+
+```jsx
+import { SelectControl } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
+
+/**
+ * ModelSelector — renders a model dropdown for tiers with model_selection enabled.
+ * Hidden automatically when the feature is not available; callers do not need to guard.
+ *
+ * @param {Object}   props
+ * @param {Object}   props.entitlement - Full entitlement object from AuthContext
+ * @param {string}   props.selected    - Currently selected model ID
+ * @param {Function} props.onChange    - Called with the new model ID string
+ */
+export function ModelSelector( { entitlement, selected, onChange } ) {
+    const canSelect    = entitlement?.features?.model_selection === true;
+    const allowedModels = entitlement?.allowed_models ?? [];
+
+    if ( ! canSelect || allowedModels.length <= 1 ) {
+        return null; // Nothing to select — hide component entirely
+    }
+
+    const options = allowedModels.map( ( modelId ) => ( {
+        label: modelId,  // Replace with human-readable names in a future iteration
+        value: modelId,
+    } ) );
+
+    return (
+        <SelectControl
+            label={ __( 'Model', 'wp-ai-mind' ) }
+            value={ selected || allowedModels[ 0 ] }
+            options={ options }
+            onChange={ onChange }
+            __nextHasNoMarginBottom
+        />
+    );
+}
+```
+
+- [ ] **Step 9b.2: Wire `ModelSelector` into `ChatApp.jsx`**
+
+In `src/admin/components/Chat/ChatApp.jsx`:
+
+1. Import `ModelSelector`: `import { ModelSelector } from '../shared/ModelSelector';`
+2. Import `useAuth`: `import { useAuth } from '../auth/AuthContext';`
+3. Add state: `const [ selectedModel, setSelectedModel ] = useState( '' );`
+4. Add `useAuth`: `const { entitlement } = useAuth();`
+5. Render `ModelSelector` in the chat header/toolbar area:
+
+```jsx
+<ModelSelector
+    entitlement={ entitlement }
+    selected={ selectedModel }
+    onChange={ setSelectedModel }
+/>
+```
+
+6. Pass `selectedModel` (when non-empty) to the chat request body via `apiFetch`:
+
+```js
+const body = {
+    message: content,
+    ...(selectedModel ? { model: selectedModel } : {}),
+};
+```
+
+- [ ] **Step 9b.3: Build and verify**
+
+```bash
+npm run build
+# Expected: no build errors
+```
+
+Manual verification:
+1. Log in as `pro_managed` account → `ModelSelector` appears in chat header with multiple options
+2. Log in as `free` or `trial` account → `ModelSelector` is absent (hidden, not just disabled)
+3. Log in as `pro` (BYOK) account → `ModelSelector` is absent (BYOK user selects model via API key settings, not here)
+4. Select Sonnet as `pro_managed`, send message → network request includes `"model":"claude-sonnet-4-5"`
+
+- [ ] **Step 9b.4: Commit**
+
+```bash
+git add src/admin/shared/ModelSelector.jsx src/admin/components/Chat/ChatApp.jsx
+git commit -m "feat(ui): add ModelSelector component for pro_managed tier"
+```
+
+---
+
+## Task 9c: Post-implementation Code Reuse Verification
+
+> **Mandatory.** Run before marking Phase 6 complete.
+
+- [ ] **Step 9c.1: No hardcoded plan names in JSX**
+
+```bash
+grep -rn "pro_managed\|plan === 'pro'\|plan === 'free'\|plan === 'trial'" src/admin/ --include="*.jsx" --include="*.js"
+# Expected: 0 matches — all feature decisions must use entitlement.features.* flags
+```
+
+- [ ] **Step 9c.2: No duplicate WP component imports**
+
+```bash
+grep -rn "import.*@wordpress/components" src/admin/ --include="*.jsx" --include="*.js" | sort | uniq -d
+# Expected: each component is imported from one place only
+```
+
+- [ ] **Step 9c.3: ModelSelector does not contain chat request logic**
+
+```bash
+grep -n "apiFetch\|wp_remote\|fetch\|POST" src/admin/shared/ModelSelector.jsx
+# Expected: 0 matches — ModelSelector is UI-only (SRP)
+```
+
+- [ ] **Step 9c.4: Build passes**
+
+```bash
+npm run build
+# Expected: exits 0, no errors
+```
+
+---
+
 ## Task 10: Manual integration verification
 
 No unit tests are written for React components in this plugin. Verify the full flow manually in the browser after `npm run build`.
@@ -1298,13 +1459,22 @@ docker restart blognjohanssoneu-wordpress-1
 2. Expected: on successful POST to `/wp-ai-mind/v1/nj/login`, the auth card disappears and the full UI renders.
 3. Reload the page — expected: stays authenticated (PHP still serves `isAuthenticated: true` in localised data).
 
-- [ ] **Step 10.5: ProvidersTab — free-tier vs Pro**
+- [ ] **Step 10.5: ProvidersTab — free-tier vs Pro BYOK vs Pro Managed**
 
-1. Log in as a **free-tier** account.
-2. Navigate to Settings → Providers tab.
-3. Expected: "API Keys" section shows the upgrade CTA paragraph and "Upgrade to Pro" link — no TextControl inputs visible.
-4. Log in as a **Pro** account.
-5. Expected: "API Keys" section shows the three TextControl fields for Claude, OpenAI, Gemini.
+1. Log in as a **free-tier** account. Navigate to Settings → Providers tab.
+   Expected: "API Keys" section shows the upgrade CTA — no TextControl inputs visible.
+2. Log in as a **pro_managed** account. Navigate to Settings → Providers tab.
+   Expected: "API Keys" section shows the upgrade CTA for BYOK — no TextControl inputs visible.
+3. Log in as a **Pro BYOK** account. Navigate to Settings → Providers tab.
+   Expected: "API Keys" section shows the three TextControl fields for Claude, OpenAI, Gemini.
+
+- [ ] **Step 10.5b: ModelSelector — pro_managed vs free/trial**
+
+1. Log in as a **pro_managed** account. Navigate to Chat.
+   Expected: `ModelSelector` dropdown visible with multiple model options.
+2. Select Sonnet, send a message — inspect network request body: must include `"model":"claude-sonnet-4-5"`.
+3. Log in as **free** or **trial**. Navigate to Chat.
+   Expected: No model selector visible; Haiku used by default.
 
 - [ ] **Step 10.6: UpgradeModal — simulate 429**
 

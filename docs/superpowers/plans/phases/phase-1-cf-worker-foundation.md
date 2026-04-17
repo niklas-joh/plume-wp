@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A deployed, independently testable Cloudflare Worker that handles user registration, login, token refresh, and entitlement. Nothing in the WordPress plugin changes during this phase. Phases 2 and 3 are blocked until this is live.
+**Goal:** A deployed, independently testable Cloudflare Worker that handles user registration, login, token refresh, and entitlement across all four tiers (`free`, `trial`, `pro_managed`, `pro`). Nothing in the WordPress plugin changes during this phase. Phases 2 and 3 are blocked until this is live.
 
-**Architecture:** Greenfield `wp-ai-mind-proxy/` TypeScript Worker project. D1 (SQLite) stores user accounts. KV stores monthly token usage. All crypto (JWT, password hashing) uses the Web Crypto API — no external libraries.
+**Architecture:** Greenfield `wp-ai-mind-proxy/` TypeScript Worker project. D1 (SQLite) stores user accounts. KV stores monthly token usage. All crypto (JWT, password hashing) uses the Web Crypto API — no external libraries. A dedicated `src/tier-config.ts` module is the **single source of truth** for per-tier features, token limits, and allowed models — no scattered `if plan === 'free'` checks anywhere else.
 
 **Tech Stack:** Cloudflare Workers (TypeScript), Cloudflare D1, Cloudflare KV, Wrangler CLI, Web Crypto API (HMAC-SHA256, PBKDF2), Vitest
 
@@ -34,9 +34,10 @@ wp-ai-mind-proxy/
   migrations/
     0001_init_users.sql      ← D1 schema
   src/
+    tier-config.ts           ← SINGLE SOURCE OF TRUTH: per-tier features, limits, models
     index.ts                 ← Route dispatch + CORS
     auth.ts                  ← register, token, refresh handlers
-    entitlement.ts           ← GET /v1/entitlement handler
+    entitlement.ts           ← GET /v1/entitlement handler (reads tier-config)
     chat.ts                  ← POST /v1/chat (returns 501 stub in this phase)
     webhooks.ts              ← POST /webhooks/lemonsqueezy (returns 501 stub)
     db.ts                    ← D1 helper wrappers
@@ -50,7 +51,40 @@ wp-ai-mind-proxy/
     password.test.ts
     auth.test.ts
     entitlement.test.ts
+    tier-config.test.ts
 ```
+
+---
+
+## Task 0: Pre-implementation Reuse Audit
+
+> **Mandatory.** Complete this before writing any code. The goal is to understand what already exists and must be reused, extended, or carefully avoided recreating.
+
+- [ ] **Step 0.1: Audit the plugin's existing provider abstractions**
+
+```bash
+# From the plugin root (not wp-ai-mind-proxy/):
+grep -rn "ProviderInterface\|AbstractProvider\|ProviderFactory" includes/ --include="*.php"
+# Review: understand the existing PHP provider contract before designing the Worker's ProviderAdapter (Phase 7).
+# The Worker-side ProviderAdapter (src/providers/types.ts) should mirror the same separation-of-concerns.
+```
+
+- [ ] **Step 0.2: List existing plugin utilities that influence Worker design**
+
+Review these files to understand existing patterns before creating parallel Worker implementations:
+- `includes/Providers/AbstractProvider.php` — retry logic, error handling pattern
+- `includes/Auth/NJ_Auth.php` — token storage pattern (if it exists; skip if not yet created)
+- Any existing helper functions in `wp-ai-mind.php`
+
+Record findings in a short comment at the top of the first commit message (e.g., "No reusable Worker-side code exists yet — greenfield").
+
+- [ ] **Step 0.3: Confirm no Worker project already exists**
+
+```bash
+ls -la wp-ai-mind-proxy/ 2>/dev/null || echo "Confirmed: no existing proxy project"
+```
+
+If a partial project exists, audit it before proceeding — do not overwrite existing work.
 
 ---
 
@@ -201,11 +235,13 @@ Run: `npm test` → Expected: PASS (placeholder assertion)
 
 `migrations/0001_init_users.sql`:
 ```sql
+-- plan column supports all four tiers: 'free', 'trial', 'pro_managed', 'pro'
+-- Add new tiers here; TIER_CONFIG in src/tier-config.ts is the capability definition.
 CREATE TABLE IF NOT EXISTS users (
   id            INTEGER  PRIMARY KEY AUTOINCREMENT,
   email         TEXT     UNIQUE NOT NULL COLLATE NOCASE,
   password_hash TEXT     NOT NULL,
-  plan          TEXT     NOT NULL DEFAULT 'trial',
+  plan          TEXT     NOT NULL DEFAULT 'trial' CHECK(plan IN ('free','trial','pro_managed','pro')),
   plan_expires  DATETIME,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -251,11 +287,14 @@ export interface Env {
   ENVIRONMENT?: string;
 }
 
+/** All valid plan values. Must stay in sync with TIER_CONFIG keys in tier-config.ts. */
+export type Plan = 'free' | 'trial' | 'pro_managed' | 'pro';
+
 export interface User {
   id:            number;
   email:         string;
   password_hash: string;
-  plan:          'free' | 'trial' | 'pro';
+  plan:          Plan;
   plan_expires:  string | null;
   created_at:    string;
   updated_at:    string;
@@ -264,7 +303,7 @@ export interface User {
 export interface AuthUser {
   sub:   number;
   email: string;
-  plan:  'free' | 'trial' | 'pro';
+  plan:  Plan;
   iat:   number;
   exp:   number;
   type?: string;
@@ -307,6 +346,193 @@ export function secondsUntilMonthEnd(): number {
 ```bash
 git add src/types.ts src/utils.ts
 git commit -m "feat(proxy): add types and utility helpers"
+```
+
+---
+
+## Task 4b: Tier Configuration Module
+
+**Files:** Create `src/tier-config.ts`, `test/tier-config.test.ts`
+
+> **Critical:** This is the single source of truth for all per-tier configuration. All subsequent modules (`entitlement.ts`, `chat.ts`, etc.) **must** import from this file instead of defining their own plan constants.
+
+- [ ] **Step 4b.1: Write failing tests** (`test/tier-config.test.ts`)
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { getTierConfig, TIER_CONFIG } from '../src/tier-config';
+
+describe('TIER_CONFIG', () => {
+  it('defines all four tiers', () => {
+    expect(Object.keys(TIER_CONFIG)).toEqual(
+      expect.arrayContaining(['free', 'trial', 'pro_managed', 'pro'])
+    );
+  });
+
+  it('free tier has lower limit than trial', () => {
+    const free  = TIER_CONFIG.free;
+    const trial = TIER_CONFIG.trial;
+    expect(free.tokens_per_month).toBeGreaterThan(0);
+    expect(trial.tokens_per_month!).toBeGreaterThan(free.tokens_per_month!);
+  });
+
+  it('pro_managed has higher limit than trial', () => {
+    const trial      = TIER_CONFIG.trial;
+    const proManaged = TIER_CONFIG.pro_managed;
+    expect(proManaged.tokens_per_month!).toBeGreaterThan(trial.tokens_per_month!);
+  });
+
+  it('pro (BYOK) has null token limit', () => {
+    expect(TIER_CONFIG.pro.tokens_per_month).toBeNull();
+  });
+
+  it('free and trial only allow Haiku', () => {
+    expect(TIER_CONFIG.free.allowed_models).toEqual(['claude-haiku-4-5']);
+    expect(TIER_CONFIG.trial.allowed_models).toEqual(['claude-haiku-4-5']);
+  });
+
+  it('pro_managed allows multiple models', () => {
+    expect(TIER_CONFIG.pro_managed.allowed_models.length).toBeGreaterThan(1);
+    expect(TIER_CONFIG.pro_managed.allowed_models).toContain('claude-haiku-4-5');
+  });
+
+  it('pro (BYOK) has empty allowed_models (unrestricted)', () => {
+    expect(TIER_CONFIG.pro.allowed_models).toEqual([]);
+  });
+
+  it('model_selection feature is false for free/trial', () => {
+    expect(TIER_CONFIG.free.features.model_selection).toBe(false);
+    expect(TIER_CONFIG.trial.features.model_selection).toBe(false);
+  });
+
+  it('model_selection feature is true for pro_managed and pro', () => {
+    expect(TIER_CONFIG.pro_managed.features.model_selection).toBe(true);
+    expect(TIER_CONFIG.pro.features.model_selection).toBe(true);
+  });
+
+  it('own_key feature is only true for pro (BYOK)', () => {
+    expect(TIER_CONFIG.free.features.own_key).toBe(false);
+    expect(TIER_CONFIG.trial.features.own_key).toBe(false);
+    expect(TIER_CONFIG.pro_managed.features.own_key).toBe(false);
+    expect(TIER_CONFIG.pro.features.own_key).toBe(true);
+  });
+});
+
+describe('getTierConfig', () => {
+  it('returns free config for unknown plans', () => {
+    const config = getTierConfig('unknown_plan');
+    expect(config).toEqual(TIER_CONFIG.free);
+  });
+
+  it('returns the correct config for each known plan', () => {
+    for (const plan of ['free', 'trial', 'pro_managed', 'pro']) {
+      expect(getTierConfig(plan)).toEqual(TIER_CONFIG[plan]);
+    }
+  });
+});
+```
+
+Run: `npm test` → Expected: FAIL (tier-config module not found)
+
+- [ ] **Step 4b.2: Implement `src/tier-config.ts`**
+
+```typescript
+/**
+ * Tier Configuration — SINGLE SOURCE OF TRUTH for all plan capabilities.
+ *
+ * To add a new tier, add an entry here.
+ * To add a new feature flag, add it to TierFeatures and update each tier entry.
+ * To change a token limit or allowed model, edit this file only.
+ *
+ * No other file should define per-plan constants. Import getTierConfig() instead.
+ */
+
+export interface TierFeatures {
+  chat:            boolean;
+  generator:       boolean;
+  seo:             boolean;
+  images:          boolean;
+  own_key:         boolean;  // Pro BYOK: user supplies their own API key
+  model_selection: boolean;  // User can choose from allowed_models list
+}
+
+export interface TierConfig {
+  /** Monthly token budget. null = unlimited (Pro BYOK user's own cost). */
+  tokens_per_month:       number | null;
+  /**
+   * Models this tier may request. The Worker validates the requested model against this list.
+   * Empty array = unrestricted (Pro BYOK — any model the user's own key supports).
+   */
+  allowed_models:         string[];
+  /** Per-request token cap enforced by the Worker. null = no cap. */
+  max_tokens_per_request: number | null;
+  features:               TierFeatures;
+}
+
+export const TIER_CONFIG: Record<string, TierConfig> = {
+  free: {
+    tokens_per_month:       50_000,
+    allowed_models:         ['claude-haiku-4-5'],
+    max_tokens_per_request: 1_000,
+    features: {
+      chat: true, generator: false, seo: false, images: false,
+      own_key: false, model_selection: false,
+    },
+  },
+
+  trial: {
+    tokens_per_month:       300_000,
+    allowed_models:         ['claude-haiku-4-5'],
+    max_tokens_per_request: 1_000,
+    features: {
+      chat: true, generator: true, seo: true, images: true,
+      own_key: false, model_selection: false,
+    },
+  },
+
+  pro_managed: {
+    tokens_per_month:       2_000_000,
+    allowed_models:         ['claude-haiku-4-5', 'claude-sonnet-4-5', 'claude-opus-4-5'],
+    max_tokens_per_request: 8_000,
+    features: {
+      chat: true, generator: true, seo: true, images: true,
+      own_key: false, model_selection: true,
+    },
+  },
+
+  /** Pro BYOK: user supplies their own provider API key and routes direct. */
+  pro: {
+    tokens_per_month:       null,   // Unlimited — user pays their own API cost.
+    allowed_models:         [],     // Unrestricted — Worker not involved for BYOK routing.
+    max_tokens_per_request: null,
+    features: {
+      chat: true, generator: true, seo: true, images: true,
+      own_key: true, model_selection: true,
+    },
+  },
+};
+
+/**
+ * Returns the TierConfig for a given plan value.
+ * Falls back to `free` for any unknown plan to fail safe.
+ */
+export function getTierConfig(plan: string): TierConfig {
+  return TIER_CONFIG[plan] ?? TIER_CONFIG.free;
+}
+```
+
+- [ ] **Step 4b.3: Run tests to verify they pass**
+
+```bash
+npm test
+# Expected: All tier-config.test.ts tests PASS
+```
+
+- [ ] **Step 4b.4: Commit**
+
+```bash
+git add src/tier-config.ts test/tier-config.test.ts
+git commit -m "feat(proxy): add tier-config module as single source of truth for plan capabilities"
 ```
 
 ---
@@ -750,17 +976,10 @@ function makeEnv(usedTokens: number): Env {
   } as unknown as Env;
 }
 
-const trialUser: AuthUser = {
-  sub: 1, email: 'test@example.com', plan: 'trial', iat: 0, exp: 9999999999
-};
-
-const freeUser: AuthUser = {
-  sub: 2, email: 'free@example.com', plan: 'free', iat: 0, exp: 9999999999
-};
-
-const proUser: AuthUser = {
-  sub: 3, email: 'pro@example.com', plan: 'pro', iat: 0, exp: 9999999999
-};
+const trialUser:      AuthUser = { sub: 1, email: 'test@example.com',  plan: 'trial',       iat: 0, exp: 9999999999 };
+const freeUser:       AuthUser = { sub: 2, email: 'free@example.com',  plan: 'free',        iat: 0, exp: 9999999999 };
+const proManagedUser: AuthUser = { sub: 4, email: 'pm@example.com',    plan: 'pro_managed', iat: 0, exp: 9999999999 };
+const proUser:        AuthUser = { sub: 3, email: 'pro@example.com',   plan: 'pro',         iat: 0, exp: 9999999999 };
 
 describe('handleEntitlement', () => {
   it('returns correct token limit for trial plan', async () => {
@@ -778,11 +997,21 @@ describe('handleEntitlement', () => {
     expect(body.tokens_used).toBe(0);
   });
 
-  it('returns null token_limit for pro plan', async () => {
+  it('returns higher token limit for pro_managed plan', async () => {
+    const res  = await handleEntitlement(new Request('http://x'), makeEnv(100_000), proManagedUser);
+    const body = await res.json() as Record<string, unknown>;
+    expect((body.tokens_limit as number)).toBeGreaterThan(300_000);
+    expect((body.features as Record<string, boolean>).model_selection).toBe(true);
+    expect((body.features as Record<string, boolean>).own_key).toBe(false);
+    expect((body.allowed_models as string[]).length).toBeGreaterThan(1);
+  });
+
+  it('returns null token_limit for pro (BYOK) plan', async () => {
     const res  = await handleEntitlement(new Request('http://x'), makeEnv(0), proUser);
     const body = await res.json() as Record<string, unknown>;
     expect(body.tokens_limit).toBeNull();
     expect((body.features as Record<string, boolean>).own_key).toBe(true);
+    expect((body.allowed_models as string[])).toHaveLength(0); // unrestricted
   });
 
   it('returns correct feature flags for free plan', async () => {
@@ -792,6 +1021,8 @@ describe('handleEntitlement', () => {
     expect(features.chat).toBe(true);
     expect(features.generator).toBe(false);
     expect(features.own_key).toBe(false);
+    expect(features.model_selection).toBe(false);
+    expect((body.allowed_models as string[])).toHaveLength(1); // Haiku only
   });
 
   it('returns correct feature flags for trial plan', async () => {
@@ -801,6 +1032,7 @@ describe('handleEntitlement', () => {
     expect(features.chat).toBe(true);
     expect(features.generator).toBe(true);
     expect(features.own_key).toBe(false);
+    expect(features.model_selection).toBe(false);
   });
 });
 ```
@@ -811,30 +1043,19 @@ Run: `npm test` → Expected: FAIL (entitlement module not found)
 
 ```typescript
 import { yyyyMM, nextMonthStart } from './utils';
+import { getTierConfig } from './tier-config'; // ← single source of truth; no local plan constants
 import type { Env, AuthUser } from './types';
-
-const PLAN_LIMITS: Record<string, number | null> = {
-  free:  50_000,
-  trial: 300_000,
-  pro:   null,
-};
-
-const PLAN_FEATURES: Record<string, Record<string, boolean>> = {
-  free:  { chat: true, generator: false, seo: false, images: false, own_key: false },
-  trial: { chat: true, generator: true,  seo: true,  images: true,  own_key: false },
-  pro:   { chat: true, generator: true,  seo: true,  images: true,  own_key: true  },
-};
 
 export async function handleEntitlement(
   _req: Request,
   env: Env,
   user: AuthUser
 ): Promise<Response> {
+  const config   = getTierConfig(user.plan);
   const monthKey = `usage:${user.sub}:${yyyyMM()}`;
   const usedStr  = await env.USAGE_KV.get(monthKey);
   const used     = usedStr ? parseInt(usedStr, 10) : 0;
-  const limit    = PLAN_LIMITS[user.plan] ?? null;
-  const features = PLAN_FEATURES[user.plan] ?? PLAN_FEATURES.free;
+  const limit    = config.tokens_per_month;
 
   return new Response(JSON.stringify({
     plan:              user.plan,
@@ -842,7 +1063,8 @@ export async function handleEntitlement(
     tokens_limit:      limit,
     tokens_remaining:  limit === null ? null : Math.max(0, limit - used),
     resets_at:         nextMonthStart(),
-    features,
+    features:          config.features,
+    allowed_models:    config.allowed_models,  // PHP uses this to populate model selector
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
@@ -1064,6 +1286,38 @@ git commit -m "chore(proxy): finalize production Cloudflare resource IDs"
 
 ---
 
+## Task 11: Post-implementation Code Reuse Verification
+
+> **Mandatory.** Run these checks before marking Phase 1 complete.
+
+- [ ] **Step 11.1: Confirm no scattered plan constants**
+
+```bash
+# Must return ZERO matches — all plan logic must be in tier-config.ts
+grep -rn "PLAN_LIMITS\|PLAN_FEATURES\|plan === 'free'\|plan === 'trial'\|plan === 'pro'" src/ \
+  --include="*.ts" | grep -v "tier-config.ts" | grep -v "\.test\.ts"
+# Expected: 0 matches (only tier-config.ts and test files are permitted)
+```
+
+- [ ] **Step 11.2: Confirm single-responsibility modules**
+
+Each file should have exactly one responsibility. Verify:
+- `tier-config.ts` — config only (no HTTP logic)
+- `jwt.ts` — JWT signing/verifying only
+- `password.ts` — hashing only
+- `auth.ts` — auth handlers only
+- `entitlement.ts` — entitlement handler only
+- `utils.ts` — pure utility functions only
+
+- [ ] **Step 11.3: Confirm tier-config is imported, not duplicated**
+
+```bash
+grep -rn "50_000\|300_000\|2_000_000\|claude-haiku" src/ --include="*.ts" | grep -v "tier-config.ts"
+# Expected: 0 matches — token limits and model names must not appear outside tier-config.ts
+```
+
+---
+
 ## Phase 1 Acceptance Criteria
 
 - [ ] `POST /v1/auth/register` → 201 with trial plan, 7-day expiry set in D1
@@ -1072,9 +1326,12 @@ git commit -m "chore(proxy): finalize production Cloudflare resource IDs"
 - [ ] `POST /v1/auth/token` expired trial → `plan: 'free'`
 - [ ] `POST /v1/auth/token` wrong password → 401
 - [ ] `POST /v1/auth/refresh` valid refresh token → new `access_token`
-- [ ] `GET /v1/entitlement` with Bearer → full entitlement shape with correct feature flags
+- [ ] `GET /v1/entitlement` with Bearer → full entitlement shape with correct feature flags **and `allowed_models` list**
+- [ ] `GET /v1/entitlement` for `pro_managed` user → `model_selection: true`, multiple `allowed_models`, higher `tokens_limit` than trial
+- [ ] `GET /v1/entitlement` for `pro` (BYOK) user → `tokens_limit: null`, `own_key: true`, `allowed_models: []`
 - [ ] `GET /v1/entitlement` without Bearer → 401
 - [ ] `POST /v1/chat` → 501 stub response (Phase 3 completes this)
+- [ ] `src/tier-config.ts` exports `TIER_CONFIG` with all four tiers; `getTierConfig('unknown')` falls back to `free`
 - [ ] All unit tests pass: `npm test`
 - [ ] Deployed to Cloudflare Workers; production smoke tests pass
 

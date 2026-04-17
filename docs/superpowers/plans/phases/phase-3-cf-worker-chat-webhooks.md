@@ -8,8 +8,36 @@
 
 **Tech Stack:** Cloudflare Workers (TypeScript), Cloudflare KV (usage tracking), Cloudflare D1 (plan updates), Web Crypto (HMAC-SHA256 webhook signature verification), Anthropic API
 
-**Depends on:** Phase 1 complete (auth endpoints live, D1 schema exists)
+**Depends on:** Phase 1 complete (auth endpoints live, D1 schema exists, `src/tier-config.ts` in place)
 **Runs in parallel with:** Phase 2 (PHP auth layer)
+
+---
+
+## Task 0: Pre-implementation Reuse Audit
+
+> **Mandatory.** Complete before modifying any source files.
+
+- [ ] **Step 0.1: Read existing `src/tier-config.ts`** (created in Phase 1)
+
+```bash
+cat wp-ai-mind-proxy/src/tier-config.ts
+# Understand getTierConfig() — use it directly; do NOT redefine PLAN_LIMITS here.
+```
+
+- [ ] **Step 0.2: Read existing `src/utils.ts`**
+
+```bash
+cat wp-ai-mind-proxy/src/utils.ts
+# Confirm yyyyMM(), nextMonthStart(), secondsUntilMonthEnd() are available.
+# Import from utils.ts instead of re-implementing.
+```
+
+- [ ] **Step 0.3: Read existing `src/db.ts`**
+
+```bash
+cat wp-ai-mind-proxy/src/db.ts
+# Confirm updateUserPlan() exists — use it in the LemonSqueezy handler.
+```
 
 ---
 
@@ -46,9 +74,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleChat } from '../src/chat';
 import type { Env, AuthUser } from '../src/types';
 
-const trialUser: AuthUser = { sub: 1, email: 'a@b.com', plan: 'trial', iat: 0, exp: 9999999999 };
-const freeUser:  AuthUser = { sub: 2, email: 'b@c.com', plan: 'free',  iat: 0, exp: 9999999999 };
-const proUser:   AuthUser = { sub: 3, email: 'c@d.com', plan: 'pro',   iat: 0, exp: 9999999999 };
+const trialUser:      AuthUser = { sub: 1, email: 'a@b.com', plan: 'trial',       iat: 0, exp: 9999999999 };
+const freeUser:       AuthUser = { sub: 2, email: 'b@c.com', plan: 'free',        iat: 0, exp: 9999999999 };
+const proManagedUser: AuthUser = { sub: 4, email: 'd@e.com', plan: 'pro_managed', iat: 0, exp: 9999999999 };
+const proUser:        AuthUser = { sub: 3, email: 'c@d.com', plan: 'pro',         iat: 0, exp: 9999999999 };
 
 function makeEnv(usedTokens: number, fetchResponse: Response): Env {
   return {
@@ -83,7 +112,6 @@ describe('handleChat — token limit enforcement', () => {
     const body = await res.json() as Record<string, unknown>;
     expect(body.error).toBe('token_limit_exceeded');
     expect(body.limit).toBe(50_000);
-    // fetch should NOT be called when limit is exceeded
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
@@ -100,7 +128,22 @@ describe('handleChat — token limit enforcement', () => {
     expect(res.status).toBe(429);
   });
 
-  it('does not enforce limit for pro users', async () => {
+  it('allows pro_managed user below their higher limit', async () => {
+    const anthropicBody = JSON.stringify({
+      content: [{ type: 'text', text: 'hello' }],
+      usage: { input_tokens: 100, output_tokens: 50 }
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(anthropicBody, { status: 200, headers: { 'Content-Type': 'application/json' } })
+    );
+    // 300_001 would exceed trial (300k) but is well below pro_managed limit
+    const env = makeEnv(300_001, new Response('{}'));
+
+    await handleChat(makeRequest({ model: 'claude-sonnet-4-5', messages: [] }), env, proManagedUser);
+    expect(globalThis.fetch).toHaveBeenCalledOnce();
+  });
+
+  it('does not enforce limit for pro (BYOK) users', async () => {
     const anthropicBody = JSON.stringify({
       content: [{ type: 'text', text: 'hello' }],
       usage: { input_tokens: 100, output_tokens: 50 }
@@ -110,13 +153,42 @@ describe('handleChat — token limit enforcement', () => {
     );
     const env = makeEnv(999_999, new Response('{}'));
 
+    await handleChat(makeRequest({ model: 'claude-opus-4-5', messages: [] }), env, proUser);
+    expect(globalThis.fetch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('handleChat — model allowlist enforcement', () => {
+  it('returns 403 when free user requests a non-Haiku model', async () => {
+    globalThis.fetch = vi.fn();
+    const env = makeEnv(0, new Response('{}'));
+
     const res = await handleChat(
-      makeRequest({ model: 'claude-opus-4-7', messages: [] }),
+      makeRequest({ model: 'claude-sonnet-4-5', messages: [] }),
       env,
-      proUser
+      freeUser
     );
 
-    // fetch should be called (no limit check for pro)
+    expect(res.status).toBe(403);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.error).toBe('model_not_allowed');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('allows pro_managed user to request Sonnet', async () => {
+    const anthropicBody = JSON.stringify({ content: [], usage: { input_tokens: 50, output_tokens: 50 } });
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(anthropicBody, { status: 200, headers: { 'Content-Type': 'application/json' } })
+    );
+    const env = makeEnv(0, new Response('{}'));
+
+    const res = await handleChat(
+      makeRequest({ model: 'claude-sonnet-4-5', messages: [] }),
+      env,
+      proManagedUser
+    );
+
+    expect(res.status).toBe(200);
     expect(globalThis.fetch).toHaveBeenCalledOnce();
   });
 });
@@ -128,18 +200,16 @@ Run: `npm test` → Expected: FAIL (chat module returns 501)
 
 ```typescript
 import { yyyyMM, nextMonthStart, secondsUntilMonthEnd, json } from './utils';
+import { getTierConfig } from './tier-config'; // ← single source of truth; no local PLAN_LIMITS
 import type { Env, AuthUser } from './types';
 
-const PLAN_LIMITS: Record<string, number | null> = {
-  free:  50_000,
-  trial: 300_000,
-  pro:   null,
-};
+const DEFAULT_MODEL = 'claude-haiku-4-5'; // fallback when no model specified
 
 export async function handleChat(req: Request, env: Env, user: AuthUser): Promise<Response> {
-  const limit = PLAN_LIMITS[user.plan] ?? null;
+  const config = getTierConfig(user.plan);
+  const limit  = config.tokens_per_month;
 
-  // Step 1: Enforce token limits for free/trial plans.
+  // Step 1: Enforce token limits for non-BYOK tiers.
   if (limit !== null) {
     const monthKey = `usage:${user.sub}:${yyyyMM()}`;
     const usedStr  = await env.USAGE_KV.get(monthKey);
@@ -155,9 +225,32 @@ export async function handleChat(req: Request, env: Env, user: AuthUser): Promis
     }
   }
 
-  // Step 2: Forward request to Anthropic.
-  const body = await req.json<Record<string, unknown>>();
+  const body             = await req.json<Record<string, unknown>>();
+  const requestedModel   = (body.model as string | undefined) ?? DEFAULT_MODEL;
+  const allowedModels    = config.allowed_models;
 
+  // Step 2: Validate model against tier allowlist.
+  // Pro BYOK (allowed_models = []) is unrestricted — Worker is not in the loop for BYOK.
+  // For managed tiers, enforce the allowlist.
+  if (allowedModels.length > 0 && !allowedModels.includes(requestedModel)) {
+    return json({
+      error:          'model_not_allowed',
+      requested_model: requestedModel,
+      allowed_models:  allowedModels,
+    }, 403);
+  }
+
+  // Step 3: Apply per-request max_tokens cap (prevents runaway single requests).
+  const maxTokensCap = config.max_tokens_per_request;
+  const requestBody: Record<string, unknown> = {
+    ...body,
+    model:      requestedModel,
+    max_tokens: maxTokensCap !== null
+      ? Math.min((body.max_tokens as number | undefined) ?? maxTokensCap, maxTokensCap)
+      : body.max_tokens,
+  };
+
+  // Step 4: Forward request to Anthropic.
   const anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
     headers: {
@@ -165,10 +258,10 @@ export async function handleChat(req: Request, env: Env, user: AuthUser): Promis
       'anthropic-version': '2023-06-01',
       'content-type':      'application/json',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(requestBody),
   });
 
-  // Step 3: Update KV usage asynchronously after successful response.
+  // Step 5: Update KV usage after successful response (non-BYOK tiers only).
   if (anthropicResp.ok && limit !== null) {
     const cloned  = anthropicResp.clone();
     const data    = await cloned.json<{ usage?: { input_tokens?: number; output_tokens?: number } }>();
@@ -183,7 +276,7 @@ export async function handleChat(req: Request, env: Env, user: AuthUser): Promis
     }
   }
 
-  // Step 4: Return Anthropic response verbatim (body passthrough).
+  // Step 6: Return Anthropic response verbatim (body passthrough).
   return new Response(anthropicResp.body, {
     status:  anthropicResp.status,
     headers: {
@@ -343,9 +436,19 @@ export async function handleLemonSqueezy(req: Request, env: Env): Promise<Respon
 
   if (email) {
     if (UPGRADE_EVENTS.includes(eventName)) {
+      // Determine the target plan from the webhook payload.
+      // LemonSqueezy can carry a custom 'plan_type' field in the order metadata:
+      //   'pro'         → Pro BYOK (user brings their own API key)
+      //   'pro_managed' → Pro Managed (platform API, higher limits + model selection)
+      // Defaults to 'pro_managed' for backward-compat if not specified.
+      const meta      = event?.data?.attributes?.first_order_item?.product_name as string | undefined;
+      const targetPlan = (meta?.toLowerCase().includes('byok') || meta?.toLowerCase().includes('own-key'))
+        ? 'pro'
+        : 'pro_managed';
+
       await env.DB.prepare(
-        `UPDATE users SET plan = 'pro', plan_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE email = ?`
-      ).bind(email).run();
+        `UPDATE users SET plan = ?, plan_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE email = ?`
+      ).bind(targetPlan, email).run();
     } else if (DOWNGRADE_EVENTS.includes(eventName)) {
       await env.DB.prepare(
         `UPDATE users SET plan = 'free', plan_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE email = ?`
@@ -449,13 +552,43 @@ git commit -m "chore(proxy): Phase 3 complete — chat proxy and webhooks deploy
 
 ---
 
+## Task 4: Post-implementation Code Reuse Verification
+
+> **Mandatory.** Run before marking Phase 3 complete.
+
+- [ ] **Step 4.1: Confirm tier-config is the sole limit source**
+
+```bash
+grep -rn "50_000\|300_000\|2_000_000\|claude-haiku" src/ --include="*.ts" | grep -v "tier-config.ts"
+# Expected: 0 matches
+```
+
+- [ ] **Step 4.2: Confirm utilities are reused from utils.ts**
+
+```bash
+grep -rn "yyyyMM\|secondsUntilMonthEnd\|nextMonthStart" src/ --include="*.ts" | grep -v "utils.ts"
+# Expected: only import statements referencing utils.ts; no re-implementations
+```
+
+- [ ] **Step 4.3: Full Vitest suite passes**
+
+```bash
+cd wp-ai-mind-proxy && npm test
+# Expected: all tests pass
+```
+
+---
+
 ## Phase 3 Acceptance Criteria
 
 - [ ] `POST /v1/chat` with valid JWT + within limits → Anthropic response returned
 - [ ] `POST /v1/chat` at token limit → 429 with `error: 'token_limit_exceeded'`
+- [ ] `POST /v1/chat` by `pro_managed` user requesting Sonnet → allowed; by `free` user requesting Sonnet → 403 `model_not_allowed`
+- [ ] `POST /v1/chat` by `pro_managed` user at trial-level usage (300k) but below pro_managed limit (2M) → allowed
+- [ ] `POST /v1/chat` — per-request `max_tokens` capped at `config.max_tokens_per_request` for managed tiers
 - [ ] KV key `usage:{id}:{YYYY-MM}` increments after each successful chat
 - [ ] KV key TTL expires at end of month (not a fixed duration from now)
-- [ ] `POST /webhooks/lemonsqueezy` with correct HMAC → D1 plan updated to `pro`
+- [ ] `POST /webhooks/lemonsqueezy` with correct HMAC → D1 plan updated to `pro_managed` (default) or `pro` (BYOK products)
 - [ ] `POST /webhooks/lemonsqueezy` with incorrect HMAC → 401
 - [ ] `subscription_cancelled` event → D1 plan updated to `free`
 - [ ] All unit tests pass: `npm test`

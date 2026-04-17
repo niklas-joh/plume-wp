@@ -12,6 +12,41 @@
 
 ---
 
+## Task 0: Pre-implementation Reuse Audit
+
+> **Mandatory.** Complete before writing any new PHP classes.
+
+- [ ] **Step 0.1: Audit existing Auth-related PHP files**
+
+```bash
+find includes/ -name "*.php" | xargs grep -l "token\|auth\|jwt\|session" -i 2>/dev/null
+# Review each match. Do not create a new class for logic that already exists.
+```
+
+- [ ] **Step 0.2: Audit existing REST controller pattern**
+
+```bash
+ls includes/Admin/*RestController.php includes/Modules/**/*RestController.php 2>/dev/null
+# Follow the same structure/conventions as existing REST controllers.
+```
+
+- [ ] **Step 0.3: Audit `wp_options` usage pattern in the plugin**
+
+```bash
+grep -rn "get_option\|update_option" includes/ --include="*.php" | head -20
+# Understand naming conventions (prefix `wpaim_`) before choosing option keys.
+```
+
+- [ ] **Step 0.4: Confirm NJ_Auth and NJ_Entitlement do not already exist**
+
+```bash
+ls includes/Auth/NJ_Auth.php includes/Entitlement/NJ_Entitlement.php 2>/dev/null \
+  || echo "Confirmed: classes not yet created"
+# If either exists, read it fully before proceeding — do not overwrite in-progress work.
+```
+
+---
+
 ## Design Decisions
 
 | Decision | Choice | Reason |
@@ -379,12 +414,14 @@ class NJ_Entitlement {
             'tokens_remaining' => 0,
             'resets_at'        => null,
             'features'         => [
-                'chat'      => false,
-                'generator' => false,
-                'seo'       => false,
-                'images'    => false,
-                'own_key'   => false,
+                'chat'            => false,
+                'generator'       => false,
+                'seo'             => false,
+                'images'          => false,
+                'own_key'         => false,
+                'model_selection' => false,
             ],
+            'allowed_models'   => [],  // Populated from Worker entitlement response for pro_managed
         ];
     }
 
@@ -671,6 +708,41 @@ git commit -m "feat(auth): wire NJ_Auth and NJ_Entitlement into plugin bootstrap
 
 ---
 
+## Task 5: Post-implementation Code Reuse Verification
+
+> **Mandatory.** Run before marking Phase 2 complete.
+
+- [ ] **Step 5.1: No duplicate WP option keys**
+
+```bash
+grep -rn "wpaim_nj_access_token\|wpaim_nj_refresh_token\|wpaim_entitlement" includes/ --include="*.php"
+# Expected: only NJ_Auth.php and NJ_Entitlement.php reference these keys
+```
+
+- [ ] **Step 5.2: No plan-name checks in PHP (use nj_feature() instead)**
+
+```bash
+grep -rn "plan.*===\|=== .*plan\|pro_managed\|'free'\|'trial'" includes/ --include="*.php" \
+  | grep -v "NJ_Entitlement\|NJ_Auth\|Test"
+# Expected: no plan-name string comparisons outside the entitlement class
+```
+
+- [ ] **Step 5.3: Confirm `nj_feature('model_selection')` is available**
+
+```bash
+grep -n "model_selection" includes/Entitlement/NJ_Entitlement.php
+# Expected: appears in empty_doc() features array
+```
+
+- [ ] **Step 5.4: Full test suite still passes**
+
+```bash
+./vendor/bin/phpunit tests/Unit/ --colors=always
+# Expected: all tests pass
+```
+
+---
+
 ## Phase 2 Acceptance Criteria
 
 - [ ] `POST /wp-ai-mind/v1/nj/login` with correct credentials → stores tokens in wp_options, returns entitlement doc
@@ -679,7 +751,10 @@ git commit -m "feat(auth): wire NJ_Auth and NJ_Entitlement into plugin bootstrap
 - [ ] `GET /wp-ai-mind/v1/nj/me` → returns fresh entitlement (busts cache first)
 - [ ] `POST /wp-ai-mind/v1/nj/logout` → clears tokens and transient
 - [ ] `nj_feature('chat')` returns `false` when not authenticated
-- [ ] `nj_feature('chat')` returns `true` after login with trial/free/pro plan
+- [ ] `nj_feature('chat')` returns `true` after login with trial/free/pro_managed/pro plan
+- [ ] `nj_feature('model_selection')` returns `true` for `pro_managed` and `pro` plans; `false` for `free`/`trial`
+- [ ] Entitlement doc includes `allowed_models` array (populated from Worker response)
+- [ ] `wpAiMindData` includes `allowed_models` for use in React model selector (Phase 6)
 - [ ] Entitlement transient is set after first fetch; second call does not make HTTP request
 - [ ] Refresh token is stored encrypted in `wp_options`; raw JWT value is never written to the database
 - [ ] `NJ_Auth::encrypt_refresh()` / `decrypt_refresh()` round-trip returns original value

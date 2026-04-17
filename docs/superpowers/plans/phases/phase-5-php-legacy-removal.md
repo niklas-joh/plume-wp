@@ -10,6 +10,38 @@
 
 **Depends on:** Phase 4 in production. Migration notice shown to existing users.
 
+---
+
+## Task 0: Pre-implementation Reuse Audit
+
+> **Mandatory.** This phase removes code — read everything before deleting anything.
+
+- [ ] **Step 0.1: Audit all 13 ProGate call sites**
+
+```bash
+grep -rn "wp_ai_mind_is_pro\|ProGate" includes/ --include="*.php"
+# List every call site. For each, determine the correct nj_feature() replacement key
+# using the feature flag table in the master spec before making any changes.
+```
+
+- [ ] **Step 0.2: Confirm nj_feature() covers all gated features**
+
+```bash
+grep -rn "nj_feature" includes/Entitlement/NJ_Entitlement.php wp-ai-mind.php
+# Verify the feature keys used at each ProGate call site exist in NJ_Entitlement::empty_doc().
+```
+
+- [ ] **Step 0.3: Confirm Phase 4 is live in production**
+
+Do not start this phase until `ProxyProvider` is serving real traffic and existing Pro users have had adequate migration notice (minimum 2 weeks).
+
+- [ ] **Step 0.4: Audit UsageLogger dependencies**
+
+```bash
+grep -rn "UsageLogger\|maybe_log\|wpaim_usage_log" includes/ --include="*.php"
+# Ensure every reference is accounted for before deleting the class.
+```
+
 **Critical Warning:** Existing Pro users who purchased via Freemius will lose their Pro status until they create an NJ account and upgrade via LemonSqueezy. Plan a migration period and show the admin notice from Task 1 for at least 2 weeks before removing Freemius.
 
 ---
