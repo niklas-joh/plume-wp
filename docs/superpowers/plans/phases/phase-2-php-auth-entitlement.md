@@ -16,7 +16,7 @@
 
 | Decision | Choice | Reason |
 |----------|--------|--------|
-| Token storage | `wp_options` (not encrypted for access token) | Short-lived JWT is an opaque Bearer credential; same risk as storing any API key. Refresh token should be encrypted with AES-256-CBC using AUTH_KEY |
+| Token storage | `wp_options` (access token plain; refresh token AES-256-CBC encrypted) | Access token is short-lived (1 h) — same risk as any API key. Refresh token has a 30-day lifetime and is encrypted with `openssl_encrypt( $refresh, 'aes-256-cbc', AUTH_KEY, 0, AUTH_SALT )` before writing to `wp_options`, and decrypted on read. |
 | Entitlement cache | 1-hour WP transient | Matches JWT expiry window; balances freshness vs HTTP overhead |
 | Null-object pattern | `empty_doc()` returns a fully-shaped array | Callers never need to null-check; feature flags default to `false` |
 | Proactive refresh | Refresh when token has < 5 minutes remaining | Prevents mid-request token expiry without adding a second HTTP round-trip |
@@ -102,6 +102,38 @@ class NJAuthTest extends TestCase {
         $this->assertNull( $method->invoke( null, 'not.a.jwt' ) );
         $this->assertNull( $method->invoke( null, '' ) );
     }
+
+    public function test_stored_refresh_token_is_encrypted(): void {
+        if ( ! defined( 'AUTH_KEY' ) ) {
+            define( 'AUTH_KEY', 'test-auth-key-32-bytes-long-value' );
+        }
+        if ( ! defined( 'AUTH_SALT' ) ) {
+            define( 'AUTH_SALT', 'test-auth-salt-16b' );
+        }
+
+        $raw_refresh = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.sig';
+        $stored_value = null;
+
+        Functions\when( 'update_option' )->alias(
+            function ( string $key, string $value ) use ( &$stored_value, $raw_refresh ) {
+                if ( 'wpaim_nj_refresh_token' === $key ) {
+                    $stored_value = $value;
+                }
+                return true;
+            }
+        );
+
+        $encrypt_method = new \ReflectionMethod( \WP_AI_Mind\Auth\NJ_Auth::class, 'encrypt_refresh' );
+        $encrypt_method->setAccessible( true );
+        $encrypted = $encrypt_method->invoke( null, $raw_refresh );
+
+        $this->assertNotSame( $raw_refresh, $encrypted, 'Stored refresh token must not be the raw JWT.' );
+        $this->assertNotEmpty( $encrypted );
+
+        $decrypt_method = new \ReflectionMethod( \WP_AI_Mind\Auth\NJ_Auth::class, 'decrypt_refresh' );
+        $decrypt_method->setAccessible( true );
+        $this->assertSame( $raw_refresh, $decrypt_method->invoke( null, $encrypted ) );
+    }
 }
 ```
 
@@ -128,8 +160,8 @@ class NJ_Auth {
     public const PROXY_BASE = 'https://wp-ai-mind-proxy.YOUR_SUBDOMAIN.workers.dev';
 
     public static function store( string $access, string $refresh ): void {
-        update_option( self::ACCESS_KEY,  $access,  false );
-        update_option( self::REFRESH_KEY, $refresh, false );
+        update_option( self::ACCESS_KEY,  $access,                          false );
+        update_option( self::REFRESH_KEY, self::encrypt_refresh( $refresh ), false );
         delete_transient( 'wpaim_entitlement' );
     }
 
@@ -167,7 +199,8 @@ class NJ_Auth {
     }
 
     private static function do_refresh(): string {
-        $refresh = (string) get_option( self::REFRESH_KEY, '' );
+        $stored  = (string) get_option( self::REFRESH_KEY, '' );
+        $refresh = '' !== $stored ? self::decrypt_refresh( $stored ) : '';
         if ( '' === $refresh ) return '';
 
         $response = wp_remote_post( self::PROXY_BASE . '/v1/auth/refresh', [
@@ -187,6 +220,28 @@ class NJ_Auth {
         update_option( self::ACCESS_KEY, $body['access_token'], false );
         delete_transient( 'wpaim_entitlement' );
         return $body['access_token'];
+    }
+
+    /**
+     * Encrypts the refresh token with AES-256-CBC before writing to wp_options.
+     * Uses AUTH_KEY as the key and AUTH_SALT (truncated/padded to 16 bytes) as the IV.
+     */
+    private static function encrypt_refresh( string $refresh ): string {
+        if ( '' === $refresh ) return '';
+        $iv        = substr( hash( 'sha256', AUTH_SALT ), 0, 16 );
+        $encrypted = openssl_encrypt( $refresh, 'aes-256-cbc', AUTH_KEY, 0, $iv );
+        return false !== $encrypted ? $encrypted : '';
+    }
+
+    /**
+     * Decrypts a refresh token previously encrypted by encrypt_refresh().
+     * Returns '' on failure so the caller can treat it as "not authenticated".
+     */
+    private static function decrypt_refresh( string $stored ): string {
+        if ( '' === $stored ) return '';
+        $iv        = substr( hash( 'sha256', AUTH_SALT ), 0, 16 );
+        $decrypted = openssl_decrypt( $stored, 'aes-256-cbc', AUTH_KEY, 0, $iv );
+        return false !== $decrypted ? $decrypted : '';
     }
 
     private static function decode_payload( string $token ): ?array {
@@ -625,6 +680,9 @@ git commit -m "feat(auth): wire NJ_Auth and NJ_Entitlement into plugin bootstrap
 - [ ] `nj_feature('chat')` returns `false` when not authenticated
 - [ ] `nj_feature('chat')` returns `true` after login with trial/free/pro plan
 - [ ] Entitlement transient is set after first fetch; second call does not make HTTP request
+- [ ] Refresh token is stored encrypted in `wp_options`; raw JWT value is never written to the database
+- [ ] `NJ_Auth::encrypt_refresh()` / `decrypt_refresh()` round-trip returns original value
+- [ ] PHPUnit test confirms stored value differs from the raw JWT string
 - [ ] All PHPUnit tests pass: `./vendor/bin/phpunit tests/Unit/ --colors=always`
 - [ ] `wpAiMindData` JavaScript object includes `isAuthenticated` and `entitlement` keys on all pages
 
@@ -632,6 +690,6 @@ git commit -m "feat(auth): wire NJ_Auth and NJ_Entitlement into plugin bootstrap
 
 ## Phase 2 Risk Notes
 
-- **`wp_options` for tokens is readable by any code with database access.** The access JWT is short-lived (1h) — this is the same risk as any plugin storing an API key. The refresh token is longer-lived; consider encrypting it with `AUTH_KEY` via `openssl_encrypt()` as a future hardening step.
+- **`wp_options` for tokens is readable by any code with database access.** The access JWT is short-lived (1 h) — same risk as any plugin storing an API key. The refresh token (30-day lifetime) is encrypted with AES-256-CBC using `AUTH_KEY`/`AUTH_SALT` before storage, so a raw database read cannot be used to silently obtain new access tokens. If `AUTH_KEY` is not defined (non-standard WP setup), encryption will produce an empty string and the token will not be stored — treat this as a startup-time misconfiguration.
 - **First page load after transient expiry adds ~100–300ms latency** (one HTTP call to the Worker). This is a cold-cache penalty once per hour per WordPress request — acceptable.
 - **`__return_true` on auth endpoints** means any WordPress visitor can attempt login/register. This is intentional — the rate limiting is enforced by the Worker (Phase 7). The WordPress REST endpoint is just a proxy.
