@@ -17,7 +17,12 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
     if (saltHex.length !== 32 || hashHex.length !== 64) return false;
     const salt   = unhex(saltHex);
     const keyMat = await derive(plain, salt);
-    return hex(new Uint8Array(keyMat)) === hashHex;
+    const a = new Uint8Array(keyMat);
+    const b = unhex(hashHex);
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+    return diff === 0;
   } catch {
     return false;
   }
