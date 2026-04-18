@@ -1,7 +1,7 @@
-# WP AI Mind — Technical Architecture Spec
-## Free Tier, API Key Management, Rate Limiting & Tier Design
+# WP AI Mind — Technical Architecture Spec (Hybrid Approach)
+## Three-Tier WordPress Plugin with Minimal API Proxy
 
-> **Purpose:** Reference document for a new development session. Captures all design decisions, target architecture, and rationale from prior analysis. The new chat should explore the existing codebase and adapt it to this architecture — not start from scratch.
+> **Purpose:** Reference document for hybrid WordPress-native architecture with minimal external proxy for API key protection only. This design prioritizes WordPress plugin conventions while solving the core API key security requirement.
 
 ---
 
@@ -18,150 +18,194 @@ The plugin (`wp-ai-mind`) currently:
 
 ---
 
-## Core Architectural Decision: The Thin Client Model
+## Core Architectural Decision: WordPress-Native Hybrid
 
-**The plugin is a UI only. All business logic lives in a backend API you control.**
+**The plugin handles everything except API key protection.**
 
-This is the fundamental shift. The plugin:
-- Stores an auth token
-- Sends requests to your API
-- Renders responses and usage data
-- Has no knowledge of plan limits, models, or API keys
+This is a WordPress-first approach with minimal external dependencies:
 
-Your backend API:
-- Validates identity
-- Enforces entitlements and rate limits
-- Holds all AI provider keys
-- Logs all usage
-- Returns structured errors with upgrade CTAs
+**WordPress Plugin (Primary):**
+- User management via WordPress users + custom fields
+- Payment processing via LemonSqueezy webhooks to WordPress
+- Rate limiting via WordPress transients + cron
+- All UI in WordPress admin
+- Direct API calls for Pro BYOK users
 
-**Why:** Any enforcement logic inside the plugin can be trivially bypassed (database edits, code modification). Every market-leading AI plugin (Jetpack AI, AI Engine, Elementor AI) has converged on this model. It also means pricing, limits, and models can change without a plugin update.
+**Minimal Cloudflare Proxy (Security Only):**
+- Single purpose: protect plugin API keys for Free/Trial users
+- ~200 lines of code (vs 1000+ in microservices approach)
+- No auth, user management, or complex routing
+- WordPress signs requests; proxy validates and forwards
+
+**Why this hybrid approach:** Follows WordPress plugin conventions while solving API key security. Much simpler than external auth systems, but still protects your API keys from being extracted by users.
 
 ---
 
-## What Gets Removed
+## What Gets Removed vs WordPress-Native Replacements
 
 | Current | Replaced by |
 |---|---|
-| Freemius SDK entirely | LemonSqueezy for payments + custom JWT auth |
-| `ProGate::is_pro()` | API response determines what's allowed |
-| `UsageLogger` (in plugin) | Usage logged server-side in Cloudflare Worker |
-| Per-provider API key settings (for free users) | Removed — free users have no key to configure |
-| `wam_fs()` calls throughout codebase | `NJ_Auth::get_token()` + `NJ_Entitlement::get()` |
+| Freemius SDK entirely | LemonSqueezy webhooks to WordPress endpoints + custom user meta |
+| `ProGate::is_pro()` | WordPress user meta tier checking |
+| `UsageLogger` (current database logging) | WordPress user meta + transients for current month usage |
+| Per-provider API key settings (for free users) | Removed — free/trial users use proxy with hidden keys |
+| `wam_fs()` calls throughout codebase | `nj_get_user_tier()` + `nj_can_user()` helpers |
 
-Pro users who bring their own API key retain that capability — see Pro tier section.
+Pro BYOK users retain the capability to configure their own API keys — see tier 3 below.
 
 ---
 
-## Identity & Authentication
+## Three-Tier System Design
 
-### Model: Account-Based with JWT
+### Tier 1: Free (Plugin API Key, Rate Limited)
+- **Monthly limit:** 50,000 tokens
+- **Model:** Claude Haiku only
+- **API routing:** Through minimal Cloudflare proxy (protects your API key)
+- **User setup:** Zero configuration required
 
-Users create an account on your website (email + password). The plugin authenticates as that account and receives a short-lived JWT. This is the direction the market has moved — frictionless free signup, no license key friction.
+### Tier 2: Pro Managed (Plugin API Key, Higher Limits)
+- **Monthly limit:** 2,000,000 tokens
+- **Models:** Claude Haiku, Sonnet, Opus (user choice)
+- **API routing:** Through minimal Cloudflare proxy (protects your API key)
+- **User setup:** Payment via LemonSqueezy, no API key needed
 
-**Token storage in WordPress:**
+### Tier 3: Pro BYOK (User's API Key, Unlimited)
+- **Monthly limit:** None (user pays their own API costs)
+- **Models:** Any model their key supports
+- **API routing:** Direct from WordPress to provider (bypass proxy entirely)
+- **User setup:** User provides their own API key, stored encrypted in WordPress
 
+---
+
+## Identity & User Management
+
+### Model: WordPress Users + Custom Meta
+
+No external auth system needed. Use WordPress's existing user system:
+
+**User tier storage:**
 ```php
-// Stored in wp_options (encrypted)
-wam_auth_token        // JWT, short-lived (1 hour)
-wam_refresh_token     // Long-lived (30 days), used to rotate access token
-wam_entitlement       // Cached plan + limits object (1-hour transient)
+// Stored as user meta
+wp_ai_mind_tier          // 'free', 'pro_managed', 'pro_byok'
+wp_ai_mind_tier_expires  // For trial periods
+wp_ai_mind_monthly_usage // Current month token usage
+wp_ai_mind_usage_reset   // Timestamp of last reset
 ```
 
-**Auth flow:**
-
-```
-1. User installs plugin
-2. Plugin shows account creation screen (email + password)
-   OR "Log in to existing account"
-3. Plugin POSTs credentials to your API → receives JWT + refresh token
-4. JWT stored in wp_options
-5. All subsequent AI requests carry JWT as Bearer token
-6. Plugin refreshes JWT silently when it expires (using refresh token)
+**For Pro BYOK users:**
+```php
+wp_ai_mind_api_keys      // JSON object with encrypted provider keys
 ```
 
-**JWT payload:**
+**Tier checking:**
+```php
+function nj_get_user_tier( $user_id = null ): string {
+    $user_id = $user_id ?: get_current_user_id();
+    return get_user_meta( $user_id, 'wp_ai_mind_tier', true ) ?: 'free';
+}
 
-```json
-{
-  "sub": "user_12345",
-  "site": "example.com",
-  "plan": "trial",
-  "iat": 1713300000,
-  "exp": 1713303600
+function nj_can_user( string $feature, $user_id = null ): bool {
+    $tier = nj_get_user_tier( $user_id );
+    return match([$tier, $feature]) {
+        ['free', 'chat'] => true,
+        ['free', 'model_selection'] => false,
+        ['pro_managed', 'chat'] => true,
+        ['pro_managed', 'model_selection'] => true,
+        ['pro_byok', 'chat'] => true,
+        ['pro_byok', 'model_selection'] => true,
+        ['pro_byok', 'unlimited'] => true,
+        default => false,
+    };
 }
 ```
 
-The JWT is signed with a secret only your API knows. The Cloudflare Worker validates the signature on every request — no database lookup required.
-
 ---
 
-## Entitlement System
+## Rate Limiting System
 
-### The Entitlement Document
+### WordPress-Native Rate Limiting
 
-Your API returns a structured entitlement object. The plugin caches it as a 1-hour transient. The Cloudflare Worker re-validates it independently on every request — it does not trust the plugin's cached copy for enforcement.
+Rate limits enforced in WordPress using user meta + transients:
 
-```json
-{
-  "user_id": "u_12345",
-  "plan": "trial",
-  "plan_expires": "2026-04-24T00:00:00Z",
-  "features": {
-    "proxy_api_access": true,
-    "model": "claude-haiku-4-5",
-    "streaming": false,
-    "max_output_tokens": 1000,
-    "conversation_memory": false,
-    "bulk_generation": false,
-    "own_api_key": false
-  },
-  "usage": {
-    "tokens_used_this_month": 12450,
-    "tokens_remaining": 37550,
-    "resets_at": "2026-05-01T00:00:00Z"
-  }
+```php
+function nj_check_user_usage( $user_id = null ): array {
+    $user_id = $user_id ?: get_current_user_id();
+    $tier = nj_get_user_tier( $user_id );
+
+    // Get monthly limits
+    $limits = [
+        'free' => 50000,
+        'pro_managed' => 2000000,
+        'pro_byok' => null, // unlimited
+    ];
+
+    $monthly_limit = $limits[$tier];
+
+    if ($monthly_limit === null) {
+        return ['unlimited' => true];
+    }
+
+    // Check current usage
+    $usage_key = 'wp_ai_mind_usage_' . date('Y_m');
+    $current_usage = (int) get_user_meta( $user_id, $usage_key, true );
+
+    return [
+        'tier' => $tier,
+        'used' => $current_usage,
+        'limit' => $monthly_limit,
+        'remaining' => max(0, $monthly_limit - $current_usage),
+        'can_use' => $current_usage < $monthly_limit,
+    ];
+}
+
+function nj_log_usage( int $tokens, $user_id = null ): void {
+    $user_id = $user_id ?: get_current_user_id();
+    $usage_key = 'wp_ai_mind_usage_' . date('Y_m');
+
+    $current = (int) get_user_meta( $user_id, $usage_key, true );
+    update_user_meta( $user_id, $usage_key, $current + $tokens );
 }
 ```
 
 ### Plan Definitions
 
-| Feature | Free | Trial (7 days) | Pro |
+| Feature | Free | Pro Managed | Pro BYOK |
 |---|---|---|---|
-| Monthly token budget | 50,000 | 300,000 | Unlimited (own key) |
-| Model | Claude Haiku | Claude Haiku | User's choice |
-| Streaming | ❌ | ❌ | ✅ |
-| Conversation memory | ❌ | ✅ | ✅ |
-| Bulk generation | ❌ | ❌ | ✅ |
-| Own API key | ❌ | ❌ | ✅ |
-| Max output tokens/request | 1,000 | 2,000 | Unlimited |
+| Monthly token budget | 50,000 | 2,000,000 | Unlimited |
+| Model selection | Claude Haiku only | Haiku/Sonnet/Opus | Any (user's key) |
+| API routing | Through proxy | Through proxy | Direct to provider |
+| Setup required | None | Payment only | Payment + API key |
+| Your cost | ~$0.05/user/month | ~$0.50/user/month | $0 |
 
 **Design rationale:**
-- Trial is generous enough that users experience the full value proposition before it expires
-- Free plan is useful but model-limited and volume-limited — power users hit the ceiling
-- The step-down from trial → free is the primary conversion moment
-- Streaming and model choice are qualitative gates that create upgrade motivation independent of volume
+- Free tier is generous enough for casual users but has ceiling for power users
+- Pro Managed removes friction (no API key setup) while generating revenue
+- Pro BYOK serves power users who want control and don't mind complexity
+- Proxy protects your API keys for tiers 1&2, direct routing eliminates your costs for tier 3
 
 ---
 
-## Backend API: Cloudflare Worker
+## Minimal Cloudflare Proxy
 
-### Why Cloudflare Workers
+### Why Minimal Proxy
 
-- Zero server management — no VPS, no nginx, no Docker
-- Free tier: 100,000 requests/day
-- Global edge deployment — low latency worldwide
-- Cloudflare KV for rate limit state — built-in, no Redis needed
-- Secrets (API keys) stored encrypted by Cloudflare, never in code
-- Deploy via CLI in seconds; local dev with `wrangler dev`
+**Purpose:** API key protection only. Everything else handled by WordPress.
+
+**Benefits:**
+- Protects your API keys from being extracted by users
+- Simple rate limiting via edge location
+- 70% smaller than full microservices approach (~200 lines vs 1000+)
+- No user management, auth, or complex routing
 
 ### Project Structure
 
 ```
 wp-ai-mind-proxy/
 ├── src/
-│   └── index.js          # All Worker logic
-├── wrangler.toml          # Cloudflare config
+│   ├── index.ts          # Main proxy logic (~150 lines)
+│   ├── types.ts          # Simple interfaces
+│   └── signature.ts      # Request verification
+├── wrangler.toml         # Minimal config
 └── package.json
 ```
 
@@ -169,278 +213,109 @@ wp-ai-mind-proxy/
 
 ```toml
 name = "wp-ai-mind-proxy"
-main = "src/index.js"
+main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
 binding = "USAGE_KV"
 id = "your_kv_namespace_id_here"
 
-# Secrets set via CLI — never stored in this file:
+# Only one secret needed:
 # wrangler secret put ANTHROPIC_API_KEY
-# wrangler secret put JWT_SECRET
-# wrangler secret put LEMONSQUEEZY_WEBHOOK_SECRET
+# wrangler secret put PROXY_SIGNATURE_SECRET
 ```
 
-### `src/index.js` — Core Worker Logic
+### `src/index.ts` — Minimal Proxy Logic
 
-```javascript
+```typescript
+interface Env {
+  USAGE_KV: KVNamespace;
+  ANTHROPIC_API_KEY: string;
+  PROXY_SIGNATURE_SECRET: string;
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405 });
+    }
+
     const url = new URL(request.url);
+    if (url.pathname === '/v1/chat') {
+      return handleChatProxy(request, env);
+    }
 
-    // Route requests
-    if (url.pathname === '/v1/auth/token')      return handleAuthToken(request, env);
-    if (url.pathname === '/v1/auth/refresh')    return handleAuthRefresh(request, env);
-    if (url.pathname === '/v1/entitlement')     return handleEntitlement(request, env);
-    if (url.pathname === '/v1/chat')            return handleChat(request, env);
-    if (url.pathname === '/v1/usage')           return handleUsage(request, env);
-    if (url.pathname === '/webhooks/lemonsqueezy') return handleLSWebhook(request, env);
-
-    return json({ error: 'not_found' }, 404);
+    return new Response('Not found', { status: 404 });
   }
 };
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-
-async function handleAuthToken(request, env) {
-  const { email, password } = await request.json();
-  const user = await verifyCredentials(email, password, env);
-  if (!user) return json({ error: 'invalid_credentials' }, 401);
-
-  const accessToken  = await signJWT({ sub: user.id, plan: user.plan }, env.JWT_SECRET, 3600);
-  const refreshToken = await signJWT({ sub: user.id, type: 'refresh' }, env.JWT_SECRET, 2592000);
-
-  return json({ access_token: accessToken, refresh_token: refreshToken });
-}
-
-async function handleAuthRefresh(request, env) {
-  const { refresh_token } = await request.json();
-  const payload = await verifyJWT(refresh_token, env.JWT_SECRET);
-  if (!payload || payload.type !== 'refresh') return json({ error: 'invalid_token' }, 401);
-
-  const user        = await getUserById(payload.sub, env);
-  const accessToken = await signJWT({ sub: user.id, plan: user.plan }, env.JWT_SECRET, 3600);
-
-  return json({ access_token: accessToken });
-}
-
-// ─── Entitlement ─────────────────────────────────────────────────────────────
-
-async function handleEntitlement(request, env) {
-  const user = await authenticate(request, env);
-  if (!user) return json({ error: 'unauthorized' }, 401);
-
-  const used = await getMonthlyUsage(user.id, env);
-  const plan = PLAN_DEFINITIONS[user.plan];
-
-  return json({
-    user_id:      user.id,
-    plan:         user.plan,
-    plan_expires: user.plan_expires,
-    features:     plan.features,
-    usage: {
-      tokens_used_this_month: used,
-      tokens_remaining:       Math.max(0, plan.monthly_token_budget - used),
-      resets_at:              nextMonthStart(),
+async function handleChatProxy(request: Request, env: Env): Promise<Response> {
+  try {
+    // 1. Verify request signature from WordPress
+    const signature = request.headers.get('X-WP-Signature');
+    if (!signature || !(await verifySignature(request, signature, env))) {
+      return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 401 });
     }
-  });
-}
 
-// ─── Chat (proxy to Anthropic) ────────────────────────────────────────────────
+    const body = await request.json() as any;
+    const { user_id, tier, messages, model, max_tokens } = body;
 
-async function handleChat(request, env) {
-  const user = await authenticate(request, env);
-  if (!user) return json({ error: 'unauthorized' }, 401);
+    // 2. Check rate limits for free/pro_managed users
+    if (tier !== 'pro_byok') {
+      const limits = { free: 50000, pro_managed: 2000000 };
+      const monthlyLimit = limits[tier as keyof typeof limits];
 
-  const plan = PLAN_DEFINITIONS[user.plan];
-  if (!plan.features.proxy_api_access) {
-    return json({ error: 'plan_not_eligible', upgrade_url: 'https://wpaimind.com/upgrade' }, 403);
-  }
+      const usageKey = `usage:${user_id}:${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const currentUsage = parseInt(await env.USAGE_KV.get(usageKey) || '0');
 
-  // Rate limit check
-  const used = await getMonthlyUsage(user.id, env);
-  if (used >= plan.monthly_token_budget) {
-    return json({
-      error:       'limit_exceeded',
-      used,
-      limit:       plan.monthly_token_budget,
-      resets_at:   nextMonthStart(),
-      upgrade_url: 'https://wpaimind.com/upgrade'
-    }, 429);
-  }
-
-  const body = await request.json();
-
-  // Enforce max output tokens per request
-  const maxTokens = Math.min(
-    body.max_tokens || plan.features.max_output_tokens,
-    plan.features.max_output_tokens
-  );
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method:  'POST',
-    headers: {
-      'x-api-key':         env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type':      'application/json',
-    },
-    body: JSON.stringify({
-      model:      plan.features.model,
-      max_tokens: maxTokens,
-      messages:   body.messages,
-    }),
-  });
-
-  const result     = await response.json();
-  const tokensUsed = result.usage.input_tokens + result.usage.output_tokens;
-
-  // Write usage to KV
-  await incrementMonthlyUsage(user.id, tokensUsed, env);
-
-  return json(result, 200, {
-    'X-WAM-Tokens-Used':      String(used + tokensUsed),
-    'X-WAM-Tokens-Remaining': String(Math.max(0, plan.monthly_token_budget - used - tokensUsed)),
-    'X-WAM-Reset-At':         nextMonthStart(),
-  });
-}
-
-// ─── Usage ───────────────────────────────────────────────────────────────────
-
-async function handleUsage(request, env) {
-  const user = await authenticate(request, env);
-  if (!user) return json({ error: 'unauthorized' }, 401);
-
-  const used = await getMonthlyUsage(user.id, env);
-  const plan = PLAN_DEFINITIONS[user.plan];
-
-  return json({
-    tokens_used:      used,
-    tokens_remaining: Math.max(0, plan.monthly_token_budget - used),
-    monthly_budget:   plan.monthly_token_budget,
-    resets_at:        nextMonthStart(),
-  });
-}
-
-// ─── LemonSqueezy Webhook ─────────────────────────────────────────────────────
-
-async function handleLSWebhook(request, env) {
-  // Verify HMAC signature from LemonSqueezy
-  const signature = request.headers.get('X-Signature');
-  const body      = await request.text();
-  const valid     = await verifyLSSignature(body, signature, env.LEMONSQUEEZY_WEBHOOK_SECRET);
-  if (!valid) return json({ error: 'invalid_signature' }, 401);
-
-  const event = JSON.parse(body);
-  const email = event.data?.attributes?.user_email;
-
-  switch (event.meta.event_name) {
-    case 'subscription_created':
-    case 'subscription_resumed':
-      await updateUserPlan(email, 'pro', null, env);
-      break;
-    case 'subscription_cancelled':
-    case 'subscription_expired':
-      await updateUserPlan(email, 'free', null, env);
-      break;
-    case 'order_created':
-      // One-time purchase if applicable
-      await updateUserPlan(email, 'pro', null, env);
-      break;
-  }
-
-  return json({ received: true });
-}
-
-// ─── Rate limit helpers (Cloudflare KV) ──────────────────────────────────────
-
-function currentMonthKey(userId) {
-  const now = new Date();
-  return `usage:${userId}:${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
-
-async function getMonthlyUsage(userId, env) {
-  const val = await env.USAGE_KV.get(currentMonthKey(userId));
-  return parseInt(val || '0');
-}
-
-async function incrementMonthlyUsage(userId, tokens, env) {
-  const key  = currentMonthKey(userId);
-  const used = await getMonthlyUsage(userId, env); // acceptable: KV reads are fast
-  await env.USAGE_KV.put(key, String(used + tokens), {
-    expiration: nextMonthStartUnix()
-  });
-}
-
-function nextMonthStart() {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString();
-}
-
-function nextMonthStartUnix() {
-  const d = new Date();
-  return Math.floor(new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime() / 1000);
-}
-
-// ─── Plan definitions ─────────────────────────────────────────────────────────
-
-const PLAN_DEFINITIONS = {
-  free: {
-    monthly_token_budget: 50000,
-    features: {
-      proxy_api_access:     true,
-      model:                'claude-haiku-4-5',
-      streaming:            false,
-      max_output_tokens:    1000,
-      conversation_memory:  false,
-      bulk_generation:      false,
-      own_api_key:          false,
+      if (currentUsage >= monthlyLimit) {
+        return new Response(JSON.stringify({
+          error: 'Rate limit exceeded',
+          used: currentUsage,
+          limit: monthlyLimit,
+        }), { status: 429 });
+      }
     }
-  },
-  trial: {
-    monthly_token_budget: 300000,
-    features: {
-      proxy_api_access:     true,
-      model:                'claude-haiku-4-5',
-      streaming:            false,
-      max_output_tokens:    2000,
-      conversation_memory:  true,
-      bulk_generation:      false,
-      own_api_key:          false,
+
+    // 3. Forward to Anthropic
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ model, max_tokens, messages }),
+    });
+
+    const result = await response.json() as any;
+
+    // 4. Update usage in KV (only for free/pro_managed)
+    if (tier !== 'pro_byok' && result.usage) {
+      const tokensUsed = result.usage.input_tokens + result.usage.output_tokens;
+      const usageKey = `usage:${user_id}:${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const currentUsage = parseInt(await env.USAGE_KV.get(usageKey) || '0');
+
+      await env.USAGE_KV.put(usageKey, String(currentUsage + tokensUsed), {
+        expiration: Math.floor(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).getTime() / 1000)
+      });
     }
-  },
-  pro: {
-    monthly_token_budget: Infinity, // Pro uses own key — budget is irrelevant
-    features: {
-      proxy_api_access:     false,  // Pro routes direct to provider, not through proxy
-      model:                null,   // User's choice
-      streaming:            true,
-      max_output_tokens:    null,   // Unlimited
-      conversation_memory:  true,
-      bulk_generation:      true,
-      own_api_key:          true,
-    }
+
+    return new Response(JSON.stringify(result), {
+      status: response.status,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: 'Proxy error' }), { status: 500 });
   }
-};
-
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
-async function authenticate(request, env) {
-  const auth  = request.headers.get('Authorization') || '';
-  const token = auth.replace('Bearer ', '');
-  if (!token) return null;
-  return verifyJWT(token, env.JWT_SECRET);
 }
 
-function json(data, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...extraHeaders }
-  });
+async function verifySignature(request: Request, signature: string, env: Env): Promise<boolean> {
+  // Verify HMAC signature from WordPress
+  // Implementation depends on your signature scheme
+  return true; // Placeholder - implement proper HMAC verification
 }
-
-// verifyJWT, signJWT, verifyCredentials, getUserById, updateUserPlan,
-// verifyLSSignature — implement using Web Crypto API (available in CF Workers)
 ```
 
 ### Deployment
@@ -451,10 +326,9 @@ npm install -g wrangler
 wrangler login
 wrangler kv:namespace create USAGE_KV   # note the ID, add to wrangler.toml
 
-# Set secrets (stored encrypted by Cloudflare — never in code)
+# Set secrets (only two needed)
 wrangler secret put ANTHROPIC_API_KEY
-wrangler secret put JWT_SECRET
-wrangler secret put LEMONSQUEEZY_WEBHOOK_SECRET
+wrangler secret put PROXY_SIGNATURE_SECRET
 
 # Development
 wrangler dev                             # local dev at localhost:8787
@@ -462,7 +336,6 @@ wrangler dev                             # local dev at localhost:8787
 # Deploy
 wrangler deploy
 # → live at: https://wp-ai-mind-proxy.your-account.workers.dev
-# → attach custom domain (api.wpaimind.com) in CF dashboard
 ```
 
 ---
@@ -471,177 +344,155 @@ wrangler deploy
 
 ### New PHP architecture
 
-The plugin's responsibility narrows to: auth management, request dispatch, response rendering, and usage display.
+The plugin's responsibility: full user management, payments, rate limiting, UI, and request routing.
 
 **New classes / files needed:**
 
 ```
 wp-ai-mind/
 └── includes/
-    ├── Auth/
-    │   ├── class-nj-auth.php          # Token storage, refresh, logout
-    │   └── class-nj-auth-ui.php       # Login/signup screen in WP
-    ├── Entitlement/
-    │   └── class-nj-entitlement.php   # Fetch + cache entitlement doc
+    ├── Tiers/
+    │   ├── class-nj-tier-manager.php    # Tier checking and management
+    │   └── class-nj-usage-tracker.php   # Rate limiting and usage logging
+    ├── Payments/
+    │   └── class-nj-lemonsqueezy.php    # LemonSqueezy webhook handling
     ├── Proxy/
-    │   └── class-nj-proxy-client.php  # HTTP client for your API
+    │   └── class-nj-proxy-client.php    # Signed requests to minimal proxy
     └── Admin/
-        └── class-nj-usage-widget.php  # Dashboard usage meter UI
+        ├── class-nj-tier-settings.php   # Tier management UI
+        └── class-nj-usage-widget.php    # Dashboard usage meter UI
 ```
 
 **Classes to remove or gut:**
 
 ```
-ProGate              → delete entirely
-UsageLogger          → delete (logging moves to Worker)
+ProGate              → delete entirely (replace with nj_get_user_tier())
+UsageLogger          → replace with WordPress-native logging
 FreemiusProvider     → delete (entire Freemius integration)
-[Provider]ApiKey     → retain for Pro users only (see below)
+[Provider]ApiKey     → retain for Pro BYOK users only
 ```
 
-### `class-nj-auth.php`
+### `class-nj-tier-manager.php` (WordPress-Native)
 
 ```php
 <?php
 
-class NJ_Auth {
+class NJ_Tier_Manager {
 
-    const TOKEN_OPTION   = 'wam_auth_token';
-    const REFRESH_OPTION = 'wam_refresh_token';
-    const API_BASE       = 'https://api.wpaimind.com/v1';
-
-    public static function get_token(): string|null {
-        $token = get_option( self::TOKEN_OPTION );
-        if ( ! $token ) return null;
-
-        // Decode without verification to check expiry
-        $parts   = explode( '.', $token );
-        $payload = json_decode( base64_decode( $parts[1] ?? '' ), true );
-
-        if ( isset( $payload['exp'] ) && $payload['exp'] < time() + 60 ) {
-            $token = self::refresh_token();
-        }
-
-        return $token;
+    public static function get_user_tier( $user_id = null ): string {
+        $user_id = $user_id ?: get_current_user_id();
+        return get_user_meta( $user_id, 'wp_ai_mind_tier', true ) ?: 'free';
     }
 
-    public static function login( string $email, string $password ): bool {
-        $response = wp_remote_post( self::API_BASE . '/auth/token', [
-            'body'    => wp_json_encode( compact( 'email', 'password' ) ),
-            'headers' => [ 'Content-Type' => 'application/json' ],
-        ] );
+    public static function set_user_tier( string $tier, $user_id = null ): bool {
+        $user_id = $user_id ?: get_current_user_id();
+        $valid_tiers = [ 'free', 'pro_managed', 'pro_byok' ];
 
-        if ( is_wp_error( $response ) ) return false;
+        if ( ! in_array( $tier, $valid_tiers ) ) return false;
 
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( empty( $body['access_token'] ) ) return false;
-
-        update_option( self::TOKEN_OPTION,   $body['access_token'] );
-        update_option( self::REFRESH_OPTION, $body['refresh_token'] );
-
-        // Bust entitlement cache on login
-        delete_transient( 'wam_entitlement' );
-
-        return true;
+        return update_user_meta( $user_id, 'wp_ai_mind_tier', $tier );
     }
 
-    public static function logout(): void {
-        delete_option( self::TOKEN_OPTION );
-        delete_option( self::REFRESH_OPTION );
-        delete_transient( 'wam_entitlement' );
+    public static function user_can( string $feature, $user_id = null ): bool {
+        $tier = self::get_user_tier( $user_id );
+
+        return match([$tier, $feature]) {
+            ['free', 'chat'] => true,
+            ['free', 'model_selection'] => false,
+            ['pro_managed', 'chat'] => true,
+            ['pro_managed', 'model_selection'] => true,
+            ['pro_byok', 'chat'] => true,
+            ['pro_byok', 'model_selection'] => true,
+            ['pro_byok', 'unlimited'] => true,
+            default => false,
+        };
     }
 
-    public static function is_authenticated(): bool {
-        return ! empty( self::get_token() );
-    }
-
-    private static function refresh_token(): string|null {
-        $refresh = get_option( self::REFRESH_OPTION );
-        if ( ! $refresh ) return null;
-
-        $response = wp_remote_post( self::API_BASE . '/auth/refresh', [
-            'body'    => wp_json_encode( [ 'refresh_token' => $refresh ] ),
-            'headers' => [ 'Content-Type' => 'application/json' ],
-        ] );
-
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( empty( $body['access_token'] ) ) return null;
-
-        update_option( self::TOKEN_OPTION, $body['access_token'] );
-        return $body['access_token'];
+    public static function get_monthly_limits(): array {
+        return [
+            'free' => 50000,
+            'pro_managed' => 2000000,
+            'pro_byok' => null, // unlimited
+        ];
     }
 }
 ```
 
-### `class-nj-entitlement.php`
+### `class-nj-usage-tracker.php` (WordPress-Native)
 
 ```php
 <?php
 
-class NJ_Entitlement {
+class NJ_Usage_Tracker {
 
-    const TRANSIENT_KEY = 'wam_entitlement';
-    const TTL           = HOUR_IN_SECONDS;
+    public static function get_current_usage( $user_id = null ): array {
+        $user_id = $user_id ?: get_current_user_id();
+        $tier = NJ_Tier_Manager::get_user_tier( $user_id );
+        $limits = NJ_Tier_Manager::get_monthly_limits();
 
-    public static function get(): array|null {
-        $cached = get_transient( self::TRANSIENT_KEY );
-        if ( $cached ) return $cached;
+        $usage_key = 'wp_ai_mind_usage_' . date('Y_m');
+        $current_usage = (int) get_user_meta( $user_id, $usage_key, true );
+        $monthly_limit = $limits[$tier];
 
-        $token = NJ_Auth::get_token();
-        if ( ! $token ) return null;
-
-        $response = wp_remote_get( NJ_Auth::API_BASE . '/entitlement', [
-            'headers' => [ 'Authorization' => 'Bearer ' . $token ],
-        ] );
-
-        if ( is_wp_error( $response ) ) return null;
-
-        $data = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( empty( $data['plan'] ) ) return null;
-
-        set_transient( self::TRANSIENT_KEY, $data, self::TTL );
-        return $data;
+        return [
+            'tier' => $tier,
+            'used' => $current_usage,
+            'limit' => $monthly_limit,
+            'remaining' => $monthly_limit ? max(0, $monthly_limit - $current_usage) : null,
+            'can_use' => $monthly_limit ? $current_usage < $monthly_limit : true,
+        ];
     }
 
-    public static function can( string $feature ): bool {
-        $entitlement = self::get();
-        return (bool) ( $entitlement['features'][ $feature ] ?? false );
+    public static function log_usage( int $tokens, $user_id = null ): void {
+        $user_id = $user_id ?: get_current_user_id();
+        $usage_key = 'wp_ai_mind_usage_' . date('Y_m');
+
+        $current = (int) get_user_meta( $user_id, $usage_key, true );
+        update_user_meta( $user_id, $usage_key, $current + $tokens );
     }
 
-    public static function is_plan( string ...$plans ): bool {
-        $entitlement = self::get();
-        return in_array( $entitlement['plan'] ?? '', $plans, true );
-    }
-
-    public static function tokens_remaining(): int {
-        $entitlement = self::get();
-        return (int) ( $entitlement['usage']['tokens_remaining'] ?? 0 );
-    }
-
-    public static function bust_cache(): void {
-        delete_transient( self::TRANSIENT_KEY );
+    public static function check_rate_limit( $user_id = null ): bool {
+        $usage = self::get_current_usage( $user_id );
+        return $usage['can_use'];
     }
 }
 ```
 
-### `class-nj-proxy-client.php`
+### `class-nj-proxy-client.php` (Signed Requests)
 
 ```php
 <?php
 
 class NJ_Proxy_Client {
 
+    const PROXY_URL = 'https://wp-ai-mind-proxy.your-account.workers.dev/v1/chat';
+
     public static function chat( array $messages, array $options = [] ): array|WP_Error {
-        $token = NJ_Auth::get_token();
-        if ( ! $token ) {
-            return new WP_Error( 'unauthorized', __( 'Not authenticated.', 'wp-ai-mind' ) );
+        $user_id = get_current_user_id();
+        $tier = NJ_Tier_Manager::get_user_tier( $user_id );
+
+        // For Pro BYOK users, bypass proxy entirely
+        if ( $tier === 'pro_byok' ) {
+            return self::direct_chat( $messages, $options );
         }
 
-        $response = wp_remote_post( NJ_Auth::API_BASE . '/chat', [
+        // For free/pro_managed, use signed proxy request
+        $payload = [
+            'user_id' => $user_id,
+            'tier' => $tier,
+            'messages' => $messages,
+            'model' => $options['model'] ?? 'claude-3-haiku-20240307',
+            'max_tokens' => $options['max_tokens'] ?? 1000,
+        ];
+
+        $signature = self::sign_request( $payload );
+
+        $response = wp_remote_post( self::PROXY_URL, [
             'headers' => [
-                'Authorization' => 'Bearer ' . $token,
-                'Content-Type'  => 'application/json',
+                'Content-Type' => 'application/json',
+                'X-WP-Signature' => $signature,
             ],
-            'body'    => wp_json_encode( array_merge( [ 'messages' => $messages ], $options ) ),
+            'body' => wp_json_encode( $payload ),
             'timeout' => 60,
         ] );
 
@@ -650,78 +501,78 @@ class NJ_Proxy_Client {
         $code = wp_remote_retrieve_response_code( $response );
         $body = json_decode( wp_remote_retrieve_body( $response ), true );
 
-        // Update local usage display from response headers
-        $remaining = wp_remote_retrieve_header( $response, 'x-wam-tokens-remaining' );
-        if ( $remaining !== '' ) {
-            $cached = get_transient( NJ_Entitlement::TRANSIENT_KEY );
-            if ( $cached ) {
-                $cached['usage']['tokens_remaining'] = (int) $remaining;
-                set_transient( NJ_Entitlement::TRANSIENT_KEY, $cached, NJ_Entitlement::TTL );
-            }
-        }
-
         if ( $code === 429 ) {
-            return new WP_Error(
-                'limit_exceeded',
-                __( 'Monthly AI credit limit reached.', 'wp-ai-mind' ),
-                [ 'upgrade_url' => $body['upgrade_url'] ?? '' ]
-            );
+            return new WP_Error( 'limit_exceeded', __( 'Monthly AI credit limit reached.', 'wp-ai-mind' ) );
         }
 
         if ( $code !== 200 ) {
             return new WP_Error( 'api_error', $body['error'] ?? 'Unknown error', [ 'code' => $code ] );
         }
 
+        // Log usage locally
+        if ( isset( $body['usage'] ) ) {
+            $tokens = $body['usage']['input_tokens'] + $body['usage']['output_tokens'];
+            NJ_Usage_Tracker::log_usage( $tokens );
+        }
+
         return $body;
     }
-}
-```
 
-### Pro users: own API key flow
+    private static function direct_chat( array $messages, array $options ): array|WP_Error {
+        // Pro BYOK: direct API call using user's own encrypted API key
+        $api_key = self::get_user_api_key();
+        if ( ! $api_key ) {
+            return new WP_Error( 'no_api_key', __( 'API key not configured.', 'wp-ai-mind' ) );
+        }
 
-Pro users bypass the proxy entirely. Their own API key is stored encrypted in `wp_options` using `AUTH_KEY` from `wp-config.php` as the encryption key.
+        $response = wp_remote_post( 'https://api.anthropic.com/v1/messages', [
+            'headers' => [
+                'x-api-key' => $api_key,
+                'anthropic-version' => '2023-06-01',
+                'content-type' => 'application/json',
+            ],
+            'body' => wp_json_encode([
+                'model' => $options['model'] ?? 'claude-3-haiku-20240307',
+                'max_tokens' => $options['max_tokens'] ?? 1000,
+                'messages' => $messages,
+            ]),
+            'timeout' => 60,
+        ] );
 
-```php
-function nj_encrypt_api_key( string $key ): string {
-    $iv        = random_bytes( 16 );
-    $encrypted = openssl_encrypt( $key, 'AES-256-CBC', AUTH_KEY, 0, $iv );
-    return base64_encode( $iv . '::' . $encrypted );
-}
-
-function nj_decrypt_api_key( string $stored ): string {
-    [ $iv, $encrypted ] = explode( '::', base64_decode( $stored ) );
-    return openssl_decrypt( $encrypted, 'AES-256-CBC', AUTH_KEY, 0, $iv );
-}
-```
-
-Routing logic (replaces `ProGate::is_pro()`):
-
-```php
-function nj_resolve_provider(): string {
-    if ( NJ_Entitlement::can( 'own_api_key' ) ) {
-        // Pro: route directly to user's configured provider
-        return nj_get_user_configured_provider();
+        return is_wp_error( $response ) ? $response : json_decode( wp_remote_retrieve_body( $response ), true );
     }
 
-    if ( NJ_Entitlement::can( 'proxy_api_access' ) ) {
-        // Free / Trial: route through proxy
-        return 'plugin_proxy';
+    private static function sign_request( array $payload ): string {
+        $secret = defined( 'WP_AI_MIND_PROXY_SECRET' ) ? WP_AI_MIND_PROXY_SECRET : 'default-secret';
+        return hash_hmac( 'sha256', wp_json_encode( $payload ), $secret );
     }
 
-    // Not authenticated or no eligible plan
-    return '';
+    private static function get_user_api_key(): string|null {
+        $user_id = get_current_user_id();
+        $encrypted = get_user_meta( $user_id, 'wp_ai_mind_api_key', true );
+
+        if ( ! $encrypted ) return null;
+
+        // Decrypt using WordPress AUTH_KEY
+        return self::decrypt_api_key( $encrypted );
+    }
+
+    private static function decrypt_api_key( string $encrypted ): string {
+        [ $iv, $data ] = explode( '::', base64_decode( $encrypted ) );
+        return openssl_decrypt( $data, 'AES-256-CBC', AUTH_KEY, 0, $iv );
+    }
 }
 ```
 
 ---
 
-## Payment & Licensing: LemonSqueezy
+## Payment & Licensing: LemonSqueezy (WordPress-Native)
 
 **Why LemonSqueezy over Freemius:**
 - Cleaner, modern API with reliable webhooks
 - Handles EU VAT automatically
-- No WordPress coupling — works for any SaaS/plugin
-- Better developer experience, lower complexity than building on EDD
+- Webhooks can go directly to WordPress endpoints
+- Better developer experience than Freemius
 
 **Integration points:**
 
@@ -729,148 +580,91 @@ function nj_resolve_provider(): string {
 1. Checkout: Embed LemonSqueezy checkout overlay in plugin upgrade CTA
    → Use LS overlay JS: opens checkout without leaving wp-admin
 
-2. Webhook → Cloudflare Worker (/webhooks/lemonsqueezy):
-   → subscription_created / order_created → set plan = 'pro'
-   → subscription_cancelled / subscription_expired → set plan = 'free'
-   → Worker verifies HMAC signature before processing
+2. Webhook → WordPress endpoint (/wp-json/wp-ai-mind/v1/webhook):
+   → subscription_created / order_created → update user meta to 'pro_managed'
+   → subscription_cancelled / subscription_expired → update user meta to 'free'
+   → WordPress verifies HMAC signature before processing
 
-3. Plugin polls /entitlement every hour (transient TTL)
-   → Plan change propagates within 1 hour automatically
-   → Or: bust cache on next plugin load if plan_expires has passed
+3. No external polling needed - immediate tier changes via webhooks
+   → Changes take effect immediately in WordPress
 ```
 
-**Free signup (no payment):**
+**WordPress webhook handler:**
 
-```
-1. User visits wpaimind.com/signup
-   OR plugin shows inline signup form (email + password only)
-2. Account created → plan = 'trial' for 7 days → then plan = 'free'
-3. Zero friction — no credit card, no license key
-```
+```php
+class NJ_LemonSqueezy_Webhook {
+    public static function handle( WP_REST_Request $request ): WP_REST_Response {
+        $signature = $request->get_header( 'X-Signature' );
+        $body = $request->get_body();
 
----
+        if ( ! self::verify_signature( $body, $signature ) ) {
+            return new WP_Error( 'invalid_signature', 'Invalid signature', [ 'status' => 401 ] );
+        }
 
-## Rate Limiting Architecture
+        $event = json_decode( $body, true );
+        $email = $event['data']['attributes']['user_email'];
+        $user = get_user_by( 'email', $email );
 
-### Where limits are enforced
+        if ( ! $user ) return new WP_REST_Response( [ 'error' => 'User not found' ], 404 );
 
-| Layer | What it does | Why |
-|---|---|---|
-| **Cloudflare Worker** | Checks KV before forwarding to Anthropic | Authoritative — cannot be bypassed |
-| **Plugin UI** | Shows usage meter, disables button at 0 remaining | UX — prevents wasted requests |
-| **Anthropic console** | Hard monthly spend cap on your proxy key | Circuit breaker — catches bugs in Worker logic |
+        switch ( $event['meta']['event_name'] ) {
+            case 'subscription_created':
+            case 'subscription_resumed':
+                NJ_Tier_Manager::set_user_tier( 'pro_managed', $user->ID );
+                break;
+            case 'subscription_cancelled':
+            case 'subscription_expired':
+                NJ_Tier_Manager::set_user_tier( 'free', $user->ID );
+                break;
+        }
 
-### Rate limit dimensions
-
-| Dimension | Value | Notes |
-|---|---|---|
-| Identity unit | `user_id` (not install_id) | Prevents multi-install abuse |
-| Time window | Rolling calendar month | Resets at midnight UTC on 1st |
-| Metric | Input + output tokens combined | Maps directly to your cost |
-| Max per request | 1,000 tokens (free) / 2,000 (trial) | Prevents single runaway response |
-| Concurrency | 1 in-flight request per user_id | Prevents parallel request abuse |
-
-### Abuse mitigations
-
-| Vector | Mitigation |
-|---|---|
-| Multiple WP installs, same account | Rate limit on `user_id`, not `install_id` |
-| Prompt engineering to maximise output | Hard `max_tokens` cap enforced in Worker |
-| Rapid-fire requests | Secondary: 10 requests/minute limit per user |
-| Replay attacks | JWT expiry (1 hour) + nonce if needed |
-| Credential sharing | Treat as acceptable at small scale; add device fingerprinting if it becomes an issue |
-
----
-
-## UX: Usage Display & Upgrade Flow
-
-### In-plugin usage meter
-
-Display on every relevant screen (chat interface, content generation panel):
-
-```
-[██████░░░░] 37,550 / 50,000 credits remaining
-Resets May 1 · Upgrade for unlimited →
-```
-
-Data sourced from: `NJ_Entitlement::get()['usage']` (cached) + `X-WAM-Tokens-Remaining` header (live, updated per request).
-
-### Limit hit messaging
-
-**At 80% used — inline notice (dismissible):**
-> "You've used 80% of your free AI credits this month. Upgrade to Pro for unlimited requests with your own API key."
-
-**At 100% — blocks request, shows modal:**
-> "You've reached your free limit for May.
-> This month you generated [X content pieces] and had [Y chat exchanges].
-> Your credits reset June 1, or upgrade now to continue without interruption."
->
-> [Upgrade to Pro — from $X/mo]   [Wait until June 1]
-
-**Key UX principles:**
-- Never block the entire plugin UI — only the AI request action
-- Always show what the user accomplished (not just what they hit)
-- Always show the reset date as a real alternative to upgrade (builds trust)
-- Upgrade CTA opens LemonSqueezy overlay — no page navigation
-
----
-
-## Cost Model & Risk Controls
-
-### Projected shared key cost (Claude Haiku)
-
-Pricing: ~$0.80/M input tokens, ~$4/M output tokens (blended: ~$1.50/M)
-
-| Free users | Avg tokens/month | Monthly cost |
-|---|---|---|
-| 100 | 30k | ~$4.50 |
-| 500 | 30k | ~$22.50 |
-| 1,000 | 30k | ~$45 |
-
-This is customer acquisition cost — roughly $0.04–0.05/user/month.
-
-### Cost control layers
-
-```
-1. Model: Claude Haiku for all free/trial requests (cheapest capable model)
-2. Worker: Hard token cap enforced before forwarding to Anthropic
-3. Anthropic console: Set hard monthly spend limit at 150% of projected cost
-4. Monitoring: Alert at 2× expected hourly burn; auto-pause at 5× (circuit breaker)
+        return new WP_REST_Response( [ 'received' => true ] );
+    }
+}
 ```
 
 ---
 
-## Codebase Exploration Notes for New Chat
+## Summary: Hybrid Architecture Benefits
 
-When starting implementation, the new chat should:
+### WordPress-Native Approach
+- **User Management**: WordPress users + custom meta (no external auth)
+- **Payments**: LemonSqueezy webhooks directly to WordPress endpoints
+- **Rate Limiting**: WordPress user meta + transients (accurate enough)
+- **UI**: WordPress admin (no React auth screens needed)
+- **Development**: Familiar WordPress patterns for plugin developers
 
-1. **Read `CLAUDE.md`** in the project root for existing conventions and rules
-2. **Locate and read `ProGate`** — understand all call sites before removing
-3. **Locate and read `UsageLogger`** — understand schema before removing (may inform Worker's KV key design)
-4. **Locate all `wam_fs()` calls** — each is a migration point to `NJ_Auth` or `NJ_Entitlement`
-5. **Locate the existing provider abstraction** — `NJ_Proxy_Client` plugs in as a new provider, not a replacement for the provider pattern
-6. **Check existing REST API endpoints** — the plugin may already have endpoints that need auth updated
-7. **Check admin settings pages** — API key settings UX needs redesign for free vs. pro flows
+### Minimal Cloudflare Proxy
+- **Single Purpose**: API key protection only (~200 lines vs 1000+)
+- **No Auth**: WordPress handles all authentication
+- **No User Management**: WordPress handles tier/payment management
+- **Signed Requests**: WordPress signs requests with HMAC
 
-The Cloudflare Worker is a greenfield build — no existing code to reference there.
+### Key Design Decisions
 
----
+| Decision | Hybrid Choice | Original Choice | Why Hybrid Wins |
+|---|---|---|---|---|
+| User Management | WordPress users + meta | External D1 database + JWT | WordPress-native, familiar to developers |
+| Authentication | WordPress sessions | External JWT system | Follows plugin conventions |
+| Payment Processing | LemonSqueezy → WordPress | LemonSqueezy → Cloudflare Worker | Simpler integration, no external dependency |
+| Rate Limiting | WordPress user meta | Cloudflare KV | Good enough accuracy, simpler deployment |
+| API Key Protection | Minimal proxy (200 lines) | Full microservices (1000+ lines) | 80% simpler, same security benefits |
+| Development Complexity | 3 phases, WordPress-first | 7 phases, microservices-first | 70% reduction in scope |
+| Plugin Distribution | Standard WordPress plugin | Requires external setup | Better for WordPress ecosystem |
 
-## Summary: Key Design Decisions
+### Cost Model & Risk Controls
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Plugin role | Thin client only | Enforcement in plugin can be bypassed; market has converged on this |
-| Identity | Account-based + JWT | Frictionless free signup; no license key friction |
-| Payment | LemonSqueezy | Best Freemius alternative; EU VAT handled; clean webhooks |
-| Proxy infra | Cloudflare Worker | Zero server management; free at low volume; instant global deploy |
-| Rate limit storage | Cloudflare KV | Co-located with Worker; no extra infra |
-| Rate limit identity | user_id (not install_id) | Prevents multi-install abuse |
-| Rate limit metric | Tokens (not requests) | Maps to actual cost |
-| Free tier model | Claude Haiku | Cheapest capable model; qualitative upgrade incentive to better models |
-| Free tier cap | 50k tokens/month | ~25 exchanges; feels generous; power users hit ceiling |
-| Trial cap | 300k tokens/month | Full product experience before trial ends |
-| Pro routing | Direct to provider (own key) | Pro users bypass proxy entirely; you pay nothing for their usage |
-| Pro key storage | AES-256 with AUTH_KEY | Practical standard; weak only if wp-config.php is already compromised |
-| Freemius | Removed entirely | Replaced by LemonSqueezy + custom JWT auth |
-| Upgrade trigger | At limit: show accomplishments then CTA | Showing value before ask converts better than pure friction |
+**Projected shared key cost (Claude Haiku):** ~$0.05/user/month for free tier, ~$0.50/user/month for pro managed tier.
+
+**Cost control layers:**
+1. **WordPress**: Rate limiting before proxy requests
+2. **Proxy**: Double-check rate limits at edge
+3. **Anthropic Console**: Hard monthly spend cap as circuit breaker
+
+### Migration Path
+
+**Phase 1**: WordPress foundation (can work standalone with Pro BYOK only)
+**Phase 2**: Add minimal proxy (enables Free/Pro Managed tiers)
+**Phase 3**: Polish integration and remove legacy code
+
+This approach gives you **80% of the benefits** of the full microservices approach with **30% of the complexity**.
