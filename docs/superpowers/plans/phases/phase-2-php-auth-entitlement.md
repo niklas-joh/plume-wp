@@ -677,8 +677,11 @@ In the `enqueue_assets()` method, find the `wp_localize_script()` call and add:
 ```php
 'isAuthenticated' => \WP_AI_Mind\Auth\NJ_Auth::is_authenticated(),
 'entitlement'     => \WP_AI_Mind\Entitlement\NJ_Entitlement::get(),
-// Keep isPro as a derived alias for backward compatibility with any third-party code.
-'isPro'           => \nj_feature( 'own_key' ),
+// isPro: true for any paid tier (pro_managed and pro/BYOK).
+// Use nj_feature('model_selection') — it is true for both paid plans and false for free/trial.
+// Do NOT use nj_can_user('chat') — chat is enabled for ALL tiers including free (issue #183).
+// Do NOT use nj_feature('own_key') — that is only true for Pro BYOK, not pro_managed.
+'isPro'           => \nj_feature( 'model_selection' ),
 ```
 
 Repeat this pattern for all other Admin pages and module files that call `wp_localize_script()`:
@@ -727,6 +730,14 @@ grep -rn "plan.*===\|=== .*plan\|pro_managed\|'free'\|'trial'" includes/ --inclu
 # Expected: no plan-name string comparisons outside the entitlement class
 ```
 
+- [ ] **Step 5.2b: No `nj_can_user()` calls used as pro gate (issue #183)**
+
+```bash
+grep -rn "nj_can_user" includes/ --include="*.php"
+# Expected: 0 matches — nj_can_user('chat') returns true for ALL tiers and must never
+# be used as an isPro check. Use nj_feature('model_selection') instead.
+```
+
 - [ ] **Step 5.3: Confirm `nj_feature('model_selection')` is available**
 
 ```bash
@@ -761,6 +772,8 @@ grep -n "model_selection" includes/Entitlement/NJ_Entitlement.php
 - [ ] PHPUnit test confirms stored value differs from the raw JWT string
 - [ ] All PHPUnit tests pass: `./vendor/bin/phpunit tests/Unit/ --colors=always`
 - [ ] `wpAiMindData` JavaScript object includes `isAuthenticated` and `entitlement` keys on all pages
+- [ ] `wpAiMindData.isPro` is `true` for `pro_managed` and `pro` plans; `false` for `free`, `trial`, and unauthenticated — verified via `nj_feature('model_selection')`
+- [ ] `nj_can_user('chat')` is **not** used anywhere as an `isPro` proxy (`grep -rn "nj_can_user" includes/` returns 0 matches)
 
 ---
 

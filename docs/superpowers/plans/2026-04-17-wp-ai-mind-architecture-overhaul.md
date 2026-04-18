@@ -107,6 +107,7 @@ Week 5–7                                      ████ Phase 6: React UI
 | LemonSqueezy integration | Webhooks update D1 plan directly | No Freemius dependency; EU VAT handled; clean webhooks |
 | UsageLogger removal | Delete entirely; KV is the source of truth | Logging in plugin can be bypassed; Worker KV is authoritative |
 | `ProGate` replacement | `nj_feature( $key )` helper + `NJ_Entitlement::feature()` | Drop-in replacement at all 13 call sites |
+| `isPro` JS flag | `nj_feature( 'model_selection' )` — **not** `nj_can_user('chat')` | `chat` is `true` for every tier; `model_selection` is `true` for `pro_managed`+`pro` only (issue #183). `own_key` would also be wrong — it's BYOK-only. |
 | Freemius removal trigger | After Phase 4 is in production | Pro users must have migrated before old gate is removed |
 | Feature/tier flexibility | All per-tier capabilities in `tier-config.ts` | To add a feature flag or change a limit, edit one file — no scattered `if plan === 'pro'` checks |
 
@@ -344,3 +345,4 @@ Run these checks before declaring the overhaul complete.
 |------|--------|--------|
 | 2026-04-17 | Niklas Johansson | Initial plan created |
 | 2026-04-17 | Claude | Added `pro_managed` tier; tier-config module as single source of truth; architecture principles (KISS, SRP, module-based, provider-agnostic, reuse-first); code reuse policy; updated phase summaries |
+| 2026-04-18 | Claude | Issue #183: `nj_can_user('chat')` used as `isPro` returns `true` for all tiers. Fixed in Phase 2 plan: use `nj_feature('model_selection')` instead. Updated phase-2 Step 4.3, added Step 5.2b grep check, and updated acceptance criteria. |
