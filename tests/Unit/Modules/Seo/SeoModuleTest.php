@@ -129,7 +129,7 @@ class SeoModuleTest extends TestCase {
 		$permission_callback = $captured_args['/seo/generate']['permission_callback'];
 
 		// User has permission but is over the free monthly limit.
-		$month_key = 'wp_ai_mind_usage_' . date( 'Y_m' );
+		$month_key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
 		Functions\when( 'current_user_can' )->justReturn( true );
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_user_meta' )->alias(

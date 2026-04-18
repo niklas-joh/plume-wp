@@ -20,7 +20,7 @@ class NJUsageTrackerTest extends TestCase {
 	}
 
 	public function test_get_usage_returns_correct_structure_for_free_user(): void {
-		$month_key = 'wp_ai_mind_usage_' . date( 'Y_m' );
+		$month_key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
 
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_user_meta' )
@@ -38,7 +38,7 @@ class NJUsageTrackerTest extends TestCase {
 	}
 
 	public function test_get_usage_can_use_false_when_limit_exceeded(): void {
-		$month_key = 'wp_ai_mind_usage_' . date( 'Y_m' );
+		$month_key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
 
 		// Passing explicit user_id — get_current_user_id is NOT called.
 		Functions\expect( 'get_user_meta' )
@@ -52,7 +52,7 @@ class NJUsageTrackerTest extends TestCase {
 	}
 
 	public function test_get_usage_pro_byok_is_always_unlimited(): void {
-		$month_key = 'wp_ai_mind_usage_' . date( 'Y_m' );
+		$month_key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
 
 		// Passing explicit user_id — get_current_user_id is NOT called.
 		Functions\expect( 'get_user_meta' )
@@ -67,7 +67,7 @@ class NJUsageTrackerTest extends TestCase {
 	}
 
 	public function test_log_usage_increments_existing_count(): void {
-		$month_key = 'wp_ai_mind_usage_' . date( 'Y_m' );
+		$month_key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
 
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_user_meta' )
@@ -80,7 +80,7 @@ class NJUsageTrackerTest extends TestCase {
 	}
 
 	public function test_check_limit_returns_false_when_exhausted(): void {
-		$month_key = 'wp_ai_mind_usage_' . date( 'Y_m' );
+		$month_key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
 
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_user_meta' )
