@@ -36,10 +36,22 @@ class NJ_Usage_Tracker {
 	}
 
 	public static function log_usage( int $tokens, ?int $user_id = null ): void {
+		global $wpdb;
 		$user_id = $user_id ?? get_current_user_id();
 		$key     = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
-		$current = (int) get_user_meta( $user_id, $key, true );
-		update_user_meta( $user_id, $key, $current + $tokens );
+		// Atomic increment avoids the read-modify-write race condition that occurs
+		// when two concurrent requests read the same value and each overwrites it.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->usermeta} SET meta_value = meta_value + %d WHERE user_id = %d AND meta_key = %s",
+				$tokens,
+				$user_id,
+				$key
+			)
+		);
+		if ( ! $wpdb->rows_affected ) {
+			add_user_meta( $user_id, $key, $tokens, true );
+		}
 	}
 
 	public static function check_limit( ?int $user_id = null ): bool {
