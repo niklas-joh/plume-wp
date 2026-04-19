@@ -9,4 +9,6 @@ preview_id = "REPLACE_AFTER_KV_CREATE_PREVIEW"
 
 # Secrets (set via CLI — never commit values):
 # wrangler secret put ANTHROPIC_API_KEY
-# wrangler secret put PROXY_SIGNATURE_SECRET   ← must match WP_AI_MIND_PROXY_SECRET in wp-config.php
+# wrangler secret put LS_WEBHOOK_SECRET   ← must match LemonSqueezy webhook signing secret
+# PROXY_SIGNATURE_SECRET is no longer used — can be deleted:
+# wrangler secret delete PROXY_SIGNATURE_SECRET
