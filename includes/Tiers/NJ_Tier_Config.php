@@ -43,7 +43,7 @@ class NJ_Tier_Config {
 		'pro_byok'    => null,
 	];
 
-	const TRIAL_DAYS = 7;
+	const TRIAL_DAYS = 30;
 
 	public static function get_valid_tiers(): array {
 		return self::TIERS;
