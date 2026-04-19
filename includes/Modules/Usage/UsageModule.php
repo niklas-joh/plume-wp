@@ -79,7 +79,7 @@ class UsageModule {
 				'used'      => $usage['used'],
 				'limit'     => $usage['limit'],
 				'remaining' => $usage['remaining'],
-				'can_use'   => $usage['can_use'],
+				'canUse'    => $usage['can_use'],
 			]
 		);
 	}

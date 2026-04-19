@@ -48,7 +48,7 @@ class UsageModuleTest extends TestCase {
 		self::assertArrayHasKey( 'used',      $data );
 		self::assertArrayHasKey( 'limit',     $data );
 		self::assertArrayHasKey( 'remaining', $data );
-		self::assertArrayHasKey( 'can_use',   $data );
+		self::assertArrayHasKey( 'canUse',    $data );
 		self::assertSame( 1200, $data['used'] );
 	}
 }
