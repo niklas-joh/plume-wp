@@ -1,0 +1,12 @@
+name = "wp-ai-mind-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "USAGE_KV"
+id = "REPLACE_AFTER_KV_CREATE"
+preview_id = "REPLACE_AFTER_KV_CREATE_PREVIEW"
+
+# Secrets (set via CLI — never commit values):
+# wrangler secret put ANTHROPIC_API_KEY
+# wrangler secret put PROXY_SIGNATURE_SECRET   ← must match WP_AI_MIND_PROXY_SECRET in wp-config.php

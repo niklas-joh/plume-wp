@@ -59,7 +59,28 @@ grep -rn "ProGate\|wam_fs()" includes/ --include="*.php" > remaining_progate.txt
 
 **Files:** Create `includes/Providers/ProxyProvider.php`, modify provider factory
 
-- [ ] **Step 1.1: Create ProxyProvider class**
+> **Pre-implementation audit required — 5 known issues to resolve before writing code:**
+>
+> **Issue A — `ProxyProvider` method signature:** `AbstractProvider` requires overriding `do_complete(CompletionRequest $request)`, not a non-existent `send_request()`. Inspect `AbstractProvider` and `ProviderInterface` before writing `ProxyProvider`.
+>
+> **Issue B — Double usage logging:** `AbstractProvider::maybe_log()` calls `NJ_Usage_Tracker::log_usage()` after every `complete()`. `NJ_Proxy_Client::chat()` also mirrors usage locally. Choose one — either skip `maybe_log()` in `ProxyProvider` (override it as a no-op) or skip mirroring in `NJ_Proxy_Client`. Do not do both.
+>
+> **Issue C — Wrong API key meta key:** `nj_get_user_configured_provider()` checks `wp_ai_mind_api_key_anthropic` — the actual meta key for Claude is `wp_ai_mind_api_key_claude` (see `NJ_Api_Key_Settings.php`). Fix before implementing.
+>
+> **Issue D — `ProviderFactory` is constructor-injected, not static:** The factory is instantiated as `new ProviderFactory(new ProviderSettings())`. Do not add a static `get_provider()` method — extend the existing pattern. Inspect `includes/Core/ProviderFactory.php` first.
+>
+> **Issue E — Wrong Claude model IDs and missing `trial` tier:** Model IDs must match `ClaudeProvider::MODELS` (Claude 4, not Claude 3). `nj_resolve_provider()` must also handle `trial` tier (→ `'proxy'`). See correct IDs in Phase 2 plan.
+
+- [ ] **Step 1.1: Audit existing provider architecture**
+```bash
+cat includes/Providers/AbstractProvider.php
+cat includes/Core/ProviderFactory.php
+grep -n "do_complete\|maybe_log\|log_usage" includes/Providers/ -r --include="*.php"
+```
+
+- [ ] **Step 1.2: Create ProxyProvider class**
+
+Use the audit findings (Step 1.1) to implement correctly. Skeleton below — resolve Issues A–E before writing:
 
 ```php
 <?php
@@ -76,103 +97,66 @@ class ProxyProvider extends AbstractProvider {
     }
 
     public function is_configured(): bool {
-        // Always configured for free/pro_managed users
         $tier = NJ_Tier_Manager::get_user_tier();
-        return in_array( $tier, [ 'free', 'pro_managed' ], true );
+        // trial tier also routes through proxy (Issue E fix)
+        return in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true );
     }
 
-    public function send_request( array $messages, array $options = [] ): array|WP_Error {
-        // Route through Cloudflare proxy
-        return NJ_Proxy_Client::chat( $messages, $options );
-    }
+    // Override do_complete() (or whatever AbstractProvider requires) — see Issue A.
+    // Do NOT use send_request() — that method doesn't exist.
 
     public function get_available_models(): array {
         $tier = NJ_Tier_Manager::get_user_tier();
-
+        // Use Claude 4 model IDs (Issue E fix — mirrors ClaudeProvider::MODELS)
         return match( $tier ) {
-            'free' => [
-                'claude-3-haiku-20240307' => 'Claude 3 Haiku',
+            'free', 'trial' => [
+                'claude-haiku-4-5-20251001' => 'Claude Haiku',
             ],
             'pro_managed' => [
-                'claude-3-haiku-20240307' => 'Claude 3 Haiku',
-                'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
-                'claude-3-opus-20240229' => 'Claude 3 Opus',
+                'claude-haiku-4-5-20251001' => 'Claude Haiku',
+                'claude-sonnet-4-6'         => 'Claude Sonnet',
+                'claude-opus-4-6'           => 'Claude Opus',
             ],
             default => [],
         };
     }
-
-    public function get_max_tokens(): int {
-        $tier = NJ_Tier_Manager::get_user_tier();
-        return $tier === 'free' ? 1000 : 4000;
-    }
-
-    protected function validate_options( array $options ): bool {
-        // Basic validation
-        return isset( $options['messages'] ) && is_array( $options['messages'] );
-    }
 }
 ```
 
-- [ ] **Step 1.2: Create provider routing function**
+- [ ] **Step 1.3: Create provider routing function**
 
 Add to `wp-ai-mind.php`:
 ```php
-/**
- * Determine which provider to use based on user tier
- */
 function nj_resolve_provider(): string {
     $tier = nj_get_user_tier();
-
     return match( $tier ) {
-        'free', 'pro_managed' => 'proxy',
-        'pro_byok' => nj_get_user_configured_provider(), // User's choice (Claude, OpenAI, etc.)
-        default => '',
+        'free', 'trial', 'pro_managed' => 'proxy',  // Issue E fix: trial → proxy
+        'pro_byok'                     => nj_get_user_configured_provider(),
+        default                        => '',
     };
 }
 
-/**
- * Get user's configured provider for Pro BYOK
- */
 function nj_get_user_configured_provider(): string {
-    // Check which API key they have configured
     $user_id = get_current_user_id();
-
-    if ( get_user_meta( $user_id, 'wp_ai_mind_api_key_anthropic', true ) ) {
+    // Issue C fix: meta key is wp_ai_mind_api_key_claude, not wp_ai_mind_api_key_anthropic
+    if ( get_user_meta( $user_id, 'wp_ai_mind_api_key_claude', true ) ) {
         return 'claude';
     }
-
     if ( get_user_meta( $user_id, 'wp_ai_mind_api_key_openai', true ) ) {
         return 'openai';
     }
-
     if ( get_user_meta( $user_id, 'wp_ai_mind_api_key_gemini', true ) ) {
         return 'gemini';
     }
-
-    return 'claude'; // Default fallback
+    return 'claude';
 }
 ```
 
-- [ ] **Step 1.3: Modify provider factory**
+- [ ] **Step 1.4: Extend provider factory**
 
-Update `includes/Core/ProviderFactory.php` (or similar):
-```php
-public static function get_provider( ?string $provider_name = null ): ?ProviderInterface {
-    if ( ! $provider_name ) {
-        $provider_name = nj_resolve_provider();
-    }
+> **Issue D:** `ProviderFactory` uses constructor injection — do NOT add a static method. Inspect the existing factory first and extend the existing instantiation pattern.
 
-    return match( $provider_name ) {
-        'proxy' => new ProxyProvider(),
-        'claude' => new ClaudeProvider(),
-        'openai' => new OpenAIProvider(),
-        'gemini' => new GeminiProvider(),
-        'ollama' => new OllamaProvider(),
-        default => null,
-    };
-}
-```
+---
 
 ---
 
