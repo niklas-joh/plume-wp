@@ -4,6 +4,7 @@ declare( strict_types=1 );
 namespace WP_AI_Mind\Providers;
 
 use WP_AI_Mind\Proxy\NJ_Proxy_Client;
+use WP_AI_Mind\Proxy\NJ_Site_Registration;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 
 class ClaudeProvider extends AbstractProvider {
@@ -46,7 +47,13 @@ class ClaudeProvider extends AbstractProvider {
 	public function get_default_model(): string {
 		return self::DEFAULT_MODEL; }
 	public function is_available(): bool {
-		return '' !== $this->api_key; }
+		if ( '' !== $this->api_key ) {
+			return true;
+		}
+		$tier = NJ_Tier_Manager::get_user_tier( get_current_user_id() );
+		return in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true )
+			&& NJ_Site_Registration::is_registered();
+	}
 
 	/**
 	 * Route completion by tier:

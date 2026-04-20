@@ -36,6 +36,9 @@ class ClaudeProviderTest extends TestCase {
 	}
 
 	public function test_is_available_false_without_key(): void {
+		// No API key and user is pro_byok (not proxy-routed) → unavailable.
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->justReturn( 'pro_byok' );
 		$provider = new ClaudeProvider( '' );
 		$this->assertFalse( $provider->is_available() );
 	}
@@ -43,6 +46,24 @@ class ClaudeProviderTest extends TestCase {
 	public function test_is_available_true_with_key(): void {
 		$provider = new ClaudeProvider( 'sk-ant-test' );
 		$this->assertTrue( $provider->is_available() );
+	}
+
+	public function test_is_available_true_for_proxy_tier_with_registered_site(): void {
+		// No API key, free tier, site registered → proxy-routed users are available.
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		Functions\when( 'get_option' )->justReturn( 'some-token' );
+		$provider = new ClaudeProvider( '' );
+		$this->assertTrue( $provider->is_available() );
+	}
+
+	public function test_is_available_false_for_proxy_tier_without_registration(): void {
+		// No API key, free tier, but site not registered → unavailable.
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		Functions\when( 'get_option' )->justReturn( '' );
+		$provider = new ClaudeProvider( '' );
+		$this->assertFalse( $provider->is_available() );
 	}
 
 	public function test_complete_parses_response(): void {
