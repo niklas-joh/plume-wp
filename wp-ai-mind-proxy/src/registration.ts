@@ -3,6 +3,9 @@
 import { Env, SiteRecord } from './types';
 import { generateToken } from './auth';
 
+const REGISTRATION_RATE_LIMIT = 5;  // max new registrations per IP per hour
+const REGISTRATION_WINDOW_TTL = 3600; // seconds
+
 export async function handleRegistration(
   request: Request,
   env: Env
@@ -33,6 +36,17 @@ export async function handleRegistration(
     }
   }
 
+  // Rate-limit new registrations by IP to prevent KV exhaustion.
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const rateLimitKey = `reg_ip:${ip}:${getCurrentHour()}`;
+  const attempts = parseInt(await env.USAGE_KV.get(rateLimitKey) ?? '0', 10);
+  if (attempts >= REGISTRATION_RATE_LIMIT) {
+    return jsonResponse({ error: 'Too many registration attempts. Try again later.' }, 429);
+  }
+  await env.USAGE_KV.put(rateLimitKey, String(attempts + 1), {
+    expirationTtl: REGISTRATION_WINDOW_TTL,
+  });
+
   const token = generateToken();
   const record: SiteRecord = { site_url, tier: 'free', created_at: Date.now() };
 
@@ -40,6 +54,11 @@ export async function handleRegistration(
   await env.USAGE_KV.put(`site_url:${urlHash}`, token);
 
   return jsonResponse({ token, tier: 'free' }, 201);
+}
+
+function getCurrentHour(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}-${String(now.getUTCHours()).padStart(2, '0')}`;
 }
 
 async function sha256(input: string): Promise<string> {
