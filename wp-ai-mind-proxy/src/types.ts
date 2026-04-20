@@ -4,6 +4,8 @@ export interface Env {
   USAGE_KV: KVNamespace;
   ANTHROPIC_API_KEY: string;
   LS_WEBHOOK_SECRET: string;
+  LS_PRO_MONTHLY_VARIANT_ID: string;
+  LS_PRO_ANNUAL_VARIANT_ID: string;
   // PROXY_SIGNATURE_SECRET intentionally removed — replaced by site token Bearer auth.
 }
 

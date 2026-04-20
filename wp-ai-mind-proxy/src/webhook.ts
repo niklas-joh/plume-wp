@@ -3,13 +3,14 @@
 import { Env, SiteRecord, LicenceRecord, ProxyTier } from './types';
 import { verifyLsSignature } from './signature';
 
-// Map LemonSqueezy variant IDs → plugin tier.
-// Pro Monthly: 988108. Pro Annual: confirm ID in LS dashboard (Products → WP AI Mind Pro → Variants).
+// Build LemonSqueezy variant ID → plugin tier map from environment variables.
 // Pro BYOK (1550517) is not here — it bypasses the proxy; handled in Phase 3.
-const VARIANT_TIER_MAP: Record<string, ProxyTier> = {
-  '988108': 'pro_managed', // Pro Monthly
-  'CONFIRM_PRO_ANNUAL_VARIANT_ID': 'pro_managed', // Pro Annual — replace with actual ID
-};
+function buildVariantTierMap(env: Env): Record<string, ProxyTier> {
+  const map: Record<string, ProxyTier> = {};
+  if (env.LS_PRO_MONTHLY_VARIANT_ID) map[env.LS_PRO_MONTHLY_VARIANT_ID] = 'pro_managed';
+  if (env.LS_PRO_ANNUAL_VARIANT_ID) map[env.LS_PRO_ANNUAL_VARIANT_ID] = 'pro_managed';
+  return map;
+}
 
 export async function handleWebhook(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') {
@@ -70,7 +71,7 @@ async function handleActivation(payload: Record<string, unknown>, env: Env): Pro
   const variantId = String(
     ((attrs?.['first_order_item'] ?? attrs?.['variant_id']) as unknown) ?? ''
   );
-  const tier = VARIANT_TIER_MAP[variantId] ?? null;
+  const tier = buildVariantTierMap(env)[variantId] ?? null;
   if (!tier) return;
 
   const licenceKey = (attrs?.['identifier'] as string | undefined) ?? '';
@@ -102,7 +103,7 @@ async function handleLicenceKey(payload: Record<string, unknown>, env: Env): Pro
 
   if (status === 'active') {
     const variantId = String((attrs?.['variant_id'] as unknown) ?? '');
-    const tier = VARIANT_TIER_MAP[variantId] ?? 'pro_managed';
+    const tier = buildVariantTierMap(env)[variantId] ?? 'pro_managed';
     const record: LicenceRecord = { tier, site_token, activated_at: Date.now() };
     await env.USAGE_KV.put(`licence:${key}`, JSON.stringify(record));
   } else if (status === 'disabled' || status === 'expired') {
