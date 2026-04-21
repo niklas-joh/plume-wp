@@ -135,13 +135,12 @@ jobs:
 
             Structure the comment as:
             1. **Summary** — 1–3 sentence overview of the PR
-            2. **Findings** — grouped by severity (bugs → improvements → nits). For any finding that
-               has an associated issue, include the issue URL inline, e.g. "See #42 for tracking."
+            2. **Findings** — grouped by severity (bugs → improvements → nits):
+               - For bugs and improvements: include the issue URL inline, e.g. "See #42 for tracking."
+               - **For nits:** Provide the **full verbose explanation** of each nit as you normally would.
+                 Then, at the end of the nits section, add: "All nits are tracked in #N for auto-fix."
+                 This keeps the detailed feedback visible in the PR while also referencing the consolidated issue.
             3. **Verdict** — Approved / Needs changes / Needs discussion
-
-            **Note:** All nits are collected into a single consolidated issue (#N) to streamline
-            auto-fix and reduce issue clutter. Reference it in the PR comment like:
-            "See #42 for all nits to be auto-fixed."
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options
