@@ -67,7 +67,7 @@ class NJ_Usage_Widget {
 				esc_html__( 'remaining', 'wp-ai-mind' )
 			);
 			if ( $pct > 80 ) {
-				echo '<p class="notice notice-warning inline">' . esc_html__( 'Over 80% of monthly tokens used. Consider upgrading.', 'wp-ai-mind' ) . '</p>';
+				echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Over 80% of monthly tokens used. Consider upgrading.', 'wp-ai-mind' ) . '</p></div>';
 			}
 		} else {
 			echo '<p>' . esc_html__( 'Unlimited — using your own API key.', 'wp-ai-mind' ) . '</p>';
