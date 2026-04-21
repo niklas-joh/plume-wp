@@ -42,7 +42,7 @@ class NJ_Usage_Widget {
 		echo '<div class="wp-ai-mind-usage-widget">';
 		echo '<p><strong>' . esc_html( $tier_label ) . ' ' . esc_html__( 'Plan', 'wp-ai-mind' ) . '</strong></p>';
 
-		if ( null !== $usage['limit'] ) {
+		if ( isset ( $usage['limit'] ) && $usage['limit'] > 0 ) {
 			$color_danger   = '#d63638';
 			$color_warning  = '#dba617';
 			$color_success  = '#00a32a';
