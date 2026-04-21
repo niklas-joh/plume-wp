@@ -43,15 +43,23 @@ class NJ_Usage_Widget {
 		echo '<p><strong>' . esc_html( $tier_label ) . ' ' . esc_html__( 'Plan', 'wp-ai-mind' ) . '</strong></p>';
 
 		if ( null !== $usage['limit'] ) {
+			$color_danger   = '#d63638';
+			$color_warning  = '#dba617';
+			$color_success  = '#00a32a';
+			$color_track_bg = '#e0e0e0';
+			$color_label    = '#666';
+
 			$pct   = min( 100, (int) round( ( $usage['used'] / $usage['limit'] ) * 100 ) );
-			$color = $pct > 80 ? '#d63638' : ( $pct > 60 ? '#dba617' : '#00a32a' );
+			$color = $pct > 80 ? $color_danger : ( $pct > 60 ? $color_warning : $color_success );
 			printf(
-				'<div style="background:#e0e0e0;height:10px;border-radius:5px;margin:8px 0"><div style="width:%d%%;background:%s;height:100%%;border-radius:5px"></div></div>',
+				'<div style="background:%s;height:10px;border-radius:5px;margin:8px 0"><div style="width:%d%%;background:%s;height:100%%;border-radius:5px"></div></div>',
+				esc_attr( $color_track_bg ),
 				absint( $pct ),
 				esc_attr( $color )
 			);
 			printf(
-				'<p style="font-size:12px;color:#666">%s / %s %s (%s %s)</p>',
+				'<p style="font-size:12px;color:%s">%s / %s %s (%s %s)</p>',
+				esc_attr( $color_label ),
 				esc_html( number_format_i18n( (int) $usage['used'] ) ),
 				esc_html( number_format_i18n( (int) $usage['limit'] ) ),
 				esc_html__( 'tokens', 'wp-ai-mind' ),
