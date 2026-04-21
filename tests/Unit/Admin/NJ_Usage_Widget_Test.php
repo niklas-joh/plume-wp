@@ -75,7 +75,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 		$month_key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
 
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
-		// tier meta is called twice: once in get_usage() and once in get_user_tier()
+		// tier meta is called once inside get_usage(); render() reads $usage['tier'] directly
 		Functions\when( 'get_user_meta' )->alias(
 			function ( int $user_id, string $key ) use ( $month_key ): string {
 				if ( 'wp_ai_mind_tier' === $key ) {
