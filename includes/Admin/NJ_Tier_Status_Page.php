@@ -92,15 +92,15 @@ class NJ_Tier_Status_Page {
 				<h2><?php esc_html_e( 'Upgrade your plan', 'wp-ai-mind' ); ?></h2>
 				<p><?php esc_html_e( 'Pro Managed gives you 2M tokens/month with model selection. Pro BYOK gives you unlimited usage with your own API key.', 'wp-ai-mind' ); ?></p>
 				<p>
-					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url( '1550505' ) ); ?>" class="button button-primary">
+					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url( NJ_Site_Registration::PLAN_PRO_MANAGED_MONTHLY ) ); ?>" class="button button-primary">
 						<?php esc_html_e( 'Pro Managed — Monthly', 'wp-ai-mind' ); ?>
 					</a>
 					&nbsp;
-					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url( '1550477' ) ); ?>" class="button button-primary">
+					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url( NJ_Site_Registration::PLAN_PRO_MANAGED_ANNUAL ) ); ?>" class="button button-primary">
 						<?php esc_html_e( 'Pro Managed — Annual', 'wp-ai-mind' ); ?>
 					</a>
 					&nbsp;
-					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url( '1550517' ) ); ?>" class="button">
+					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url( NJ_Site_Registration::PLAN_PRO_BYOK_ONETIME ) ); ?>" class="button">
 						<?php esc_html_e( 'Pro BYOK — One-time', 'wp-ai-mind' ); ?>
 					</a>
 				</p>
