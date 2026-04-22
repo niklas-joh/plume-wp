@@ -12,6 +12,16 @@ class NJ_Usage_Widget {
 
 	public static function register_hooks(): void {
 		add_action( 'wp_dashboard_setup', [ self::class, 'add_dashboard_widget' ] );
+		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_styles' ] );
+	}
+
+	public static function enqueue_styles(): void {
+		wp_enqueue_style(
+			'wpaim-admin-widgets',
+			WP_AI_MIND_URL . 'assets/admin/wpaim-admin-widgets.css',
+			[],
+			WP_AI_MIND_VERSION
+		);
 	}
 
 	public static function add_dashboard_widget(): void {
@@ -42,23 +52,19 @@ class NJ_Usage_Widget {
 		echo '<p><strong>' . esc_html( $tier_label ) . ' ' . esc_html__( 'Plan', 'wp-ai-mind' ) . '</strong></p>';
 
 		if ( isset( $usage['limit'] ) && $usage['limit'] > 0 ) {
-			$color_danger   = 'var(--color-error, #d63638)';
-			$color_warning  = 'var(--color-warning, #dba617)';
-			$color_success  = 'var(--color-success, #00a32a)';
-			$color_track_bg = 'var(--color-border-subtle, #e0e0e0)';
-			$color_label    = 'var(--color-text-muted, #666)';
+			$pct = min( 100, (int) round( ( $usage['used'] / $usage['limit'] ) * 100 ) );
 
-			$pct   = min( 100, (int) round( ( $usage['used'] / $usage['limit'] ) * 100 ) );
-			$color = $pct > 80 ? $color_danger : ( $pct > 60 ? $color_warning : $color_success );
+			if ( $pct > 80 )     $bar_modifier = 'danger';
+			elseif ( $pct > 60 ) $bar_modifier = 'warning';
+			else                 $bar_modifier = 'success';
+
 			printf(
-				'<div style="background:%s;height:10px;border-radius:5px;margin:8px 0"><div style="width:%d%%;background:%s;height:100%%;border-radius:5px"></div></div>',
-				esc_attr( $color_track_bg ),
-				absint( $pct ),
-				esc_attr( $color )
+				'<div class="wpaim-progress-track"><div class="wpaim-progress-bar wpaim-progress-bar--%s" style="width:%d%%"></div></div>',
+				esc_attr( $bar_modifier ),
+				absint( $pct )
 			);
 			printf(
-				'<p style="font-size:12px;color:%s">%s / %s %s (%s %s)</p>',
-				esc_attr( $color_label ),
+				'<p class="wpaim-meta-text">%s / %s %s (%s %s)</p>',
 				esc_html( number_format_i18n( (int) $usage['used'] ) ),
 				esc_html( number_format_i18n( (int) $usage['limit'] ) ),
 				esc_html__( 'tokens', 'wp-ai-mind' ),

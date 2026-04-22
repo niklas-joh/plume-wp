@@ -94,7 +94,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Not connected', $output );
-		$this->assertStringNotContainsString( '#00a32a', $output );
+		$this->assertStringNotContainsString( 'wpaim-status--active', $output );
 	}
 
 	// ── Upgrade section — checkout URLs ──────────────────────────────────────

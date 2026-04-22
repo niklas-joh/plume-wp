@@ -100,7 +100,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 		$this->assertStringContainsString( 'Free', $output );
 		$this->assertStringContainsString( '25,000', $output );
 		$this->assertStringContainsString( '50,000', $output );
-		$this->assertStringContainsString( 'border-radius:5px', $output );
+		$this->assertStringContainsString( 'wpaim-progress-track', $output );
 	}
 
 	public function test_render_shows_upgrade_notice_when_above_80_percent(): void {
@@ -129,7 +129,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Over 80%', $output );
-		$this->assertStringContainsString( '#d63638', $output ); // red progress bar
+		$this->assertStringContainsString( 'wpaim-progress-bar--danger', $output );
 	}
 
 	// ── render() — unlimited tier (pro_byok) ─────────────────────────────────
@@ -160,6 +160,6 @@ class NJ_Usage_Widget_Test extends TestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Unlimited', $output );
-		$this->assertStringNotContainsString( 'border-radius:5px', $output );
+		$this->assertStringNotContainsString( 'wpaim-progress-track', $output );
 	}
 }
