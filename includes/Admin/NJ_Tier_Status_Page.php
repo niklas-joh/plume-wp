@@ -15,6 +15,16 @@ class NJ_Tier_Status_Page {
 
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', [ self::class, 'add_menu_page' ] );
+		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_styles' ] );
+	}
+
+	public static function enqueue_styles(): void {
+		wp_enqueue_style(
+			'wpaim-admin-widgets',
+			WP_AI_MIND_URL . 'assets/admin/wpaim-admin-widgets.css',
+			[],
+			WP_AI_MIND_VERSION
+		);
 	}
 
 	public static function add_menu_page(): void {
@@ -52,9 +62,9 @@ class NJ_Tier_Status_Page {
 					<th scope="row"><?php esc_html_e( 'Proxy connection', 'wp-ai-mind' ); ?></th>
 					<td>
 						<?php if ( $registered ) : ?>
-							<span style="color:var(--color-success, #00a32a)">&#10003; <?php esc_html_e( 'Connected', 'wp-ai-mind' ); ?></span>
+							<span class="wpaim-status--active">&#10003; <?php esc_html_e( 'Connected', 'wp-ai-mind' ); ?></span>
 						<?php else : ?>
-							<span style="color:var(--color-error, #d63638)"><?php esc_html_e( 'Not connected — will auto-connect on next page load', 'wp-ai-mind' ); ?></span>
+							<span class="wpaim-status--expired"><?php esc_html_e( 'Not connected — will auto-connect on next page load', 'wp-ai-mind' ); ?></span>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -69,9 +79,9 @@ class NJ_Tier_Status_Page {
 						?>
 						<br>
 						<progress
+							class="wpaim-usage-meter"
 							max="<?php echo esc_attr( (string) $usage['limit'] ); ?>"
-							value="<?php echo esc_attr( (string) $usage['used'] ); ?>"
-							style="width:300px">
+							value="<?php echo esc_attr( (string) $usage['used'] ); ?>">
 						</progress>
 					</td>
 				</tr>
@@ -88,10 +98,10 @@ class NJ_Tier_Status_Page {
 			</table>
 
 			<?php if ( 'free' === $tier || 'trial' === $tier ) : ?>
-			<div class="card" style="max-width:600px;margin-top:1rem;">
+			<div class="card wpaim-upgrade-card">
 				<h2><?php esc_html_e( 'Upgrade your plan', 'wp-ai-mind' ); ?></h2>
 				<p><?php esc_html_e( 'Pro Managed gives you 2M tokens/month with model selection. Pro BYOK gives you unlimited usage with your own API key.', 'wp-ai-mind' ); ?></p>
-				<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
+				<div class="wpaim-upgrade-actions">
 					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url( NJ_Site_Registration::PLAN_PRO_MANAGED_MONTHLY ) ); ?>" class="button button-primary">
 						<?php esc_html_e( 'Pro Managed — Monthly', 'wp-ai-mind' ); ?>
 					</a>
