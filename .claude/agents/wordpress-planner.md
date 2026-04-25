@@ -51,6 +51,7 @@ For every planning request, you will:
    - Security and performance considerations
    - Testing approach for each environment
    - Mobile-first layout strategy: define the mobile layout (single column, stacked, collapsed navigation, minimum 44×44px tap targets) BEFORE the desktop layout. All breakpoints must use `min-width`. State which theme.json spacing/typography presets apply at mobile without override.
+   - Documentation requirements: note any complex functions, non-obvious state shapes, or prop contracts that need PHPDoc/JSDoc summary lines explaining *why* the design was chosen — not just what it does
 
 4. **Risk Assessment**: Identify potential issues, conflicts with existing functionality, and mitigation strategies.
 
