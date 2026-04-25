@@ -45,6 +45,10 @@ class SettingsRestController {
 	/**
 	 * Returns all plugin settings. API key values are masked if set.
 	 *
+	 * Response includes `is_pro` (bool) indicating whether the Pro licence is
+	 * active. Added alongside the `isPro` JS field rename so both layers stay
+	 * consistent.
+	 *
 	 * @param \WP_REST_Request $request Incoming REST request.
 	 * @return \WP_REST_Response
 	 */
