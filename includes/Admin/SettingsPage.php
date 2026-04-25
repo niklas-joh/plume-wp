@@ -43,6 +43,7 @@ class SettingsPage {
 			[
 				'nonce'         => wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => esc_url_raw( rest_url( 'wp-ai-mind/v1' ) ),
+				'upgradeUrl'    => esc_url( admin_url( 'admin.php?page=wp-ai-mind-upgrade' ) ),
 				'currentPostId' => 0,
 				'isPro'         => NJ_Tier_Manager::user_can( 'chat' ),
 				'siteTitle'     => get_bloginfo( 'name' ),

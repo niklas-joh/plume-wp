@@ -22,7 +22,7 @@ const IMAGE_PROVIDER_OPTIONS = [
 
 export default function ProvidersTab( { settings, saveSettings, isSaving } ) {
 	const features = window.wpAiMindData?.features ?? {};
-	const upgradeUrl = 'admin.php?page=wp-ai-mind-upgrade';
+	const upgradeUrl = window.wpAiMindData?.upgradeUrl ?? 'admin.php?page=wp-ai-mind-upgrade';
 	const apiKeys = settings?.api_keys ?? {};
 	const [ dirty, setDirty ] = useState( {} ); // { [provider]: string }
 
@@ -70,51 +70,27 @@ export default function ProvidersTab( { settings, saveSettings, isSaving } ) {
 					</p>
 				) }
 
-				{ features.model_selection ? (
-					<>
-						<SelectControl
-							label="Default AI Provider"
-							options={ PROVIDER_OPTIONS }
-							value={ settings?.default_provider ?? '' }
-							onChange={ ( val ) =>
-								saveSettings( { default_provider: val } )
-							}
-							__nextHasNoMarginBottom
-						/>
+				<fieldset disabled={ ! features.model_selection }>
+					<SelectControl
+						label={ __( 'Default AI Provider', 'wp-ai-mind' ) }
+						options={ PROVIDER_OPTIONS }
+						value={ settings?.default_provider ?? '' }
+						onChange={ ( val ) =>
+							saveSettings( { default_provider: val } )
+						}
+						__nextHasNoMarginBottom
+					/>
 
-						<SelectControl
-							label="Image Provider"
-							options={ IMAGE_PROVIDER_OPTIONS }
-							value={ settings?.image_provider ?? '' }
-							onChange={ ( val ) =>
-								saveSettings( { image_provider: val } )
-							}
-							__nextHasNoMarginBottom
-						/>
-					</>
-				) : (
-					<fieldset disabled>
-						<SelectControl
-							label="Default AI Provider"
-							options={ PROVIDER_OPTIONS }
-							value={ settings?.default_provider ?? '' }
-							onChange={ ( val ) =>
-								saveSettings( { default_provider: val } )
-							}
-							__nextHasNoMarginBottom
-						/>
-
-						<SelectControl
-							label="Image Provider"
-							options={ IMAGE_PROVIDER_OPTIONS }
-							value={ settings?.image_provider ?? '' }
-							onChange={ ( val ) =>
-								saveSettings( { image_provider: val } )
-							}
-							__nextHasNoMarginBottom
-						/>
-					</fieldset>
-				) }
+					<SelectControl
+						label={ __( 'Image Provider', 'wp-ai-mind' ) }
+						options={ IMAGE_PROVIDER_OPTIONS }
+						value={ settings?.image_provider ?? '' }
+						onChange={ ( val ) =>
+							saveSettings( { image_provider: val } )
+						}
+						__nextHasNoMarginBottom
+					/>
+				</fieldset>
 			</section>
 
 			{ /* API key inputs */ }

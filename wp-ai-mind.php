@@ -29,8 +29,10 @@ define( 'WP_AI_MIND_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_AI_MIND_BASENAME', plugin_basename( __FILE__ ) );
 define( 'WP_AI_MIND_HTTP_TIMEOUT', 60 ); // seconds — LLM calls can be slow
 
-// Custom PSR-4 autoloader (retained as fallback; Composer autoloader above
-// already covers WP_AI_Mind\ via composer.json autoload config).
+// Custom PSR-4 autoloader — retained as a safety net for environments where
+// the Composer vendor directory is absent (e.g. a manual plugin upload without
+// running `composer install`). Composer's autoloader above takes precedence
+// when available.
 require_once WP_AI_MIND_DIR . 'includes/Core/Autoloader.php';
 WP_AI_Mind\Core\Autoloader::register();
 
