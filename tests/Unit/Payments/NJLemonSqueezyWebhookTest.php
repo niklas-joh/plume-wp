@@ -159,11 +159,13 @@ class NJLemonSqueezyWebhookTest extends TestCase {
 	public function test_register_routes_registers_webhook_route(): void {
 		$captured_namespace = null;
 		$captured_route     = null;
+		$captured_args      = null;
 
 		Functions\when( 'register_rest_route' )->alias(
-			function ( string $namespace, string $route ) use ( &$captured_namespace, &$captured_route ): bool {
+			function ( string $namespace, string $route, array $args ) use ( &$captured_namespace, &$captured_route, &$captured_args ): bool {
 				$captured_namespace = $namespace;
 				$captured_route     = $route;
+				$captured_args      = $args;
 				return true;
 			}
 		);
@@ -172,6 +174,8 @@ class NJLemonSqueezyWebhookTest extends TestCase {
 
 		$this->assertSame( 'wp-ai-mind/v1', $captured_namespace );
 		$this->assertSame( '/webhook', $captured_route );
+		$this->assertSame( 'POST', $captured_args['methods'] );
+		$this->assertSame( [ NJ_LemonSqueezy_Webhook::class, 'handle' ], $captured_args['callback'] );
 	}
 
 	// ── apply_event — tier mapping via handle() ───────────────────────────────
