@@ -157,7 +157,7 @@ See `.agents/_shared/file-hygiene.md` for full conventions.
 - British English in all content
 - All newly added or modified public PHP methods and classes have PHPDoc (`@param`, `@return`, `@since`, `@throws` if raised)
 - All newly added or modified exported React components have JSDoc (`@param` per prop, `@returns`)
-- Inline comments explain "why" — flag any comment that merely restates what the code does
+- Inline comments explain `why` — flag any comment that merely restates what the code does
 - Correct hook usage and plugin compatibility
 - Database schema integrity
 - No hardcoded values; use constants, options, or WordPress functions/settings/REST API instead

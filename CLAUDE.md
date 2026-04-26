@@ -146,6 +146,7 @@ Use WordPress admin color variables in wp-admin UI.
 - ALL exported React components MUST have a JSDoc block above the function.
 - Use `@param {Object} props` with one `@param` sub-entry per prop (type + description).
 - Use `@returns {ReactElement}`.
+- Use `@throws {Error}` for async functions or hooks that can throw; omit for synchronous components that never throw.
 - Shared/reusable components MUST include a `@example`.
 
 ```jsx
@@ -168,7 +169,6 @@ Use WordPress admin color variables in wp-admin UI.
   invariant, a non-obvious API quirk, or a deliberate workaround.
 - Never describe *what* the code does; well-named identifiers already do that.
 - British English. Single line where possible.
-
 
 ---
 
