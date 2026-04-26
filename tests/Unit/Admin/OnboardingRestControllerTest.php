@@ -156,9 +156,9 @@ class OnboardingRestControllerTest extends TestCase {
 
 		$response = OnboardingRestController::save( $request );
 
-		$this->assertInstanceOf( \WP_REST_Response::class, $response );
-		$this->assertSame( 403, $response->get_status() );
-		$this->assertSame( 'rest_plan_required', $response->data['code'] );
+		$this->assertInstanceOf( \WP_Error::class, $response );
+		$this->assertSame( 'rest_plan_required', $response->get_error_code() );
+		$this->assertSame( 403, $response->get_error_data( 'rest_plan_required' )['status'] );
 	}
 
 	// ── save() — response ────────────────────────────────────────────────────

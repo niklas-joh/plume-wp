@@ -72,9 +72,9 @@ class OnboardingRestController {
 	 *
 	 * @since 1.0.0
 	 * @param WP_REST_Request $request Incoming REST request.
-	 * @return WP_REST_Response 200 on success; 403 if tier gate fails.
+	 * @return WP_REST_Response|\WP_Error 200 on success; WP_Error 403 if tier gate fails.
 	 */
-	public static function save( WP_REST_Request $request ): WP_REST_Response {
+	public static function save( WP_REST_Request $request ): WP_REST_Response|\WP_Error {
 		$seen = $request->get_param( 'seen' );
 
 		if ( true === $seen ) {
@@ -90,12 +90,10 @@ class OnboardingRestController {
 		}
 		if ( $api_keys && is_array( $api_keys ) ) {
 			if ( ! NJ_Tier_Manager::user_can( 'own_api_key' ) ) {
-				return new WP_REST_Response(
-					[
-						'code'    => 'rest_plan_required',
-						'message' => __( 'API key management requires the Pro BYOK plan.', 'wp-ai-mind' ),
-					],
-					403
+				return new \WP_Error(
+					'rest_plan_required',
+					__( 'API key management requires the Pro BYOK plan.', 'wp-ai-mind' ),
+					[ 'status' => 403 ]
 				);
 			}
 
