@@ -138,6 +138,22 @@ class OnboardingRestControllerTest extends TestCase {
 		$ctrl::save( $request );
 	}
 
+	// ── save() — tier gate ───────────────────────────────────────────────────
+
+	public function test_save_api_keys_rejected_for_free_tier(): void {
+		Functions\when( 'wp_ai_mind_is_pro' )->justReturn( false );
+		Functions\when( '__' )->alias( fn( $s ) => $s );
+
+		$request = new \WP_REST_Request( 'POST' );
+		$request->set_param( 'api_keys', [ 'openai' => 'sk-test' ] );
+
+		$result = OnboardingRestController::save( $request );
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'rest_plan_required', $result->get_error_code() );
+		$this->assertSame( 403, $result->get_error_data()['status'] );
+	}
+
 	// ── save() — response ────────────────────────────────────────────────────
 
 	public function test_save_returns_success_response(): void {

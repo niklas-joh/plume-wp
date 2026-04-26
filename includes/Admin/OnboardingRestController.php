@@ -56,7 +56,7 @@ class OnboardingRestController {
 		);
 	}
 
-	public static function save( WP_REST_Request $request ): WP_REST_Response {
+	public static function save( WP_REST_Request $request ): WP_REST_Response|\WP_Error {
 		$seen = $request->get_param( 'seen' );
 
 		if ( true === $seen ) {
@@ -66,6 +66,15 @@ class OnboardingRestController {
 		}
 
 		$api_keys = $request->get_param( 'api_keys' );
+
+		if ( $api_keys && ! \wp_ai_mind_is_pro() ) {
+			return new \WP_Error(
+				'rest_plan_required',
+				__( 'API key management requires the Pro BYOK plan.', 'wp-ai-mind' ),
+				[ 'status' => 403 ]
+			);
+		}
+
 		$provider = $request->get_param( 'provider' );
 		if ( $provider ) {
 			update_option( 'wp_ai_mind_default_provider', sanitize_text_field( $provider ) );
