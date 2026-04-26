@@ -14,7 +14,7 @@ function makeRequest( headers: Record<string, string> = {} ): Request {
 
 const TEST_TOKEN = 'deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678';
 
-async function makeEnvWithToken( tier: SiteRecord['tier'] = 'free' ) {
+async function makeEnvWithSiteToken( tier: SiteRecord['tier'] = 'free' ) {
 	const env = makeEnv();
 	const record: SiteRecord = {
 		site_url: 'https://example.com',
@@ -51,7 +51,7 @@ describe( 'authenticateRequest', () => {
 	} );
 
 	it( 'returns authenticated: true with site_token and tier for a valid token', async () => {
-		const env = await makeEnvWithToken( 'pro_managed' );
+		const env = await makeEnvWithSiteToken( 'pro_managed' );
 		const result = await authenticateRequest(
 			makeRequest( { Authorization: `Bearer ${ TEST_TOKEN }` } ),
 			env,

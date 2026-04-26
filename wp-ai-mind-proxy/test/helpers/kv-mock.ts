@@ -14,8 +14,8 @@ export function makeKV(): KVNamespace {
 		async delete( key: string ): Promise<void> {
 			store.delete( key );
 		},
-		async list(): Promise<{ keys: []; list_complete: true; cursor: string }> {
-			return { keys: [], list_complete: true, cursor: '' };
+		async list(): Promise<{ keys: []; list_complete: true; cursor: string; cacheStatus: null }> {
+			return { keys: [], list_complete: true, cursor: '', cacheStatus: null };
 		},
 		async getWithMetadata(): Promise<{ value: null; metadata: null }> {
 			return { value: null, metadata: null };

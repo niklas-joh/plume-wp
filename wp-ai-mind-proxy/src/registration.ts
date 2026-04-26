@@ -3,7 +3,7 @@
 import { Env, SiteRecord } from './types';
 import { generateToken } from './auth';
 
-const REGISTRATION_RATE_LIMIT = 5;  // max new registrations per IP per hour
+export const REGISTRATION_RATE_LIMIT = 5;  // max new registrations per IP per hour
 const REGISTRATION_WINDOW_TTL = 3600; // seconds
 
 export async function handleRegistration(

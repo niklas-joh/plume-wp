@@ -1,17 +1,13 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { createHmac } from 'crypto';
 import { describe, it, expect } from 'vitest';
 import { handleWebhook } from '../src/webhook';
 import { makeEnv } from './helpers/kv-mock';
+import { signBody as sign } from './helpers/sign';
 import type { SiteRecord, LicenceRecord } from '../src/types';
 
 const TEST_TOKEN = 'aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa1111bbbb2222';
 const TEST_LICENCE_KEY = 'LICENCE-TEST-001';
-
-function sign( body: string, secret: string ): string {
-	return createHmac( 'sha256', secret ).update( body ).digest( 'hex' );
-}
 
 function makeRequest( body: unknown, secret = 'test-secret' ): Request {
 	const bodyText = JSON.stringify( body );

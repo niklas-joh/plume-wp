@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { describe, it, expect } from 'vitest';
-import { handleRegistration } from '../src/registration';
+import { handleRegistration, REGISTRATION_RATE_LIMIT } from '../src/registration';
 import { makeEnv } from './helpers/kv-mock';
 
 function makeRequest( opts: {
@@ -76,8 +76,7 @@ describe( 'handleRegistration', () => {
 		const env = makeEnv();
 		const ip = '203.0.113.42';
 
-		// exhaust the 5-per-hour limit
-		for ( let i = 1; i <= 5; i++ ) {
+		for ( let i = 1; i <= REGISTRATION_RATE_LIMIT; i++ ) {
 			await handleRegistration(
 				makeRequest( {
 					body: { site_url: `https://site${ i }.example.com` },

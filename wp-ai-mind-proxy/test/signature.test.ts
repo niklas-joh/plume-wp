@@ -1,13 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { createHmac } from 'crypto';
 import { describe, it, expect } from 'vitest';
 import { verifyLsSignature } from '../src/signature';
 import { makeEnv } from './helpers/kv-mock';
-
-function signBody( body: string, secret: string ): string {
-	return createHmac( 'sha256', secret ).update( body ).digest( 'hex' );
-}
+import { signBody } from './helpers/sign';
 
 describe( 'verifyLsSignature', () => {
 	it( 'resolves true for a valid signature', async () => {
