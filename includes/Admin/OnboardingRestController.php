@@ -3,6 +3,7 @@ declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
 use WP_AI_Mind\Settings\ProviderSettings;
+use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -13,6 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class OnboardingRestController {
 
+	/**
+	 * Registers the onboarding REST route.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		register_rest_route(
 			'wp-ai-mind/v1',
@@ -56,7 +63,18 @@ class OnboardingRestController {
 		);
 	}
 
-	public static function save( WP_REST_Request $request ): WP_REST_Response {
+	/**
+	 * Handles the onboarding POST endpoint.
+	 *
+	 * Saves provider, API keys, and onboarding-seen state from the request.
+	 * Returns 403 if the current user's tier does not include the own_api_key feature
+	 * and api_keys are present in the payload.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request Incoming REST request.
+	 * @return WP_REST_Response|\WP_Error 200 on success; WP_Error 403 if tier gate fails.
+	 */
+	public static function save( WP_REST_Request $request ): WP_REST_Response|\WP_Error {
 		$seen = $request->get_param( 'seen' );
 
 		if ( true === $seen ) {
@@ -71,6 +89,14 @@ class OnboardingRestController {
 			update_option( 'wp_ai_mind_default_provider', sanitize_text_field( $provider ) );
 		}
 		if ( $api_keys && is_array( $api_keys ) ) {
+			if ( ! NJ_Tier_Manager::user_can( 'own_api_key' ) ) {
+				return new \WP_Error(
+					'rest_plan_required',
+					__( 'API key management requires the Pro BYOK plan.', 'wp-ai-mind' ),
+					[ 'status' => 403 ]
+				);
+			}
+
 			$valid    = [ 'openai', 'claude', 'gemini' ];
 			$settings = static::make_provider_settings();
 			foreach ( $api_keys as $p => $key ) {

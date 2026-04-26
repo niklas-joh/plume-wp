@@ -37,7 +37,7 @@ class SettingsRestControllerTest extends TestCase {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->justReturn( 'free' );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'free' : null );
         Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
             $map = [
                 'wp_ai_mind_default_provider' => 'claude',
@@ -87,7 +87,7 @@ class SettingsRestControllerTest extends TestCase {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->justReturn( 'free' );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'free' : null );
         Functions\when( 'get_option' )->justReturn( '' );
         Functions\when( 'wp_ai_mind_is_pro' )->justReturn( false );
 
@@ -182,6 +182,10 @@ class SettingsRestControllerTest extends TestCase {
         Functions\when( 'esc_url_raw' )->alias( fn( $v ) => $v );
         // ModuleRegistry::__construct() calls get_option to load saved state.
         Functions\when( 'get_option' )->justReturn( [] );
+        // NJ_Tier_Manager::user_can() reads tier via get_current_user_id + get_user_meta.
+        // Use pro_byok so both model_selection and own_api_key gates pass.
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'pro_byok' : null );
 
         $api_key_calls = [];
         $controller = new class( $api_key_calls ) extends SettingsRestController {
@@ -249,7 +253,7 @@ class SettingsRestControllerTest extends TestCase {
     public function test_get_settings_returns_allowed_post_types(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->justReturn( 'free' );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'free' : null );
         Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
             if ( 'wp_ai_mind_allowed_post_types' === $key ) {
                 return [ 'post' ];
@@ -281,7 +285,7 @@ class SettingsRestControllerTest extends TestCase {
     public function test_get_settings_returns_available_post_types(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->justReturn( 'free' );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'free' : null );
         Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
             return is_array( $default ) ? $default : '';
         } );
@@ -388,7 +392,7 @@ class SettingsRestControllerTest extends TestCase {
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_option' )->justReturn( '' );
         Functions\when( 'get_current_user_id' )->justReturn( 2 );
-        Functions\when( 'get_user_meta' )->justReturn( 'pro_managed' );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'pro_managed' : null );
 
         $controller = new class extends SettingsRestController {
             protected function make_provider_settings(): \WP_AI_Mind\Settings\ProviderSettings {
@@ -415,7 +419,7 @@ class SettingsRestControllerTest extends TestCase {
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_option' )->justReturn( '' );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->justReturn( 'free' );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'free' : null );
 
         $controller = new class extends SettingsRestController {
             protected function make_provider_settings(): \WP_AI_Mind\Settings\ProviderSettings {
@@ -440,6 +444,9 @@ class SettingsRestControllerTest extends TestCase {
     public function test_save_settings_skips_masked_api_keys(): void {
         Functions\when( 'update_option' )->justReturn( true );
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
+        // Tier gate: NJ_Tier_Manager::user_can() needs these stubs.
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'pro_byok' : null );
 
         $api_key_calls = [];
         $controller = new class( $api_key_calls ) extends SettingsRestController {
@@ -471,5 +478,38 @@ class SettingsRestControllerTest extends TestCase {
 
         // No provider keys should be saved when all values are masked.
         $this->assertEmpty( $api_key_calls );
+    }
+
+    public function test_save_settings_rejects_api_keys_for_free_tier(): void {
+        Functions\when( 'update_option' )->justReturn( true );
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
+        Functions\when( '__' )->alias( fn( $s ) => $s );
+        // tier gate: simulate a free-tier user.
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'free' : null );
+
+        $controller = new class extends SettingsRestController {
+            protected function make_provider_settings(): \WP_AI_Mind\Settings\ProviderSettings {
+                $stub = new class extends \WP_AI_Mind\Settings\ProviderSettings {
+                    public function __construct() {}
+                    public function set_api_key( string $provider, string $key ): void {}
+                };
+                return $stub;
+            }
+        };
+
+        $request = new \WP_REST_Request();
+        $request->set_body_params( [
+            'api_keys' => [
+                'claude' => 'sk-free-attempt',
+            ],
+        ] );
+
+        $response = $controller->save_settings( $request );
+
+        // Free-tier users must be rejected with 403 and the plan_required error code.
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 'rest_plan_required', $response->get_error_code() );
+        $this->assertSame( 403, $response->get_error_data()['status'] );
     }
 }

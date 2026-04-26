@@ -100,6 +100,9 @@ class OnboardingRestControllerTest extends TestCase {
 
 	public function test_save_stores_api_keys_per_provider(): void {
 		Functions\when( 'sanitize_text_field' )->alias( fn( $s ) => $s );
+		// Tier gate: NJ_Tier_Manager::user_can() needs these stubs.
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'pro_byok' : null );
 
 		$mock_settings = $this->createMock( ProviderSettings::class );
 		$mock_settings->expects( $this->once() )
@@ -121,6 +124,10 @@ class OnboardingRestControllerTest extends TestCase {
 	}
 
 	public function test_save_ignores_invalid_provider_in_api_keys(): void {
+		// Tier gate: NJ_Tier_Manager::user_can() needs these stubs.
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'pro_byok' : null );
+
 		$mock_settings = $this->createMock( ProviderSettings::class );
 		$mock_settings->expects( $this->never() )->method( 'set_api_key' );
 
@@ -136,6 +143,22 @@ class OnboardingRestControllerTest extends TestCase {
 		$request->set_param( 'api_keys', [ 'unknown' => 'some-key' ] );
 
 		$ctrl::save( $request );
+	}
+
+	public function test_save_api_keys_rejected_for_free_tier(): void {
+		Functions\when( '__' )->alias( fn( $s ) => $s );
+		// tier gate: simulate a free-tier user.
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'wp_ai_mind_tier' ? 'free' : null );
+
+		$request = new \WP_REST_Request( 'POST' );
+		$request->set_param( 'api_keys', [ 'openai' => 'sk-test' ] );
+
+		$response = OnboardingRestController::save( $request );
+
+		$this->assertInstanceOf( \WP_Error::class, $response );
+		$this->assertSame( 'rest_plan_required', $response->get_error_code() );
+		$this->assertSame( 403, $response->get_error_data( 'rest_plan_required' )['status'] );
 	}
 
 	// ── save() — response ────────────────────────────────────────────────────
