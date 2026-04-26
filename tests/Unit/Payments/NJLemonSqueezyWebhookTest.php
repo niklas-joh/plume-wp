@@ -235,4 +235,62 @@ class NJLemonSqueezyWebhookTest extends TestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 	}
+
+	public function test_subscription_resumed_sets_pro_managed(): void {
+		$user     = new \stdClass();
+		$user->ID = 13;
+
+		Functions\expect( 'get_user_by' )->once()->andReturn( $user );
+		Functions\expect( 'update_user_meta' )
+			->once()
+			->with( 13, 'wp_ai_mind_tier', 'pro_managed' )
+			->andReturn( true );
+
+		$payload = [
+			'data' => [ 'attributes' => [ 'user_email' => 'u@example.com' ] ],
+			'meta' => [ 'event_name' => 'subscription_resumed' ],
+		];
+
+		$response = NJ_LemonSqueezy_Webhook::handle( $this->make_signed_request( $payload ) );
+
+		$this->assertSame( 200, $response->get_status() );
+	}
+
+	public function test_subscription_expired_sets_free(): void {
+		$user     = new \stdClass();
+		$user->ID = 14;
+
+		Functions\expect( 'get_user_by' )->once()->andReturn( $user );
+		Functions\expect( 'update_user_meta' )
+			->once()
+			->with( 14, 'wp_ai_mind_tier', 'free' )
+			->andReturn( true );
+
+		$payload = [
+			'data' => [ 'attributes' => [ 'user_email' => 'u@example.com' ] ],
+			'meta' => [ 'event_name' => 'subscription_expired' ],
+		];
+
+		$response = NJ_LemonSqueezy_Webhook::handle( $this->make_signed_request( $payload ) );
+
+		$this->assertSame( 200, $response->get_status() );
+	}
+
+	public function test_unknown_event_returns_200_without_updating_meta(): void {
+		$user     = new \stdClass();
+		$user->ID = 15;
+
+		Functions\expect( 'get_user_by' )->once()->andReturn( $user );
+		// update_user_meta must NOT be called for unknown events.
+		Functions\expect( 'update_user_meta' )->never();
+
+		$payload = [
+			'data' => [ 'attributes' => [ 'user_email' => 'u@example.com' ] ],
+			'meta' => [ 'event_name' => 'subscription_paused' ],
+		];
+
+		$response = NJ_LemonSqueezy_Webhook::handle( $this->make_signed_request( $payload ) );
+
+		$this->assertSame( 200, $response->get_status() );
+	}
 }
