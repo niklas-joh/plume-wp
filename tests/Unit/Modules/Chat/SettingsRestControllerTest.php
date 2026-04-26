@@ -36,12 +36,8 @@ class SettingsRestControllerTest extends TestCase {
     public function test_get_settings_returns_masked_keys_when_set(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_post_types' )->justReturn( [] );
-<<<<<<< HEAD
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'get_user_meta' )->justReturn( 'free' );
-=======
-        Functions\when( 'wp_ai_mind_is_pro' )->justReturn( false );
->>>>>>> main
         Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
             $map = [
                 'wp_ai_mind_default_provider' => 'claude',

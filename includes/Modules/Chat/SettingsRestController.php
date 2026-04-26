@@ -70,12 +70,8 @@ class SettingsRestController {
 			'allowed_post_types'   => \get_option( 'wp_ai_mind_allowed_post_types', [ 'post', 'page' ] ),
 			'available_post_types' => $this->get_public_post_types(),
 			'enable_write_tools'   => (bool) \get_option( 'wp_ai_mind_enable_write_tools', false ),
-<<<<<<< HEAD
 			// Note: intentionally snake_case to match WP REST convention; JS reads this as `settings.is_pro` (see FeaturesTab.jsx).
 			'is_pro'               => NJ_Tier_Manager::user_can( 'generator' ),
-=======
-			'is_pro'               => (bool) \wp_ai_mind_is_pro(),
->>>>>>> main
 		];
 
 		return rest_ensure_response( $data );
