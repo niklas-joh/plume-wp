@@ -42,11 +42,14 @@ class ClaudeProvider extends AbstractProvider {
 	public function __construct( private readonly string $api_key ) {}
 
 	public function get_slug(): string {
-		return 'claude'; }
+		return 'claude';
+	}
 	public function get_models(): array {
-		return self::MODELS; }
+		return self::MODELS;
+	}
 	public function get_default_model(): string {
-		return self::DEFAULT_MODEL; }
+		return self::DEFAULT_MODEL;
+	}
 	public function is_available(): bool {
 		if ( '' !== $this->api_key ) {
 			return true;

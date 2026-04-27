@@ -19,6 +19,8 @@ class NJ_Tier_Status_Page {
 
 	private const STYLE_HOOKS = [
 		'settings_page_wp-ai-mind-tier-status',
+		// The upgrade-page hook is registered by NJ_Upgrade_Page, not this class; included so the
+		// shared admin stylesheet loads on both pages without duplicating enqueue logic.
 		'ai-mind_page_wp-ai-mind-upgrade',
 	];
 
