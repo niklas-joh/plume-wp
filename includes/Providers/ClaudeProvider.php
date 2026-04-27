@@ -44,9 +44,12 @@ class ClaudeProvider extends AbstractProvider {
 	public function get_slug(): string {
 		return 'claude';
 	}
+
 	public function get_models(): array {
 		return self::MODELS;
 	}
+
+
 	public function get_default_model(): string {
 		return self::DEFAULT_MODEL;
 	}

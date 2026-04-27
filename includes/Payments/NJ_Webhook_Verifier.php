@@ -10,11 +10,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Verifies HMAC-SHA256 signatures on incoming webhook payloads.
  *
  * Webhook verification is currently handled by the Cloudflare Worker (`signature.ts`).
- * This class is kept as infrastructure for a future PHP-side webhook endpoint.
+ * This class is retained as infrastructure for a future PHP-side webhook endpoint
+ * and has no active call-site in the plugin.
  *
  * @internal Intentionally unused until a PHP webhook route is introduced.
- * @todo Wire up once a PHP-side webhook endpoint is added for payment events.
  * @since 1.2.0
+ * @internal
  */
 class NJ_Webhook_Verifier {
 
