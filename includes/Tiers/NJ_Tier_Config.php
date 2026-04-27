@@ -63,7 +63,9 @@ class NJ_Tier_Config {
 
 	const TRIAL_DAYS = 30;
 
-	const PROXY_URL = 'https://wp-ai-mind-proxy.wp-ai-mind.workers.dev';
+	public static function get_proxy_url(): string {
+		return defined( 'WP_AI_MIND_PROXY_URL' ) ? WP_AI_MIND_PROXY_URL : 'https://wp-ai-mind-proxy.wp-ai-mind.workers.dev';
+	}
 
 	/**
 	 * Returns all recognised tier slugs.

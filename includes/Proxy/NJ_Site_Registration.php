@@ -21,9 +21,39 @@ class NJ_Site_Registration {
 
 	private const OPTION_TOKEN = 'wp_ai_mind_site_token';
 
-	public const PLAN_PRO_MANAGED_MONTHLY = '1550505';
-	public const PLAN_PRO_MANAGED_ANNUAL  = '1550477';
-	public const PLAN_PRO_BYOK_ONETIME    = '1550517';
+	private const PLAN_PRO_MANAGED_MONTHLY = '1550505';
+	private const PLAN_PRO_MANAGED_ANNUAL  = '1550477';
+	private const PLAN_PRO_BYOK_ONETIME    = '1550517';
+
+	/**
+	 * Return the checkout URL for the Pro Managed Monthly plan.
+	 *
+	 * @since 1.0.0
+	 * @return string Fully-formed checkout URL.
+	 */
+	public static function checkout_url_pro_managed_monthly(): string {
+		return self::checkout_url( self::PLAN_PRO_MANAGED_MONTHLY );
+	}
+
+	/**
+	 * Return the checkout URL for the Pro Managed Annual plan.
+	 *
+	 * @since 1.0.0
+	 * @return string Fully-formed checkout URL.
+	 */
+	public static function checkout_url_pro_managed_annual(): string {
+		return self::checkout_url( self::PLAN_PRO_MANAGED_ANNUAL );
+	}
+
+	/**
+	 * Return the checkout URL for the Pro BYOK One-time plan.
+	 *
+	 * @since 1.0.0
+	 * @return string Fully-formed checkout URL.
+	 */
+	public static function checkout_url_pro_byok_onetime(): string {
+		return self::checkout_url( self::PLAN_PRO_BYOK_ONETIME );
+	}
 
 	/**
 	 * Return the stored site token, or an empty string if not yet registered.
@@ -71,7 +101,7 @@ class NJ_Site_Registration {
 	 */
 	public static function register(): string|WP_Error {
 		$response = wp_remote_post(
-			NJ_Tier_Config::PROXY_URL . '/register',
+			NJ_Tier_Config::get_proxy_url() . '/register',
 			[
 				'headers' => [ 'Content-Type' => 'application/json' ],
 				'body'    => wp_json_encode( [ 'site_url' => home_url() ] ),

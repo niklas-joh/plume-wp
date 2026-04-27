@@ -7,7 +7,6 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use WP_AI_Mind\Admin\NJ_Tier_Status_Page;
-use WP_AI_Mind\Proxy\NJ_Site_Registration;
 
 class NJ_Tier_Status_Page_Test extends TestCase {
 
@@ -121,7 +120,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		NJ_Tier_Status_Page::render();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( NJ_Site_Registration::PLAN_PRO_MANAGED_MONTHLY, $output );
+		$this->assertStringContainsString( '1550505', $output );
 	}
 
 	public function test_render_includes_pro_managed_annual_checkout_url_for_free_tier(): void {
@@ -132,7 +131,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		NJ_Tier_Status_Page::render();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( NJ_Site_Registration::PLAN_PRO_MANAGED_ANNUAL, $output );
+		$this->assertStringContainsString( '1550477', $output );
 	}
 
 	public function test_render_includes_pro_byok_onetime_checkout_url_for_free_tier(): void {
@@ -143,7 +142,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		NJ_Tier_Status_Page::render();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( NJ_Site_Registration::PLAN_PRO_BYOK_ONETIME, $output );
+		$this->assertStringContainsString( '1550517', $output );
 	}
 
 	public function test_render_includes_all_three_checkout_urls_for_trial_tier(): void {
@@ -154,9 +153,9 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		NJ_Tier_Status_Page::render();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( NJ_Site_Registration::PLAN_PRO_MANAGED_MONTHLY, $output );
-		$this->assertStringContainsString( NJ_Site_Registration::PLAN_PRO_MANAGED_ANNUAL, $output );
-		$this->assertStringContainsString( NJ_Site_Registration::PLAN_PRO_BYOK_ONETIME, $output );
+		$this->assertStringContainsString( '1550505', $output );
+		$this->assertStringContainsString( '1550477', $output );
+		$this->assertStringContainsString( '1550517', $output );
 	}
 
 	public function test_render_omits_upgrade_section_for_pro_managed_tier(): void {
@@ -167,9 +166,9 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		NJ_Tier_Status_Page::render();
 		$output = ob_get_clean();
 
-		$this->assertStringNotContainsString( NJ_Site_Registration::PLAN_PRO_MANAGED_MONTHLY, $output );
-		$this->assertStringNotContainsString( NJ_Site_Registration::PLAN_PRO_MANAGED_ANNUAL, $output );
-		$this->assertStringNotContainsString( NJ_Site_Registration::PLAN_PRO_BYOK_ONETIME, $output );
+		$this->assertStringNotContainsString( '1550505', $output );
+		$this->assertStringNotContainsString( '1550477', $output );
+		$this->assertStringNotContainsString( '1550517', $output );
 	}
 
 	public function test_checkout_url_embeds_site_token_in_query_string(): void {

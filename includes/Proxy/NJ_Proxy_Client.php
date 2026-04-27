@@ -5,7 +5,6 @@ namespace WP_AI_Mind\Proxy;
 
 use WP_Error;
 use WP_AI_Mind\Tiers\NJ_Tier_Config;
-use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -41,8 +40,6 @@ class NJ_Proxy_Client {
 		}
 
 		$payload = [
-			'user_id'  => $user_id,
-			'tier'     => NJ_Tier_Manager::get_user_tier( $user_id ),
 			'messages' => $messages,
 		];
 
@@ -56,13 +53,13 @@ class NJ_Proxy_Client {
 			$payload['system'] = $options['system'];
 		}
 
-			$body_json = wp_json_encode( $payload );
+		$body_json = wp_json_encode( $payload );
 		if ( false === $body_json ) {
 			return new WP_Error( 'json_encode_failed', __( 'Failed to encode request payload.', 'wp-ai-mind' ) );
 		}
 
 		$response = wp_remote_post(
-			NJ_Tier_Config::PROXY_URL . '/v1/chat',
+			NJ_Tier_Config::get_proxy_url() . '/v1/chat',
 			[
 				'headers' => [
 					'Content-Type'  => 'application/json',
