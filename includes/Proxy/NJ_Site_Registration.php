@@ -130,10 +130,11 @@ class NJ_Site_Registration {
 	 * Embeds the site token as a custom checkout field so the Worker can
 	 * associate the purchase with this installation automatically.
 	 *
+	 * @since 1.0.0
 	 * @param string $variant_id The LemonSqueezy product variant ID.
 	 * @return string The fully-formed checkout URL.
 	 */
-	private static function checkout_url( string $variant_id ): string {
+	public static function checkout_url( string $variant_id ): string {
 		$token = self::get_site_token();
 		$url   = 'https://wp-ai-mind.lemonsqueezy.com/checkout/buy/' . rawurlencode( $variant_id );
 		if ( $token ) {
