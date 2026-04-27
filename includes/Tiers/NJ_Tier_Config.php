@@ -6,8 +6,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Single source of truth for tier capabilities and limits.
-// Only constants here — no WordPress function calls.
+/**
+ * Single source of truth for tier capabilities and limits.
+ *
+ * Contains only constants — no WordPress function calls — so it is safe
+ * to load before `init`.
+ *
+ * @since 1.2.0
+ */
 class NJ_Tier_Config {
 
 	const TIERS = [ 'free', 'trial', 'pro_managed', 'pro_byok' ];
@@ -59,14 +65,37 @@ class NJ_Tier_Config {
 
 	const PROXY_URL = 'https://wp-ai-mind-proxy.wp-ai-mind.workers.dev';
 
+	/**
+	 * Returns all recognised tier slugs.
+	 *
+	 * @since 1.2.0
+	 * @return string[] List of valid tier slugs.
+	 */
 	public static function get_valid_tiers(): array {
 		return self::TIERS;
 	}
 
+	/**
+	 * Returns whether a feature is enabled for a given tier.
+	 *
+	 * @since 1.2.0
+	 * @param string $tier    Tier slug.
+	 * @param string $feature Feature key (e.g. 'chat', 'own_api_key').
+	 * @return bool True when the feature is enabled for the tier.
+	 */
 	public static function get_feature( string $tier, string $feature ): bool {
 		return (bool) ( self::FEATURES[ $tier ][ $feature ] ?? false );
 	}
 
+	/**
+	 * Returns the monthly token limit for a tier.
+	 *
+	 * Falls back to the 'free' limit (50 000) when the tier is unrecognised.
+	 *
+	 * @since 1.2.0
+	 * @param string $tier Tier slug.
+	 * @return int|null Monthly token limit, or null for unlimited tiers.
+	 */
 	public static function get_limit( string $tier ): ?int {
 		return array_key_exists( $tier, self::MONTHLY_LIMITS ) ? self::MONTHLY_LIMITS[ $tier ] : 50000;
 	}

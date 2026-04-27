@@ -10,8 +10,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Registers and handles the LemonSqueezy webhook REST endpoint.
+ *
+ * @since 1.2.0
+ */
 class NJ_LemonSqueezy_Webhook {
 
+	/**
+	 * Registers the /wp-ai-mind/v1/webhook REST route.
+	 *
+	 * @since 1.2.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		register_rest_route(
 			'wp-ai-mind/v1',
@@ -24,6 +35,16 @@ class NJ_LemonSqueezy_Webhook {
 		);
 	}
 
+	/**
+	 * Processes an incoming LemonSqueezy webhook request.
+	 *
+	 * Verifies the HMAC signature before acting on the payload. Returns a 401
+	 * when the signature is invalid and a 400 when the payload contains no email.
+	 *
+	 * @since 1.2.0
+	 * @param WP_REST_Request $request The incoming REST request.
+	 * @return WP_REST_Response Response confirming receipt or describing the error.
+	 */
 	public static function handle( WP_REST_Request $request ): WP_REST_Response {
 		$body      = $request->get_body();
 		$signature = $request->get_header( 'X-Signature' );

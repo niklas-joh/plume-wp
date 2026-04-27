@@ -6,8 +6,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Verifies HMAC-SHA256 signatures on incoming webhook payloads.
+ *
+ * @since 1.2.0
+ */
 class NJ_Webhook_Verifier {
 
+	/**
+	 * Verifies that an HMAC-SHA256 signature matches the raw request body.
+	 *
+	 * Returns false immediately when $signature is absent or $secret is empty,
+	 * avoiding a timing-safe comparison against a meaningless value.
+	 *
+	 * @since 1.2.0
+	 * @param string      $body      Raw request body.
+	 * @param string|null $signature Signature from the X-Signature header.
+	 * @param string      $secret    Shared webhook secret.
+	 * @return bool True when the signature is valid.
+	 */
 	public static function verify( string $body, ?string $signature, string $secret ): bool {
 		if ( ! $signature || empty( $secret ) ) {
 			return false;

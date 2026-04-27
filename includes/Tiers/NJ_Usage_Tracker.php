@@ -6,8 +6,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Tracks per-user monthly token consumption.
+ *
+ * @since 1.2.0
+ */
 class NJ_Usage_Tracker {
 
+	/**
+	 * Returns the current month's usage summary for a user.
+	 *
+	 * @since 1.2.0
+	 * @param int|null $user_id User ID; defaults to the current user.
+	 * @return array{tier: string, used: int, limit: int|null, remaining: int|null, can_use: bool}
+	 */
 	public static function get_usage( ?int $user_id = null ): array {
 		$user_id = $user_id ?? get_current_user_id();
 		$tier    = NJ_Tier_Manager::get_user_tier( $user_id );
@@ -35,6 +47,16 @@ class NJ_Usage_Tracker {
 		];
 	}
 
+	/**
+	 * Increments the current month's token counter for a user.
+	 *
+	 * Uses an atomic SQL UPDATE to avoid a read-modify-write race condition under concurrency.
+	 *
+	 * @since 1.2.0
+	 * @param int      $tokens  Number of tokens to add.
+	 * @param int|null $user_id User ID; defaults to the current user.
+	 * @return void
+	 */
 	public static function log_usage( int $tokens, ?int $user_id = null ): void {
 		global $wpdb;
 		$user_id = $user_id ?? get_current_user_id();
@@ -54,6 +76,13 @@ class NJ_Usage_Tracker {
 		}
 	}
 
+	/**
+	 * Checks whether a user is within their monthly token allowance.
+	 *
+	 * @since 1.2.0
+	 * @param int|null $user_id User ID; defaults to the current user.
+	 * @return bool True when the user can still make requests this month.
+	 */
 	public static function check_limit( ?int $user_id = null ): bool {
 		return self::get_usage( $user_id )['can_use'];
 	}

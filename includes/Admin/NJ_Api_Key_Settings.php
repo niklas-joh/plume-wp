@@ -10,18 +10,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Pro BYOK: API key management for each provider.
-// Keys are stored in user meta as AES-256-CBC encrypted strings.
-// Meta key format: wp_ai_mind_api_key_{provider}
+/**
+ * Pro BYOK: API key management for each provider.
+ *
+ * Keys are stored in user meta as AES-256-CBC encrypted strings.
+ * Meta key format: wp_ai_mind_api_key_{provider}
+ *
+ * @since 1.2.0
+ */
 class NJ_Api_Key_Settings {
 
 	private const SUPPORTED_PROVIDERS = [ 'claude', 'openai', 'gemini' ];
 
+	/**
+	 * Registers WordPress action hooks for the admin menu and REST API.
+	 *
+	 * @since 1.2.0
+	 * @return void
+	 */
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', [ self::class, 'add_menu_page' ] );
 		add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
 	}
 
+	/**
+	 * Registers the "AI Mind API Keys" settings page under Settings.
+	 *
+	 * @since 1.2.0
+	 * @return void
+	 */
 	public static function add_menu_page(): void {
 		add_options_page(
 			__( 'WP AI Mind — API Keys', 'wp-ai-mind' ),
@@ -32,6 +49,14 @@ class NJ_Api_Key_Settings {
 		);
 	}
 
+	/**
+	 * Registers the /wp-ai-mind/v1/user/api-key REST endpoint.
+	 *
+	 * Restricted to logged-in users whose tier grants the 'own_api_key' feature.
+	 *
+	 * @since 1.2.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		register_rest_route(
 			'wp-ai-mind/v1',
@@ -57,6 +82,15 @@ class NJ_Api_Key_Settings {
 		);
 	}
 
+	/**
+	 * Saves or deletes a provider API key for the current user.
+	 *
+	 * Passing an empty string for 'api_key' removes the stored key.
+	 *
+	 * @since 1.2.0
+	 * @param WP_REST_Request $request REST request containing 'provider' and 'api_key' params.
+	 * @return WP_REST_Response Response with 'saved', 'deleted', or 'error' key.
+	 */
 	public static function save_api_key( WP_REST_Request $request ): WP_REST_Response {
 		$provider = $request->get_param( 'provider' );
 		$api_key  = $request->get_param( 'api_key' );
@@ -76,6 +110,14 @@ class NJ_Api_Key_Settings {
 		return new WP_REST_Response( [ 'saved' => true ] );
 	}
 
+	/**
+	 * Outputs the API keys settings page HTML.
+	 *
+	 * Calls wp_die() when the current user's tier does not include 'own_api_key'.
+	 *
+	 * @since 1.2.0
+	 * @return void
+	 */
 	public static function render(): void {
 		if ( ! NJ_Tier_Manager::user_can( 'own_api_key' ) ) {
 			wp_die( esc_html__( 'This page requires a Pro BYOK plan.', 'wp-ai-mind' ) );
@@ -162,7 +204,15 @@ class NJ_Api_Key_Settings {
 		return hash( 'sha256', AUTH_KEY, true );
 	}
 
-	// AES-256-CBC encryption using a SHA-256 hash of WordPress AUTH_KEY as the secret.
+	/**
+	 * Encrypts a plaintext string using AES-256-CBC with a key derived from AUTH_KEY.
+	 *
+	 * Returns false when AUTH_KEY is not defined or OpenSSL encryption fails.
+	 *
+	 * @since 1.2.0
+	 * @param string $plaintext The value to encrypt.
+	 * @return string|false Base64-encoded ciphertext, or false on failure.
+	 */
 	public static function encrypt( string $plaintext ): string|false {
 		$key = self::derive_key();
 		if ( false === $key ) {
@@ -177,6 +227,16 @@ class NJ_Api_Key_Settings {
 		return base64_encode( $iv . $enc ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 	}
 
+	/**
+	 * Decrypts an AES-256-CBC ciphertext previously produced by encrypt().
+	 *
+	 * Returns false when the key is unavailable, the ciphertext is malformed,
+	 * or OpenSSL decryption fails.
+	 *
+	 * @since 1.2.0
+	 * @param string $ciphertext Base64-encoded ciphertext from encrypt().
+	 * @return string|false Decrypted plaintext, or false on failure.
+	 */
 	public static function decrypt( string $ciphertext ): string|false {
 		$key = self::derive_key();
 		if ( false === $key ) {
