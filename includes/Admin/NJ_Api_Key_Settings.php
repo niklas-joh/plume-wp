@@ -173,7 +173,8 @@ class NJ_Api_Key_Settings {
 		if ( false === $enc ) {
 			return false;
 		}
-		return base64_encode( $iv . '::' . $enc ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+		// IV is always 16 bytes — prepend directly so no delimiter is needed.
+		return base64_encode( $iv . $enc ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 	}
 
 	public static function decrypt( string $ciphertext ): string|false {
@@ -182,10 +183,12 @@ class NJ_Api_Key_Settings {
 			return false;
 		}
 		$data = base64_decode( $ciphertext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
-		if ( false === $data || ! str_contains( $data, '::' ) ) {
+		// IV is always 16 bytes; slice by fixed offset rather than a delimiter that binary IV bytes could collide with.
+		if ( false === $data || strlen( $data ) < 17 ) {
 			return false;
 		}
-		[ $iv, $enc ] = explode( '::', $data, 2 );
+		$iv  = substr( $data, 0, 16 );
+		$enc = substr( $data, 16 );
 		return openssl_decrypt( $enc, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
 	}
 }
