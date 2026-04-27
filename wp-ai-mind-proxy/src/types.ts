@@ -25,8 +25,6 @@ export interface LicenceRecord {
 }
 
 export interface ProxyRequest {
-	user_id: number; // kept for logging only — rate limiting is per site token
-	tier: ProxyTier;
 	messages: MessageParam[];
 	model?: string;
 	max_tokens?: number;
