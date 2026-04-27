@@ -83,7 +83,7 @@ class NJ_Proxy_Client {
 
 		if ( 401 === $code ) {
 			// Token may be stale — clear it so maybe_register() re-issues on next init.
-			delete_option( 'wp_ai_mind_site_token' );
+			delete_option( NJ_Site_Registration::OPTION_TOKEN );
 			return new WP_Error( 'proxy_auth_failed', __( 'Proxy authentication failed. Please try again.', 'wp-ai-mind' ) );
 		}
 

@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class NJ_Site_Registration {
 
-	private const OPTION_TOKEN = 'wp_ai_mind_site_token';
+	public const OPTION_TOKEN = 'wp_ai_mind_site_token';
 
 	private const PLAN_PRO_MANAGED_MONTHLY = '1550505';
 	private const PLAN_PRO_MANAGED_ANNUAL  = '1550477';
