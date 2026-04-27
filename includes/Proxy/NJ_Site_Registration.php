@@ -156,8 +156,8 @@ class NJ_Site_Registration {
 	private static function plan_id( string $plan ): string {
 		$map = [
 			'monthly' => defined( 'WP_AI_MIND_LS_MONTHLY_ID' ) ? WP_AI_MIND_LS_MONTHLY_ID : '1550505',
-			'annual'  => defined( 'WP_AI_MIND_LS_ANNUAL_ID' )  ? WP_AI_MIND_LS_ANNUAL_ID  : '1550477',
-			'byok'    => defined( 'WP_AI_MIND_LS_BYOK_ID' )    ? WP_AI_MIND_LS_BYOK_ID    : '1550517',
+			'annual'  => defined( 'WP_AI_MIND_LS_ANNUAL_ID' ) ? WP_AI_MIND_LS_ANNUAL_ID : '1550477',
+			'byok'    => defined( 'WP_AI_MIND_LS_BYOK_ID' ) ? WP_AI_MIND_LS_BYOK_ID : '1550517',
 		];
 		return $map[ $plan ];
 	}
