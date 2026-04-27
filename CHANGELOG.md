@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/niklas-joh/wp-ai-mind/compare/v1.3.0...v1.3.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* **ci:** push and close each issue immediately after fixing ([#321](https://github.com/niklas-joh/wp-ai-mind/issues/321)) ([5fea25b](https://github.com/niklas-joh/wp-ai-mind/commit/5fea25b766b648a12c855950a9165228b90f68bc))
+
 # [1.3.0](https://github.com/niklas-joh/wp-ai-mind/compare/v1.2.1...v1.3.0) (2026-04-27)
 
 

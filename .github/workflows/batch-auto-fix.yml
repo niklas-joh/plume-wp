@@ -75,7 +75,9 @@ jobs:
 
             ## Your task
 
-            Work through each issue number listed above **in order**. For each:
+            Work through each issue number listed above **in order**. For each issue,
+            complete steps A–F fully before moving to the next. This ensures every fixed
+            issue is committed, pushed, and closed even if the session ends early.
 
             ### A — Read the issue body
             ```
@@ -87,8 +89,8 @@ jobs:
             ### B — Decide: fix or skip
             - Fix it if the correct change is clear from the codebase alone.
             - If it requires an external value (API key, secret, account ID, business decision):
-              post a comment explaining exactly what information is needed, then continue to the next issue.
-              Do NOT stop — always process every issue in the list.
+              post a comment on the issue explaining what information is needed, then continue
+              to the next issue. Do NOT stop — always process every issue in the list.
 
             ### C — Apply the minimal fix
             Read only the files mentioned in the issue. Make the smallest correct change.
@@ -99,26 +101,27 @@ jobs:
             git commit -m "fix: <concise description> (closes #<N>)"
             ```
 
-            ### E — Close the issue
+            ### E — Push immediately
+            Push after every individual fix so the commit is not lost if the session ends early:
+            ```bash
+            git push origin ${{ github.event.client_payload.head_branch }}
+            ```
+
+            ### F — Close the issue immediately after pushing
             ```bash
             gh issue close <N> \
               --comment "✅ Fixed in $(git rev-parse --short HEAD). <One sentence summary.>" \
               --repo ${{ github.repository }}
             ```
 
-            ### F — Move to the next issue immediately
-            Do not pause between issues. Process all issues before pushing.
+            ### G — Move to the next issue
+            Repeat A–F for every issue in the list.
 
             ---
 
-            ## After all issues are processed
+            ## After ALL issues are processed
 
-            Push all commits at once:
-            ```bash
-            git push origin ${{ github.event.client_payload.head_branch }}
-            ```
-
-            Then post a single summary comment on the PR listing which issues were fixed
+            Post a single summary comment on the PR listing which issues were fixed
             and which (if any) were skipped and why:
             ```bash
             gh pr comment ${{ github.event.client_payload.pr_number }} \
