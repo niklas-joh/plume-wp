@@ -51,17 +51,6 @@ jobs:
             echo "Wrote body for issue #${issue_number}"
           done
 
-      - name: Calculate max turns
-        id: turns
-        env:
-          ISSUES_JSON: ${{ toJson(github.event.client_payload.issue_numbers) }}
-        run: |
-          NUM=$(echo "$ISSUES_JSON" | jq 'length')
-          # 10 base turns + 8 per issue, uncapped — user preference is no turn limit.
-          TURNS=$(( 10 + NUM * 8 ))
-          echo "value=$TURNS" >> "$GITHUB_OUTPUT"
-          echo "Max turns for $NUM issues: $TURNS"
-
       - name: Run Claude batch auto-fix
         id: claude
         uses: anthropics/claude-code-action@aee99972d0cfa0c47a4563e6fca42d7a5a0cb9bd  # v1
@@ -148,7 +137,7 @@ jobs:
             - Do NOT open new PRs — push all fixes directly to the head branch.
             - Do NOT open more than one PR per issue.
 
-          claude_args: "--max-turns ${{ steps.turns.outputs.value }} --allowedTools Bash(git:*),Bash(gh:*),Bash(composer:*),Bash(npm:*),Bash(npx:*),Bash(./vendor/bin/phpcs:*),Bash(./vendor/bin/phpunit:*),Read,Edit,MultiEdit,Write,Glob,Grep,LS"
+          claude_args: "--allowedTools Bash(git:*),Bash(gh:*),Bash(composer:*),Bash(npm:*),Bash(npx:*),Bash(./vendor/bin/phpcs:*),Bash(./vendor/bin/phpunit:*),Read,Edit,MultiEdit,Write,Glob,Grep,LS"
 
       - name: Report execution failure
         if: failure() && steps.claude.outcome == 'failure'
