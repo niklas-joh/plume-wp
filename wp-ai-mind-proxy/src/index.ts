@@ -117,6 +117,11 @@ async function checkRateLimit(
 
 async function updateUsage(siteToken: string, tokens: number, env: Env): Promise<void> {
   const key = `usage:${siteToken}:${getCurrentMonth()}`;
+  // KV does not support atomic increments, so concurrent requests perform a
+  // non-atomic read-modify-write. Under burst load this can under-count tokens,
+  // meaning at most one extra request per concurrent burst slips past the monthly
+  // limit. Acceptable for current phase; replace with a Durable Object counter
+  // in Phase 3 to make enforcement fully atomic.
   const current = parseInt(await env.USAGE_KV.get(key) ?? '0', 10);
   await env.USAGE_KV.put(key, String(current + tokens), {
     expirationTtl: getSecondsUntilNextMonth(),
