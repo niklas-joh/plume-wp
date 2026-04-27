@@ -1,29 +1,44 @@
 import type { Env } from '../../src/types';
 
 export function makeKV(): KVNamespace {
-	const store = new Map<string, string>();
+	const store = new Map< string, string >();
 	return {
-		async get( key: string, opts?: unknown ): Promise<unknown> {
+		async get( key: string, opts?: unknown ): Promise< unknown > {
 			const raw = store.get( key ) ?? null;
-			if ( opts === 'json' && raw !== null ) return JSON.parse( raw );
+			if ( opts === 'json' && raw !== null ) {
+				return JSON.parse( raw );
+			}
 			return raw;
 		},
-		async put( key: string, value: string | object, _opts?: unknown ): Promise<void> {
-			store.set( key, typeof value === 'string' ? value : JSON.stringify( value ) );
+		async put( key: string, value: string | object ): Promise< void > {
+			store.set(
+				key,
+				typeof value === 'string' ? value : JSON.stringify( value )
+			);
 		},
-		async delete( key: string ): Promise<void> {
+		async delete( key: string ): Promise< void > {
 			store.delete( key );
 		},
-		async list(): Promise<{ keys: []; list_complete: true; cursor: string; cacheStatus: null }> {
-			return { keys: [], list_complete: true, cursor: '', cacheStatus: null };
+		async list(): Promise< {
+			keys: [];
+			list_complete: true;
+			cursor: string;
+			cacheStatus: null;
+		} > {
+			return {
+				keys: [],
+				list_complete: true,
+				cursor: '',
+				cacheStatus: null,
+			};
 		},
-		async getWithMetadata(): Promise<{ value: null; metadata: null }> {
+		async getWithMetadata(): Promise< { value: null; metadata: null } > {
 			return { value: null, metadata: null };
 		},
 	} as unknown as KVNamespace;
 }
 
-export function makeEnv( overrides: Partial<Env> = {} ): Env {
+export function makeEnv( overrides: Partial< Env > = {} ): Env {
 	return {
 		USAGE_KV: makeKV(),
 		ANTHROPIC_API_KEY: 'sk-test',

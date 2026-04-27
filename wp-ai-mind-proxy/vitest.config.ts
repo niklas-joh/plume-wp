@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitest/config';
-export default defineConfig({
+export default defineConfig( {
 	test: {
 		environment: 'node',
 		globals: true,
 		tsconfig: './tsconfig.test.json',
 	},
-});
+} );

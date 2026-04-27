@@ -94,7 +94,11 @@ class SettingsRestController {
 		$default_provider = $request->get_param( 'default_provider' );
 		if ( null !== $default_provider ) {
 			if ( ! NJ_Tier_Manager::user_can( 'model_selection' ) ) {
-				return new \WP_REST_Response( [ 'error' => 'model_selection not available on current plan' ], 403 );
+				return new \WP_Error(
+					'rest_plan_required',
+					__( 'Model selection requires the Pro Managed or Pro BYOK plan.', 'wp-ai-mind' ),
+					[ 'status' => 403 ]
+				);
 			}
 			update_option( 'wp_ai_mind_default_provider', sanitize_text_field( (string) $default_provider ) );
 		}
@@ -102,7 +106,11 @@ class SettingsRestController {
 		$image_provider = $request->get_param( 'image_provider' );
 		if ( null !== $image_provider ) {
 			if ( ! NJ_Tier_Manager::user_can( 'model_selection' ) ) {
-				return new \WP_REST_Response( [ 'error' => 'model_selection not available on current plan' ], 403 );
+				return new \WP_Error(
+					'rest_plan_required',
+					__( 'Model selection requires the Pro Managed or Pro BYOK plan.', 'wp-ai-mind' ),
+					[ 'status' => 403 ]
+				);
 			}
 			update_option( 'wp_ai_mind_image_provider', sanitize_text_field( (string) $image_provider ) );
 		}

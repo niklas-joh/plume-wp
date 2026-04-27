@@ -22,7 +22,9 @@ describe( 'verifyLsSignature', () => {
 
 	it( 'resolves false for an empty signature string', async () => {
 		const env = makeEnv( { LS_WEBHOOK_SECRET: 'test-secret' } );
-		expect( await verifyLsSignature( '{"event":"test"}', '', env ) ).toBe( false );
+		expect( await verifyLsSignature( '{"event":"test"}', '', env ) ).toBe(
+			false
+		);
 	} );
 
 	it( 'resolves false when LS_WEBHOOK_SECRET is empty', async () => {
@@ -38,6 +40,8 @@ describe( 'verifyLsSignature', () => {
 		const originalBody = '{"event":"test"}';
 		const sig = signBody( originalBody, 'test-secret' );
 		const tamperedBody = '{"event":"tampered"}';
-		expect( await verifyLsSignature( tamperedBody, sig, env ) ).toBe( false );
+		expect( await verifyLsSignature( tamperedBody, sig, env ) ).toBe(
+			false
+		);
 	} );
 } );

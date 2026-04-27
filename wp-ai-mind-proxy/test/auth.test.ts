@@ -5,16 +5,17 @@ import { authenticateRequest } from '../src/auth';
 import { makeEnv } from './helpers/kv-mock';
 import type { SiteRecord } from '../src/types';
 
-function makeRequest( headers: Record<string, string> = {} ): Request {
+function makeRequest( headers: Record< string, string > = {} ): Request {
 	return new Request( 'https://worker.example.com/v1/chat', {
 		method: 'POST',
 		headers,
 	} );
 }
 
-const TEST_TOKEN = 'deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678';
+const TEST_TOKEN =
+	'deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678';
 
-async function makeEnvWithSiteToken( tier: SiteRecord['tier'] = 'free' ) {
+async function makeEnvWithSiteToken( tier: SiteRecord[ 'tier' ] = 'free' ) {
 	const env = makeEnv();
 	const record: SiteRecord = {
 		site_url: 'https://example.com',
@@ -36,7 +37,7 @@ describe( 'authenticateRequest', () => {
 		const env = makeEnv();
 		const result = await authenticateRequest(
 			makeRequest( { Authorization: `Token ${ TEST_TOKEN }` } ),
-			env,
+			env
 		);
 		expect( result.authenticated ).toBe( false );
 	} );
@@ -45,7 +46,7 @@ describe( 'authenticateRequest', () => {
 		const env = makeEnv(); // empty KV
 		const result = await authenticateRequest(
 			makeRequest( { Authorization: `Bearer ${ TEST_TOKEN }` } ),
-			env,
+			env
 		);
 		expect( result.authenticated ).toBe( false );
 	} );
@@ -54,7 +55,7 @@ describe( 'authenticateRequest', () => {
 		const env = await makeEnvWithSiteToken( 'pro_managed' );
 		const result = await authenticateRequest(
 			makeRequest( { Authorization: `Bearer ${ TEST_TOKEN }` } ),
-			env,
+			env
 		);
 		expect( result.authenticated ).toBe( true );
 		expect( result.site_token ).toBe( TEST_TOKEN );

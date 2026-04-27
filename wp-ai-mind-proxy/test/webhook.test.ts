@@ -6,7 +6,8 @@ import { makeEnv } from './helpers/kv-mock';
 import { signBody as sign } from './helpers/sign';
 import type { SiteRecord, LicenceRecord } from '../src/types';
 
-const TEST_TOKEN = 'aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa1111bbbb2222';
+const TEST_TOKEN =
+	'aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa1111bbbb2222';
 const TEST_LICENCE_KEY = 'LICENCE-TEST-001';
 
 function makeRequest( body: unknown, secret = 'test-secret' ): Request {
@@ -32,7 +33,7 @@ function makeRequestRaw( bodyText: string, signature: string ): Request {
 	} );
 }
 
-async function makePrepopulatedEnv( tier: SiteRecord['tier'] = 'free' ) {
+async function makePrepopulatedEnv( tier: SiteRecord[ 'tier' ] = 'free' ) {
 	const env = makeEnv();
 	const record: SiteRecord = {
 		site_url: 'https://example.com',
@@ -71,7 +72,12 @@ function deactivationPayload( eventName: string, licenceKey: string ) {
 	};
 }
 
-function licenceKeyCreatedPayload( key: string, status: string, variantId: string, siteToken: string ) {
+function licenceKeyCreatedPayload(
+	key: string,
+	status: string,
+	variantId: string,
+	siteToken: string
+) {
 	return {
 		meta: {
 			event_name: 'licence_key_created',
@@ -90,7 +96,9 @@ function licenceKeyCreatedPayload( key: string, status: string, variantId: strin
 describe( 'handleWebhook', () => {
 	it( 'returns 405 for a GET request', async () => {
 		const env = makeEnv();
-		const req = new Request( 'https://worker.example.com/webhook', { method: 'GET' } );
+		const req = new Request( 'https://worker.example.com/webhook', {
+			method: 'GET',
+		} );
 		const res = await handleWebhook( req, env );
 		expect( res.status ).toBe( 405 );
 	} );
@@ -98,7 +106,10 @@ describe( 'handleWebhook', () => {
 	it( 'returns 401 for wrong HMAC signature', async () => {
 		const env = makeEnv();
 		const bodyText = JSON.stringify( { meta: { event_name: 'test' } } );
-		const req = makeRequestRaw( bodyText, sign( bodyText, 'wrong-secret' ) );
+		const req = makeRequestRaw(
+			bodyText,
+			sign( bodyText, 'wrong-secret' )
+		);
 		const res = await handleWebhook( req, env );
 		expect( res.status ).toBe( 401 );
 	} );
@@ -122,7 +133,10 @@ describe( 'handleWebhook', () => {
 
 		expect( res.status ).toBe( 200 );
 
-		const updated = await env.USAGE_KV.get<SiteRecord>( `site:${ TEST_TOKEN }`, 'json' );
+		const updated = await env.USAGE_KV.get< SiteRecord >(
+			`site:${ TEST_TOKEN }`,
+			'json'
+		);
 		expect( updated?.tier ).toBe( 'pro_managed' );
 	} );
 
@@ -130,40 +144,59 @@ describe( 'handleWebhook', () => {
 		[ 'subscription_cancelled' ],
 		[ 'subscription_expired' ],
 		[ 'subscription_paused' ],
-	] )( 'downgrades tier and deletes licence record on %s', async ( eventName ) => {
-		const env = await makePrepopulatedEnv( 'pro_managed' );
+	] )(
+		'downgrades tier and deletes licence record on %s',
+		async ( eventName ) => {
+			const env = await makePrepopulatedEnv( 'pro_managed' );
 
-		// Pre-populate a licence record linking back to the site token
-		const licenceRecord: LicenceRecord = {
-			tier: 'pro_managed',
-			site_token: TEST_TOKEN,
-			activated_at: Date.now(),
-		};
-		await env.USAGE_KV.put( `licence:${ TEST_LICENCE_KEY }`, JSON.stringify( licenceRecord ) );
+			// Pre-populate a licence record linking back to the site token
+			const licenceRecord: LicenceRecord = {
+				tier: 'pro_managed',
+				site_token: TEST_TOKEN,
+				activated_at: Date.now(),
+			};
+			await env.USAGE_KV.put(
+				`licence:${ TEST_LICENCE_KEY }`,
+				JSON.stringify( licenceRecord )
+			);
 
-		const payload = deactivationPayload( eventName, TEST_LICENCE_KEY );
-		const req = makeRequest( payload );
-		const res = await handleWebhook( req, env );
+			const payload = deactivationPayload( eventName, TEST_LICENCE_KEY );
+			const req = makeRequest( payload );
+			const res = await handleWebhook( req, env );
 
-		expect( res.status ).toBe( 200 );
+			expect( res.status ).toBe( 200 );
 
-		const updated = await env.USAGE_KV.get<SiteRecord>( `site:${ TEST_TOKEN }`, 'json' );
-		expect( updated?.tier ).toBe( 'free' );
+			const updated = await env.USAGE_KV.get< SiteRecord >(
+				`site:${ TEST_TOKEN }`,
+				'json'
+			);
+			expect( updated?.tier ).toBe( 'free' );
 
-		const deletedLicence = await env.USAGE_KV.get( `licence:${ TEST_LICENCE_KEY }` );
-		expect( deletedLicence ).toBeNull();
-	} );
+			const deletedLicence = await env.USAGE_KV.get(
+				`licence:${ TEST_LICENCE_KEY }`
+			);
+			expect( deletedLicence ).toBeNull();
+		}
+	);
 
 	it( 'creates a LicenceRecord in KV on licence_key_created with status=active', async () => {
 		const env = await makePrepopulatedEnv( 'free' );
 
-		const payload = licenceKeyCreatedPayload( TEST_LICENCE_KEY, 'active', '1550505', TEST_TOKEN );
+		const payload = licenceKeyCreatedPayload(
+			TEST_LICENCE_KEY,
+			'active',
+			'1550505',
+			TEST_TOKEN
+		);
 		const req = makeRequest( payload );
 		const res = await handleWebhook( req, env );
 
 		expect( res.status ).toBe( 200 );
 
-		const record = await env.USAGE_KV.get<LicenceRecord>( `licence:${ TEST_LICENCE_KEY }`, 'json' );
+		const record = await env.USAGE_KV.get< LicenceRecord >(
+			`licence:${ TEST_LICENCE_KEY }`,
+			'json'
+		);
 		expect( record ).not.toBeNull();
 		expect( record?.site_token ).toBe( TEST_TOKEN );
 		expect( record?.tier ).toBe( 'pro_managed' );
@@ -182,7 +215,10 @@ describe( 'handleWebhook', () => {
 		expect( res.status ).toBe( 200 );
 
 		// Tier should be unchanged
-		const record = await env.USAGE_KV.get<SiteRecord>( `site:${ TEST_TOKEN }`, 'json' );
+		const record = await env.USAGE_KV.get< SiteRecord >(
+			`site:${ TEST_TOKEN }`,
+			'json'
+		);
 		expect( record?.tier ).toBe( 'free' );
 	} );
 
