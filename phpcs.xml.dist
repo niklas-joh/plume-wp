@@ -6,6 +6,7 @@
   <file>uninstall.php</file>
   <arg name="extensions" value="php"/>
   <arg value="sp"/>
+  <rule ref="WordPress-Docs"/>
   <rule ref="WordPress-Extra">
     <!-- Allow short array syntax -->
     <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
