@@ -168,6 +168,7 @@ class NJ_Site_Registration {
 	 * @since 1.2.0
 	 * @param string $plan One of 'monthly', 'annual', 'byok'.
 	 * @return string LemonSqueezy variant ID.
+	 * @throws \InvalidArgumentException When an unrecognised plan key is passed.
 	 */
 	private static function plan_id( string $plan ): string {
 		$map = [
@@ -176,6 +177,7 @@ class NJ_Site_Registration {
 			'byok'    => defined( 'WP_AI_MIND_LS_BYOK_ID' ) ? WP_AI_MIND_LS_BYOK_ID : '1550517',
 		];
 		if ( ! array_key_exists( $plan, $map ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal developer error, not user-facing output.
 			throw new \InvalidArgumentException( "Unknown plan key: '{$plan}'" );
 		}
 		return $map[ $plan ];
