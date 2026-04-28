@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { MessageSquare, Plus } from 'lucide-react';
 import ConversationHistory from '../Sidebar/ConversationHistory';
 import MessageList from './MessageList';
@@ -6,6 +7,8 @@ import Composer from './Composer';
 import QuickActions from '../RightPanel/QuickActions';
 import ModelSelector from '../RightPanel/ModelSelector';
 import apiFetch from '@wordpress/api-fetch';
+
+const NEW_CONVERSATION_TITLE = 'New conversation';
 
 /**
  * Root chat application: conversation list, message thread, and composer.
@@ -81,7 +84,7 @@ export default function ChatApp() {
 		const conv = await apiFetch( {
 			path: '/wp-ai-mind/v1/conversations',
 			method: 'POST',
-			data: { title: 'New conversation' },
+			data: { title: NEW_CONVERSATION_TITLE },
 		} );
 		setConversations( ( prev ) => [ conv, ...prev ] );
 		setActiveConvId( conv.id );
@@ -121,7 +124,7 @@ export default function ChatApp() {
 				console.error( 'Failed to delete conversation:', e );
 				setDeleteErrors( ( prev ) => ( {
 					...prev,
-					[ convId ]: 'Failed to delete. Please try again.',
+					[ convId ]: __( 'Failed to delete. Please try again.', 'wp-ai-mind' ),
 				} ) );
 			}
 		} finally {
@@ -140,7 +143,7 @@ export default function ChatApp() {
 		const needsTitleUpdate = ! convId
 			? false
 			: conversations.find( ( c ) => c.id === convId )?.title ===
-			  'New conversation';
+			  NEW_CONVERSATION_TITLE;
 
 		if ( ! convId ) {
 			const conv = await apiFetch( {
