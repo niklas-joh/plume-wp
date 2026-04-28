@@ -105,6 +105,24 @@ class NJ_Tier_Config {
 	}
 
 	/**
+	 * Returns translatable human-readable labels for all tier slugs.
+	 *
+	 * Centralised here so NJ_Tier_Status_Page and NJ_Usage_Widget share
+	 * the same strings and cannot drift out of sync.
+	 *
+	 * @since 1.2.0
+	 * @return array<string, string> Map of tier slug → display label.
+	 */
+	public static function get_tier_labels(): array {
+		return [
+			'free'        => __( 'Free', 'wp-ai-mind' ),
+			'trial'       => __( 'Trial', 'wp-ai-mind' ),
+			'pro_managed' => __( 'Pro Managed', 'wp-ai-mind' ),
+			'pro_byok'    => __( 'Pro BYOK', 'wp-ai-mind' ),
+		];
+	}
+
+	/**
 	 * Returns the monthly token limit for a tier.
 	 *
 	 * Falls back to the 'free' limit (50 000) when the tier is unrecognised.
