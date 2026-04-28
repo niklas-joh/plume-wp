@@ -159,6 +159,62 @@ class NJTierManagerTest extends TestCase {
 		$this->assertTrue( NJ_Tier_Manager::is_trial_active( 6 ) );
 	}
 
+	public function test_maybe_demote_expired_trials_exits_when_no_demotions_in_full_batch(): void {
+		// 200 trial users, all still active — loop must exit after one pass (no progress).
+		$user_ids   = range( 1, 200 );
+		$started_at = (string) time(); // all trials started now, so none are expired
+
+		Functions\expect( 'get_users' )
+			->once()
+			->andReturn( $user_ids );
+
+		// is_trial_active() calls get_user_meta twice per user: once for tier, once for trial_started.
+		Functions\expect( 'get_user_meta' )
+			->times( 400 )
+			->andReturnUsing(
+				function ( $uid, $key ) use ( $started_at ) {
+					if ( 'wp_ai_mind_tier' === $key ) {
+						return 'trial';
+					}
+					return $started_at;
+				}
+			);
+
+		// set_user_tier / update_user_meta must NOT be called — no users are demoted.
+		Functions\expect( 'update_user_meta' )->never();
+
+		NJ_Tier_Manager::maybe_demote_expired_trials();
+		$this->addToAssertionCount( 1 ); // loop exited without infinite loop
+	}
+
+	public function test_maybe_demote_expired_trials_demotes_expired_users_and_continues(): void {
+		$expired_start = time() - ( 31 * DAY_IN_SECONDS );
+
+		// First batch: 200 expired users → all demoted → second batch: fewer than 200.
+		Functions\expect( 'get_users' )
+			->twice()
+			->andReturn( range( 1, 200 ), range( 201, 210 ) );
+
+		// Tier meta for is_trial_active(): all are 'trial'.
+		Functions\expect( 'get_user_meta' )
+			->andReturnUsing(
+				function ( $uid, $key ) use ( $expired_start ) {
+					if ( 'wp_ai_mind_tier' === $key ) {
+						return 'trial';
+					}
+					return (string) $expired_start;
+				}
+			);
+
+		// update_user_meta called once per user (set_user_tier stores 'free').
+		Functions\expect( 'update_user_meta' )
+			->times( 210 )
+			->andReturn( true );
+
+		NJ_Tier_Manager::maybe_demote_expired_trials();
+		$this->addToAssertionCount( 1 );
+	}
+
 	public function test_tier_config_has_four_tiers(): void {
 		$this->assertContains( 'free', NJ_Tier_Config::get_valid_tiers() );
 		$this->assertContains( 'trial', NJ_Tier_Config::get_valid_tiers() );
