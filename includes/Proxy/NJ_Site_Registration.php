@@ -75,7 +75,7 @@ class NJ_Site_Registration {
 	 * Return true when a site token is present.
 	 *
 	 * @since 1.2.0
-	 * @return bool
+	 * @return bool True when a site token is stored in wp_options.
 	 */
 	public static function is_registered(): bool {
 		return '' !== self::get_site_token();
