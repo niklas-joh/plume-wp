@@ -88,7 +88,7 @@ This is a SEPARATE checklist from styling. Block validation errors are caused by
 - **Security:** Uses proper sanitisation, validation, and nonce verification
 - **Performance:** Efficient database queries, proper caching, per-block CSS loading
 - **Accessibility:** WCAG compliance and WordPress accessibility standards
-- **Maintainability:** Code is readable; all public PHP methods and classes have PHPDoc blocks (`@since`, `@param`, `@return`); all exported React components have JSDoc. Inline comments explain "why", not "what".
+- **Maintainability:** Code is readable; all public PHP methods and classes have PHPDoc blocks (`@since`, `@param`, `@return`); all exported React components have JSDoc (`@param` per prop, `@returns`; shared/reusable components also require `@example`). Inline comments explain "why", not "what".
 - **WordPress Way:** Uses WordPress APIs instead of custom solutions when possible
 - **Backwards Compatibility:** Considers WordPress version requirements
 - **Scalability:** Solution can handle growth without major refactoring
