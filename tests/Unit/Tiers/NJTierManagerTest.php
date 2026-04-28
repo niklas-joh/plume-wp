@@ -7,6 +7,11 @@ use PHPUnit\Framework\TestCase;
 use WP_AI_Mind\Tiers\NJ_Tier_Config;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 
+/**
+ * Unit tests for NJ_Tier_Manager.
+ *
+ * @since 1.1.0
+ */
 class NJTierManagerTest extends TestCase {
 
 	protected function setUp(): void {
@@ -159,6 +164,11 @@ class NJTierManagerTest extends TestCase {
 		$this->assertTrue( NJ_Tier_Manager::is_trial_active( 6 ) );
 	}
 
+	/**
+	 * Verifies that the loop exits after one pass when a full batch yields zero successful demotions.
+	 *
+	 * @since 1.1.0
+	 */
 	public function test_maybe_demote_expired_trials_exits_when_no_demotions_in_full_batch(): void {
 		// 200 trial users, all still active — loop must exit after one pass (no progress).
 		$user_ids   = range( 1, 200 );
@@ -187,6 +197,11 @@ class NJTierManagerTest extends TestCase {
 		$this->addToAssertionCount( 1 ); // loop exited without infinite loop
 	}
 
+	/**
+	 * Verifies that all expired-trial users are demoted across multiple batches and the loop terminates.
+	 *
+	 * @since 1.1.0
+	 */
 	public function test_maybe_demote_expired_trials_demotes_expired_users_and_continues(): void {
 		$expired_start = time() - ( 31 * DAY_IN_SECONDS );
 
