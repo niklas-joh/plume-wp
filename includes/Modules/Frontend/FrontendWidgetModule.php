@@ -1,17 +1,39 @@
 <?php
-// includes/Modules/Frontend/FrontendWidgetModule.php
+/**
+ * Frontend widget module — registers the public-facing AI chat shortcode.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Modules\Frontend;
 
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 
+/**
+ * Registers the front-end chat widget as a shortcode and enqueues its assets.
+ *
+ * The widget is mounted on any page that contains the [wp_ai_mind_chat] shortcode.
+ */
 class FrontendWidgetModule {
 
+	/**
+	 * Register WordPress hooks for this module.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register(): void {
 		\add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
 		\add_shortcode( 'wp_ai_mind_chat', [ self::class, 'render_shortcode' ] );
 	}
 
+	/**
+	 * Enqueue the widget script and stylesheet on the front end.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function enqueue_assets(): void {
 		$asset_file = WP_AI_MIND_DIR . 'assets/frontend/widget.asset.php';
 		$asset      = file_exists( $asset_file )
@@ -49,6 +71,13 @@ class FrontendWidgetModule {
 		);
 	}
 
+	/**
+	 * Render the shortcode mount point for the front-end widget.
+	 *
+	 * @since 1.0.0
+	 * @param array $atts Shortcode attributes; accepts 'title' (unused by the React app).
+	 * @return string HTML div that the React widget mounts into.
+	 */
 	public static function render_shortcode( array $atts ): string {
 		$atts = \shortcode_atts( [ 'title' => '' ], $atts, 'wp_ai_mind_chat' );
 		$id   = 'wp-ai-mind-widget-' . \absint( \get_the_ID() );

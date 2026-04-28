@@ -1,4 +1,10 @@
 <?php
+/**
+ * REST controller for testing AI provider API key validity.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
@@ -10,8 +16,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * REST controller that validates an API key by making a minimal live call.
+ *
+ * Route: POST /wp-ai-mind/v1/test-key
+ * Requires the manage_options capability.
+ */
 class TestKeyRestController {
 
+	/**
+	 * Register the test-key REST route.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		register_rest_route(
 			'wp-ai-mind/v1',
@@ -37,9 +55,14 @@ class TestKeyRestController {
 	}
 
 	/**
-	 * Makes a minimal live API call to validate the given key.
+	 * Make a minimal live API call to validate the given key.
 	 *
-	 * @param WP_REST_Request $request
+	 * Returns 200 on a valid key, 400 on an invalid key, or 502 on a network
+	 * or provider error. The raw provider error message is forwarded to the
+	 * client so users can diagnose mistyped keys without leaving the settings UI.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request Incoming REST request.
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function handle( WP_REST_Request $request ): WP_REST_Response|\WP_Error {
@@ -116,6 +139,9 @@ class TestKeyRestController {
 	}
 
 	/**
+	 * Check that the current user has the manage_options capability.
+	 *
+	 * @since 1.0.0
 	 * @return bool|\WP_Error
 	 */
 	public static function check_permission(): bool|\WP_Error {

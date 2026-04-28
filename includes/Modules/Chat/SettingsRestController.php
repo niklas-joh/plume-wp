@@ -1,5 +1,10 @@
 <?php
-// includes/Modules/Chat/SettingsRestController.php
+/**
+ * REST controller for reading and updating plugin settings.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Modules\Chat;
@@ -20,8 +25,12 @@ class SettingsRestController {
 
 	private const NAMESPACE = 'wp-ai-mind/v1';
 
-	// ── Route registration ────────────────────────────────────────────────────
-
+	/**
+	 * Register the /settings REST routes.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public function register_routes(): void {
 		register_rest_route(
 			self::NAMESPACE,

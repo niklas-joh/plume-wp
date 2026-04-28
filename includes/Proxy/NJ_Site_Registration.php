@@ -1,4 +1,10 @@
 <?php
+/**
+ * Handles site registration with the Cloudflare Worker AI proxy.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Proxy;

@@ -1,8 +1,21 @@
 <?php
-// includes/Providers/GeminiProvider.php
+/**
+ * AI provider implementation for the Google Gemini API.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Providers;
 
+/**
+ * Handles completions, streaming, and image generation for Google Gemini models.
+ *
+ * Image generation uses the Imagen 3 model, decoding the base64-encoded response
+ * directly to a temp file to avoid a second HTTP round trip.
+ *
+ * @since 1.0.0
+ */
 class GeminiProvider extends AbstractProvider {
 
 	private const API_BASE      = 'https://generativelanguage.googleapis.com/v1beta';
@@ -30,17 +43,62 @@ class GeminiProvider extends AbstractProvider {
 		],
 	];
 
+	/**
+	 * Constructor.
+	 *
+	 * @since 1.0.0
+	 * @param string $api_key Google AI Studio API key.
+	 */
 	public function __construct( private readonly string $api_key ) {}
 
+	/**
+	 * Return the provider slug used throughout the plugin.
+	 *
+	 * @since 1.0.0
+	 * @return string
+	 */
 	public function get_slug(): string {
-		return 'gemini'; }
-	public function get_models(): array {
-		return self::MODELS; }
-	public function get_default_model(): string {
-		return self::DEFAULT_MODEL; }
-	public function is_available(): bool {
-		return '' !== $this->api_key; }
+		return 'gemini';
+	}
 
+	/**
+	 * Return the available model identifiers keyed by model ID.
+	 *
+	 * @since 1.0.0
+	 * @return array<string, string>
+	 */
+	public function get_models(): array {
+		return self::MODELS;
+	}
+
+	/**
+	 * Return the default model identifier.
+	 *
+	 * @since 1.0.0
+	 * @return string
+	 */
+	public function get_default_model(): string {
+		return self::DEFAULT_MODEL;
+	}
+
+	/**
+	 * Return true when an API key is configured.
+	 *
+	 * @since 1.0.0
+	 * @return bool
+	 */
+	public function is_available(): bool {
+		return '' !== $this->api_key;
+	}
+
+	/**
+	 * Send a completion request to the Gemini generateContent endpoint.
+	 *
+	 * @since 1.0.0
+	 * @param CompletionRequest $request The completion request.
+	 * @return CompletionResponse
+	 * @throws ProviderException On HTTP failure or non-2xx status.
+	 */
 	protected function do_complete( CompletionRequest $request ): CompletionResponse {
 		$model    = ! empty( $request->model ) ? $request->model : self::DEFAULT_MODEL;
 		$contents = $this->messages_to_contents( $request->messages );
@@ -49,12 +107,21 @@ class GeminiProvider extends AbstractProvider {
 			$body['systemInstruction'] = [ 'parts' => [ [ 'text' => $request->system ] ] ];
 		}
 		if ( ! empty( $request->tools ) ) {
-			$body['tools'] = $request->tools; // already in Gemini wire format (functionDeclarations)
+			$body['tools'] = $request->tools; // Already in Gemini wire format (functionDeclarations).
 		}
 		$raw = $this->post( "/models/{$model}:generateContent", $body );
 		return $this->parse_response( $raw, $model );
 	}
 
+	/**
+	 * Simulate streaming by word-chunking a non-streaming completion.
+	 *
+	 * @since 1.0.0
+	 * @param CompletionRequest $request  The completion request.
+	 * @param callable          $on_chunk Callback invoked with each word token.
+	 * @return CompletionResponse
+	 * @throws ProviderException On HTTP failure or non-2xx status.
+	 */
 	protected function do_stream( CompletionRequest $request, callable $on_chunk ): CompletionResponse {
 		$response = $this->do_complete( $request );
 		foreach ( explode( ' ', $response->content ) as $i => $word ) {
@@ -63,6 +130,18 @@ class GeminiProvider extends AbstractProvider {
 		return $response;
 	}
 
+	/**
+	 * Generate an image using the Imagen 3 model.
+	 *
+	 * The base64-encoded image is decoded directly to a temp file to avoid a
+	 * second HTTP request, then handed off to media_handle_sideload.
+	 *
+	 * @since 1.0.0
+	 * @param string $prompt  Image generation prompt.
+	 * @param array  $options Optional overrides: 'aspect_ratio'.
+	 * @return int WordPress attachment ID.
+	 * @throws ProviderException When the API returns no image data or sideload fails.
+	 */
 	public function generate_image( string $prompt, array $options = [] ): int {
 		$body = [
 			'instances'  => [ [ 'prompt' => $prompt ] ],
@@ -111,6 +190,13 @@ class GeminiProvider extends AbstractProvider {
 		return $attachment_id;
 	}
 
+	/**
+	 * Convert OpenAI-style message array to Gemini contents format.
+	 *
+	 * @since 1.0.0
+	 * @param array $messages Array of messages with 'role' and 'content' keys.
+	 * @return array
+	 */
 	private function messages_to_contents( array $messages ): array {
 		return array_map(
 			fn( $m ) => [
@@ -121,6 +207,15 @@ class GeminiProvider extends AbstractProvider {
 		);
 	}
 
+	/**
+	 * POST a JSON body to the Gemini API and return the decoded response.
+	 *
+	 * @since 1.0.0
+	 * @param string $path API endpoint path (e.g. '/models/gemini-2.5-pro:generateContent').
+	 * @param array  $body Request payload.
+	 * @return array
+	 * @throws ProviderException On HTTP failure or non-2xx status.
+	 */
 	private function post( string $path, array $body ): array {
 		$url      = self::API_BASE . $path . '?key=' . rawurlencode( $this->api_key );
 		$response = wp_remote_post(
@@ -146,6 +241,18 @@ class GeminiProvider extends AbstractProvider {
 		return $data;
 	}
 
+	/**
+	 * Parse a raw Gemini API response into a CompletionResponse value object.
+	 *
+	 * Detects functionCall parts and populates tool_call on the response when the
+	 * model has invoked a function. Gemini does not always return a stable call ID,
+	 * so one is generated locally when absent.
+	 *
+	 * @since 1.0.0
+	 * @param array  $data  Decoded API response body.
+	 * @param string $model Model identifier used for pricing lookup.
+	 * @return CompletionResponse
+	 */
 	private function parse_response( array $data, string $model ): CompletionResponse {
 		$meta       = $data['usageMetadata'] ?? [];
 		$in_tokens  = (int) ( $meta['promptTokenCount'] ?? 0 );
@@ -169,7 +276,7 @@ class GeminiProvider extends AbstractProvider {
 					raw: [
 						'data'    => $data,
 						'call_id' => $call_id,
-					], // preserve generated call_id for history reconstruction
+					], // Preserve generated call_id for history reconstruction.
 					tool_call: [
 						'id'        => $call_id,
 						'name'      => $fc['name'],

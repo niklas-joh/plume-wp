@@ -1,5 +1,10 @@
 <?php
-// includes/Modules/Editor/EditorModule.php
+/**
+ * Editor module bootstrap — enqueues the Block Editor plugin sidebar assets.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Modules\Editor;
 

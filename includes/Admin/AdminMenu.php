@@ -1,9 +1,27 @@
 <?php
+/**
+ * Registers the WP AI Mind admin menu and sub-menu pages.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
+/**
+ * Registers the top-level WP AI Mind admin menu and all sub-menu pages.
+ *
+ * The 'Upgrade' sub-menu is conditionally added only for free and trial users;
+ * Pro users see a clean menu without the upsell entry.
+ */
 class AdminMenu {
 
+	/**
+	 * Register all admin menu and sub-menu pages via WordPress hooks.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register(): void {
 		add_menu_page(
 			__( 'WP AI Mind', 'wp-ai-mind' ),
@@ -38,7 +56,14 @@ class AdminMenu {
 		}
 	}
 
-	/** Inline SVG — Lucide `sparkles` icon, zinc-400 (#a1a1aa). */
+	/**
+	 * Build the base64-encoded SVG data URI used as the menu icon.
+	 *
+	 * Inline SVG — Lucide `sparkles` icon, zinc-400 (#a1a1aa).
+	 *
+	 * @since 1.0.0
+	 * @return string Data URI string suitable for the $icon_url parameter of add_menu_page().
+	 */
 	private static function get_menu_icon(): string {
 		return 'data:image/svg+xml;base64,' . base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding SVG menu icon for WordPress admin, not obfuscation.
 			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>'

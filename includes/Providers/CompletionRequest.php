@@ -1,14 +1,24 @@
 <?php
-// includes/Providers/CompletionRequest.php
+/**
+ * Immutable value object representing an AI completion request.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Providers;
 
+/**
+ * Captures all parameters required to make an AI completion request.
+ *
+ * @since 1.0.0
+ */
 final class CompletionRequest {
 	/**
 	 * Constructor.
 	 *
-	 * @param array  $messages      Message history: [['role'=>'user','content'=>'...']]
+	 * @param array  $messages      Message history: [['role'=>'user','content'=>'...']].
 	 * @param string $system        System prompt.
 	 * @param string $model         Model ID (empty = use provider default).
 	 * @param float  $temperature   Sampling temperature.

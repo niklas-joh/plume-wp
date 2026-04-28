@@ -1,20 +1,41 @@
 <?php
-// includes/Modules/Generator/GeneratorModule.php
+/**
+ * Generator module — REST routes and asset enqueuing for the post-generation wizard.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Modules\Generator;
 
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
 
+/**
+ * Registers the post-generator admin assets and REST route.
+ */
 class GeneratorModule {
 
+	/**
+	 * Register WordPress hooks for this module.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register(): void {
 		\add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
 		\add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
 	}
 
+	/**
+	 * Enqueue generator assets on the generator admin page only.
+	 *
+	 * @since 1.0.0
+	 * @param string $hook Current admin page hook suffix (unused; page detection uses $_GET).
+	 * @return void
+	 */
 	public static function enqueue_assets( string $hook ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by admin_enqueue_scripts hook signature.
-		// Only load on the generator admin page
+		// Only load on the generator admin page.
 		if ( ! isset( $_GET['page'] ) || 'wp-ai-mind-generator' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
@@ -48,6 +69,12 @@ class GeneratorModule {
 		);
 	}
 
+	/**
+	 * Register the /wp-ai-mind/v1/generate REST route.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		\register_rest_route(
 			'wp-ai-mind/v1',
@@ -89,6 +116,13 @@ class GeneratorModule {
 		);
 	}
 
+	/**
+	 * Generate a draft post from the request parameters using the default AI provider.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response 201 on success with post_id, edit_url, content, tokens_used; 500 on error.
+	 */
 	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
 		$title    = $request->get_param( 'title' );
 		$keywords = $request->get_param( 'keywords' );
@@ -136,7 +170,7 @@ class GeneratorModule {
 			NJ_Usage_Tracker::log_usage( $response->total_tokens );
 			$content = $response->content;
 
-			// Create a draft post
+			// Create a draft post.
 			$post_id = \wp_insert_post(
 				[
 					'post_title'   => \sanitize_text_field( $title ),

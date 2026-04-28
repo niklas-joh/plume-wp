@@ -1,5 +1,10 @@
 <?php
-// includes/Modules/Chat/ChatRestController.php
+/**
+ * REST controller handling conversation and message endpoints for the chat feature.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Modules\Chat;
 
@@ -13,15 +18,43 @@ use WP_AI_Mind\Tools\ToolRegistry;
 use WP_AI_Mind\Tools\ToolExecutor;
 use WP_AI_Mind\Voice\VoiceInjector;
 
+/**
+ * REST controller for chat conversations, providers, and post search.
+ *
+ * Routes:
+ *   GET  /wp-ai-mind/v1/conversations               — list conversations
+ *   POST /wp-ai-mind/v1/conversations               — create conversation
+ *   GET  /wp-ai-mind/v1/conversations/{id}/messages — get messages
+ *   POST /wp-ai-mind/v1/conversations/{id}/messages — send message (AI turn)
+ *   DELETE /wp-ai-mind/v1/conversations/{id}        — delete conversation
+ *   GET  /wp-ai-mind/v1/providers                   — list available providers
+ *   GET  /wp-ai-mind/v1/search-posts                — search posts
+ *
+ * All routes require the edit_posts capability except delete, which also
+ * allows manage_options to delete any conversation.
+ */
 class ChatRestController {
 
 	private const NAMESPACE = 'wp-ai-mind/v1';
 
+	/**
+	 * Inject the tool registry and executor used during AI tool-call loops.
+	 *
+	 * @since 1.0.0
+	 * @param ToolRegistry $tool_registry Registry of available tools.
+	 * @param ToolExecutor $tool_executor Executor that dispatches tool calls.
+	 */
 	public function __construct(
 		private readonly ToolRegistry $tool_registry,
 		private readonly ToolExecutor $tool_executor,
 	) {}
 
+	/**
+	 * Register all chat REST routes.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public function register_routes(): void {
 
 		register_rest_route(
@@ -125,6 +158,13 @@ class ChatRestController {
 		);
 	}
 
+	/**
+	 * Return all conversations for the current user.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request (unused).
+	 * @return \WP_REST_Response
+	 */
 	public function list_conversations( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
 		$store         = $this->make_store();
 		$conversations = $store->list_for_user( get_current_user_id() );
@@ -139,6 +179,13 @@ class ChatRestController {
 		return rest_ensure_response( $response );
 	}
 
+	/**
+	 * Create a new conversation for the current user.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response 201 on success; 500 if the row could not be inserted.
+	 */
 	public function create_conversation( \WP_REST_Request $request ): \WP_REST_Response {
 		$store         = $this->make_store();
 		$post_id_param = $request->get_param( 'post_id' );
@@ -163,11 +210,29 @@ class ChatRestController {
 		);
 	}
 
+	/**
+	 * Return all messages for the given conversation.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request; must contain 'id' route parameter.
+	 * @return \WP_REST_Response
+	 */
 	public function get_messages( \WP_REST_Request $request ): \WP_REST_Response {
 		$store = $this->make_store();
 		return rest_ensure_response( $store->get_messages( (int) $request->get_param( 'id' ) ) );
 	}
 
+	/**
+	 * Append a user message and run an AI completion turn, including tool-call loops.
+	 *
+	 * Handles multi-step tool-call agentic loops up to 5 iterations.
+	 * Provider 401/403 errors are mapped to 502 so the client cannot distinguish
+	 * a plugin auth failure from a provider auth failure.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response
+	 */
 	public function send_message( \WP_REST_Request $request ): \WP_REST_Response {
 		$conv_id        = (int) $request->get_param( 'id' );
 		$content        = $request->get_param( 'content' );
@@ -215,7 +280,7 @@ class ChatRestController {
 				return new \WP_REST_Response(
 					[
 						'message' => sprintf(
-																/* translators: %s: provider slug */
+												/* translators: %s: provider slug */
 							__( 'No API key configured for "%s". Please add one in WP AI Mind → Settings.', 'wp-ai-mind' ),
 							$provider_slug
 						),
@@ -322,6 +387,13 @@ class ChatRestController {
 		}
 	}
 
+	/**
+	 * Delete a conversation owned by the current user (or any conversation for admins).
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request; must contain 'id' route parameter.
+	 * @return \WP_REST_Response|\WP_Error 200 on success; 404 if not found; 403 if forbidden.
+	 */
 	public function delete_conversation( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$store   = $this->make_store();
 		$conv_id = (int) $request->get_param( 'id' );
@@ -338,6 +410,13 @@ class ChatRestController {
 		return rest_ensure_response( [ 'deleted' => true ] );
 	}
 
+	/**
+	 * Return all configured providers with their models and availability status.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request (unused).
+	 * @return \WP_REST_Response
+	 */
 	public function list_providers( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
 		$factory = $this->make_provider_factory();
 		$all     = $factory->get_all();
@@ -352,6 +431,13 @@ class ChatRestController {
 		return rest_ensure_response( $data );
 	}
 
+	/**
+	 * Search published posts and pages by keyword.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request; accepts 'q' parameter.
+	 * @return \WP_REST_Response
+	 */
 	public function search_posts( \WP_REST_Request $request ): \WP_REST_Response {
 		$q            = trim( (string) $request->get_param( 'q' ) );
 		$post_types   = array_values(
@@ -385,6 +471,12 @@ class ChatRestController {
 		return rest_ensure_response( $data );
 	}
 
+	/**
+	 * Check that the current user has the edit_posts capability.
+	 *
+	 * @since 1.0.0
+	 * @return bool|\WP_Error
+	 */
 	public function check_permission(): bool|\WP_Error {
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			return new \WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'wp-ai-mind' ), [ 'status' => 403 ] );
@@ -394,14 +486,32 @@ class ChatRestController {
 
 	// ── Overridable factory methods (for testing) ─────────────────────────────
 
+	/**
+	 * Factory method for ConversationStore — overridable in tests.
+	 *
+	 * @since 1.0.0
+	 * @return ConversationStore
+	 */
 	protected function make_store(): ConversationStore {
 		return new ConversationStore();
 	}
 
+	/**
+	 * Factory method for ProviderFactory — overridable in tests.
+	 *
+	 * @since 1.0.0
+	 * @return ProviderFactory
+	 */
 	protected function make_provider_factory(): ProviderFactory {
 		return new ProviderFactory( new ProviderSettings() );
 	}
 
+	/**
+	 * Factory method for VoiceInjector — overridable in tests.
+	 *
+	 * @since 1.0.0
+	 * @return VoiceInjector
+	 */
 	protected function make_voice_injector(): VoiceInjector {
 		return new VoiceInjector();
 	}
@@ -411,10 +521,10 @@ class ChatRestController {
 	/**
 	 * Append a complete tool exchange (assistant tool call + user tool result) to the message history.
 	 *
-	 * @param array             $messages      Existing message history.
-	 * @param string            $provider_slug Provider identifier.
+	 * @param array              $messages      Existing message history.
+	 * @param string             $provider_slug Provider identifier.
 	 * @param CompletionResponse $tool_response The provider response that triggered tool execution.
-	 * @param array             $tool_results  Tool results keyed by tool_use/call id.
+	 * @param array              $tool_results  Tool results keyed by tool_use/call id.
 	 * @return array Updated message history.
 	 */
 	private function append_tool_exchange(

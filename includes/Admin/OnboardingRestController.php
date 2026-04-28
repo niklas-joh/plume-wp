@@ -1,4 +1,10 @@
 <?php
+/**
+ * REST controller for the onboarding wizard flow.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
@@ -12,6 +18,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * REST controller for the onboarding wizard — marks the wizard seen and saves initial API settings.
+ *
+ * @since 1.0.0
+ */
 class OnboardingRestController {
 
 	/**

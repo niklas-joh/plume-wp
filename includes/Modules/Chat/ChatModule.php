@@ -1,12 +1,27 @@
 <?php
-// includes/Modules/Chat/ChatModule.php
+/**
+ * Chat module bootstrap — registers assets and REST routes for the chat feature.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Modules\Chat;
 
 use WP_AI_Mind\Tools\ToolRegistry;
 use WP_AI_Mind\Tools\ToolExecutor;
 
+/**
+ * Bootstraps the Chat module by registering its REST routes on rest_api_init.
+ */
 class ChatModule {
+
+	/**
+	 * Register the rest_api_init hook that wires up both REST controllers.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register(): void {
 		add_action(
 			'rest_api_init',

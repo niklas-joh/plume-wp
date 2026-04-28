@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin bootstrap singleton — wires all hooks and owns the module registry.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Core;
 
@@ -12,10 +18,25 @@ use WP_AI_Mind\Proxy\NJ_Site_Registration;
  */
 class Plugin {
 
+	/**
+	 * Singleton instance.
+	 *
+	 * @var self|null
+	 */
 	private static ?self $instance = null;
 
+	/**
+	 * Module enabled/disabled state registry.
+	 *
+	 * @var ModuleRegistry
+	 */
 	private ModuleRegistry $modules;
 
+	/**
+	 * Initialise module registry and wire WordPress hooks.
+	 *
+	 * @since 1.0.0
+	 */
 	private function __construct() {
 		$this->modules = new ModuleRegistry();
 		$this->init_hooks();
@@ -34,7 +55,11 @@ class Plugin {
 		return self::$instance;
 	}
 
-	// Prevent cloning/serialisation of singleton.
+	/**
+	 * Prevent cloning to enforce the singleton invariant.
+	 *
+	 * @since 1.0.0
+	 */
 	private function __clone() {}
 
 	/**
@@ -49,14 +74,22 @@ class Plugin {
 	}
 
 	/**
-	 * @internal For use in unit tests only — resets singleton so tests do not leak state.
+	 * Reset the singleton — for use in unit tests only so tests do not leak state.
+	 *
+	 * @internal
+	 * @since 1.0.0
+	 * @return void
 	 */
 	public static function reset_instance(): void {
 		self::$instance = null;
 	}
 
-	// ── Hooks ─────────────────────────────────────────────────────────────────
-
+	/**
+	 * Register all WordPress action hooks required by the plugin.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	private function init_hooks(): void {
 		add_action( 'init', [ $this, 'load_textdomain' ] );
 		add_action( 'admin_init', [ NJ_Site_Registration::class, 'maybe_register' ] );

@@ -1,5 +1,10 @@
 <?php
-// includes/Admin/ChatPage.php
+/**
+ * Admin page rendering the main AI chat interface.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
@@ -7,13 +12,34 @@ use WP_AI_Mind\Providers\ProviderFactory;
 use WP_AI_Mind\Settings\ProviderSettings;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 
+/**
+ * Renders the WP AI Mind chat admin page.
+ *
+ * Outputs a React mount point and enqueues the shared admin bundle with
+ * localised data that includes the default model label for the UI header.
+ */
 class ChatPage {
 
+	/**
+	 * Output the page markup and enqueue all required assets.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function render(): void {
 		self::enqueue_assets();
 		echo '<div id="wp-ai-mind-chat" class="wp-ai-mind-page"></div>';
 	}
 
+	/**
+	 * Enqueue the admin script and stylesheet, and localise runtime data.
+	 *
+	 * Resolves the default model label by instantiating the configured provider;
+	 * falls back to 'AI' if the provider factory throws (e.g. no API key set).
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	private static function enqueue_assets(): void {
 		$asset_file = WP_AI_MIND_DIR . 'assets/admin/index.asset.php';
 		$asset      = file_exists( $asset_file )

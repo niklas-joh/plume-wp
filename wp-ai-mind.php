@@ -11,6 +11,8 @@
  * License:           GPL-2.0-or-later
  * Text Domain:       wp-ai-mind
  * Domain Path:       /languages
+ *
+ * @package WP_AI_Mind
  */
 
 declare( strict_types=1 );
@@ -27,7 +29,7 @@ define( 'WP_AI_MIND_FILE', __FILE__ );
 define( 'WP_AI_MIND_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_AI_MIND_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_AI_MIND_BASENAME', plugin_basename( __FILE__ ) );
-define( 'WP_AI_MIND_HTTP_TIMEOUT', 60 ); // seconds — LLM calls can be slow
+define( 'WP_AI_MIND_HTTP_TIMEOUT', 60 ); // Seconds — LLM calls can be slow.
 
 // Custom PSR-4 autoloader — retained as a safety net for environments where
 // the Composer vendor directory is absent (e.g. a manual plugin upload without

@@ -1,7 +1,19 @@
 <?php
+/**
+ * Manages the plugin's custom database tables via dbDelta.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\DB;
 
+/**
+ * Manages the plugin's custom database tables.
+ *
+ * All table names are prefixed with $wpdb->prefix and the plugin-specific
+ * 'wpaim_' prefix to avoid collisions with other plugins.
+ */
 class Schema {
 
 	private const PREFIX = 'wpaim_';
@@ -11,6 +23,14 @@ class Schema {
 		'messages'      => 'messages',
 	];
 
+	/**
+	 * Resolve a logical table name to its fully-qualified database table name.
+	 *
+	 * @since 1.0.0
+	 * @param string $name Logical name: 'conversations' or 'messages'.
+	 * @throws \InvalidArgumentException If $name is not a known table identifier.
+	 * @return string Fully-qualified table name including WordPress and plugin prefixes.
+	 */
 	public static function table( string $name ): string {
 		global $wpdb;
 		if ( ! isset( self::TABLES[ $name ] ) ) {
@@ -21,6 +41,9 @@ class Schema {
 
 	/**
 	 * Run on plugin activation via dbDelta().
+	 *
+	 * @since 1.0.0
+	 * @return void
 	 */
 	public static function create_tables(): void {
 		global $wpdb;
@@ -57,6 +80,14 @@ class Schema {
 		);
 	}
 
+	/**
+	 * Drop all plugin tables.
+	 *
+	 * Called on plugin uninstall from uninstall.php.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function drop_tables(): void {
 		global $wpdb;
 		foreach ( array_keys( self::TABLES ) as $name ) {

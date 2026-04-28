@@ -1,4 +1,10 @@
 <?php
+/**
+ * Static configuration for tier capabilities and monthly request limits.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Tiers;

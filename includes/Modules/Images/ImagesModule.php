@@ -1,4 +1,10 @@
 <?php
+/**
+ * Images module — REST routes and asset enqueuing for AI image generation.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Modules\Images;
 
@@ -8,13 +14,32 @@ use WP_AI_Mind\Settings\ProviderSettings;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
 
+/**
+ * Registers the image-generation admin assets and REST route.
+ *
+ * Multiple images are generated in a loop; partial failures are reported
+ * via a 207 Multi-Status response rather than aborting the entire request.
+ */
 class ImagesModule {
 
+	/**
+	 * Register WordPress hooks for this module.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register(): void {
 		\add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
 		\add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
 	}
 
+	/**
+	 * Enqueue image-module assets on the images admin page only.
+	 *
+	 * @since 1.0.0
+	 * @param string $hook Current admin page hook suffix (unused; page detection uses $_GET).
+	 * @return void
+	 */
 	public static function enqueue_assets( string $hook ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by admin_enqueue_scripts hook signature.
 		// Only load on the images admin page.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page detection, never output.
@@ -57,6 +82,12 @@ class ImagesModule {
 		);
 	}
 
+	/**
+	 * Register the /wp-ai-mind/v1/images/generate REST route.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		\register_rest_route(
 			'wp-ai-mind/v1',
@@ -92,6 +123,16 @@ class ImagesModule {
 		);
 	}
 
+	/**
+	 * Generate one or more images and save them to the WordPress media library.
+	 *
+	 * Returns 201 when all images succeed, 207 when at least one fails but at
+	 * least one succeeds, and 500 when all fail.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response
+	 */
 	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
 		$prompt       = $request->get_param( 'prompt' );
 		$aspect_ratio = $request->get_param( 'aspect_ratio' );

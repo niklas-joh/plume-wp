@@ -1,4 +1,10 @@
 <?php
+/**
+ * Manages user licence tiers (Free, Trial, Pro Managed, Pro BYOK).
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Tiers;

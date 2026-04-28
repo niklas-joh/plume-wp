@@ -1,10 +1,25 @@
 <?php
-// includes/Providers/CompletionResponse.php
+/**
+ * Immutable value object representing an AI completion response.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Providers;
 
+/**
+ * Captures content, token counts, cost, and optional tool-call data from a provider response.
+ *
+ * @since 1.0.0
+ */
 final class CompletionResponse {
+	/**
+	 * Sum of prompt and completion token counts.
+	 *
+	 * @var int
+	 */
 	public readonly int $total_tokens;
 
 	/**

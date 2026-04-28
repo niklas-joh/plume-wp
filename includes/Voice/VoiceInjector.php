@@ -1,13 +1,31 @@
 <?php
-// includes/Voice/VoiceInjector.php
+/**
+ * Builds system prompts by merging site-wide and per-user voice preferences.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Voice;
 
+/**
+ * Builds AI system prompts by merging site-wide and per-user voice preferences.
+ *
+ * @since 1.0.0
+ */
 class VoiceInjector {
 
 	private const SITE_OPTION = 'wp_ai_mind_site_voice';
 	private const USER_META   = 'wp_ai_mind_voice';
 
+	/**
+	 * Build a system prompt combining voice preferences and a feature-specific instruction.
+	 *
+	 * @since 1.0.0
+	 * @param string $feature_instruction Optional feature-specific instruction appended after the voice rules.
+	 * @param int    $user_id             User ID whose meta overrides site-level values; 0 means no user override.
+	 * @return string System prompt string, or empty string if no voice rules are configured.
+	 */
 	public function build_system_prompt( string $feature_instruction = '', int $user_id = 0 ): string {
 		$voice = $this->get_merged_voice( $user_id );
 		$parts = [];
@@ -42,6 +60,13 @@ class VoiceInjector {
 		return $base;
 	}
 
+	/**
+	 * Merge site-level and per-user voice settings; user values take precedence when non-empty.
+	 *
+	 * @since 1.0.0
+	 * @param int $user_id User ID; 0 returns only site-level values.
+	 * @return array<string, string>
+	 */
 	private function get_merged_voice( int $user_id ): array {
 		$site = get_option( self::SITE_OPTION, [] );
 		$site = is_array( $site ) ? $site : [];

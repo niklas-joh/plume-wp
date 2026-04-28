@@ -1,9 +1,19 @@
 <?php
-// includes/Providers/ProviderException.php
+/**
+ * Exception thrown by AI providers on API errors, timeouts, or invalid responses.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Providers;
 
+/**
+ * Carries HTTP status, provider slug, and raw response alongside the error message.
+ *
+ * @since 1.0.0
+ */
 class ProviderException extends \RuntimeException {
 
 	/**

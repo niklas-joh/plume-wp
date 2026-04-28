@@ -1,4 +1,10 @@
 <?php
+/**
+ * Admin page displaying the current user's licence tier and usage status.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 

@@ -1,4 +1,10 @@
 <?php
+/**
+ * Verifies Freemius webhook signatures for licence lifecycle events.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Payments;
 

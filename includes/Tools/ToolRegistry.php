@@ -1,4 +1,10 @@
 <?php
+/**
+ * Registers all available AI tools and formats them for each provider's wire format.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Tools;
@@ -8,9 +14,18 @@ namespace WP_AI_Mind\Tools;
  */
 class ToolRegistry {
 
-	/** @var ToolDefinition[] */
+	/**
+	 * All registered tool definitions.
+	 *
+	 * @var ToolDefinition[]
+	 */
 	private array $tools = [];
 
+	/**
+	 * Register all built-in tool definitions on construction.
+	 *
+	 * @since 1.0.0
+	 */
 	public function __construct() {
 		$this->register_tools();
 	}
@@ -60,10 +75,12 @@ class ToolRegistry {
 		);
 	}
 
-	// -------------------------------------------------------------------------
-	// Tool registration
-	// -------------------------------------------------------------------------
-
+	/**
+	 * Instantiate and register all built-in tool definitions.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	private function register_tools(): void {
 		$this->tools[] = new ToolDefinition(
 			name: 'get_recent_posts',
@@ -288,7 +305,8 @@ class ToolRegistry {
 	/**
 	 * Format tools for the Anthropic Claude API.
 	 *
-	 * @param ToolDefinition[] $tools
+	 * @since 1.0.0
+	 * @param ToolDefinition[] $tools Tool definitions to format.
 	 * @return array
 	 */
 	private function format_claude( array $tools ): array {
@@ -311,7 +329,8 @@ class ToolRegistry {
 	/**
 	 * Format tools for the OpenAI API.
 	 *
-	 * @param ToolDefinition[] $tools
+	 * @since 1.0.0
+	 * @param ToolDefinition[] $tools Tool definitions to format.
 	 * @return array
 	 */
 	private function format_openai( array $tools ): array {
@@ -337,7 +356,8 @@ class ToolRegistry {
 	/**
 	 * Format tools for the Google Gemini API.
 	 *
-	 * @param ToolDefinition[] $tools
+	 * @since 1.0.0
+	 * @param ToolDefinition[] $tools Tool definitions to format.
 	 * @return array
 	 */
 	private function format_gemini( array $tools ): array {

@@ -1,4 +1,10 @@
 <?php
+/**
+ * Runs when the plugin is deleted via the WordPress admin to remove all plugin data.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {

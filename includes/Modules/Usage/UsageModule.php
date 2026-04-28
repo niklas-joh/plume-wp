@@ -1,5 +1,10 @@
 <?php
-// includes/Modules/Usage/UsageModule.php
+/**
+ * Usage module — REST routes and asset enqueuing for the usage dashboard.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Modules\Usage;
@@ -12,11 +17,24 @@ use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
  */
 class UsageModule {
 
+	/**
+	 * Register WordPress hooks for this module.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register(): void {
 		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
 		add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
 	}
 
+	/**
+	 * Enqueue usage-module assets on the usage admin page only.
+	 *
+	 * @since 1.0.0
+	 * @param string $hook Current admin page hook suffix (unused; page detection uses $_GET).
+	 * @return void
+	 */
 	public static function enqueue_assets( string $hook ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by admin_enqueue_scripts hook signature.
 		if ( ! isset( $_GET['page'] ) || 'wp-ai-mind-usage' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
@@ -58,6 +76,12 @@ class UsageModule {
 		);
 	}
 
+	/**
+	 * Register the /wp-ai-mind/v1/usage REST route.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		\register_rest_route(
 			'wp-ai-mind/v1',
@@ -70,6 +94,13 @@ class UsageModule {
 		);
 	}
 
+	/**
+	 * Return the current user's token usage summary.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request (unused).
+	 * @return \WP_REST_Response
+	 */
 	public static function get_usage( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
 		$usage = NJ_Usage_Tracker::get_usage();
 

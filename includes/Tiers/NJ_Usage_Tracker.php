@@ -1,4 +1,10 @@
 <?php
+/**
+ * Tracks per-user monthly API request consumption against tier limits.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Tiers;

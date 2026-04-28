@@ -1,4 +1,10 @@
 <?php
+/**
+ * Executes AI tool calls on behalf of authenticated WordPress users.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Tools;
@@ -12,6 +18,12 @@ namespace WP_AI_Mind\Tools;
  */
 class ToolExecutor {
 
+	/**
+	 * Inject the tool registry needed to validate allowed post types.
+	 *
+	 * @since 1.0.0
+	 * @param ToolRegistry $registry The tool registry instance.
+	 */
 	public function __construct( private ToolRegistry $registry ) {}
 
 	// -------------------------------------------------------------------------
@@ -50,6 +62,11 @@ class ToolExecutor {
 
 	/**
 	 * Retrieve a list of recent posts.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
 	 */
 	private function get_recent_posts( array $args, int $user_id ): array {
 		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
@@ -91,6 +108,11 @@ class ToolExecutor {
 
 	/**
 	 * Retrieve the full content of a single post or page.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
 	 */
 	private function get_post_content( array $args, int $user_id ): array {
 		$post_id = \absint( $args['post_id'] ?? 0 );
@@ -127,6 +149,11 @@ class ToolExecutor {
 
 	/**
 	 * Search for posts matching a keyword query.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
 	 */
 	private function search_posts( array $args, int $user_id ): array {
 		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
@@ -170,6 +197,11 @@ class ToolExecutor {
 
 	/**
 	 * Create a new post or page.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
 	 */
 	private function create_post( array $args, int $user_id ): array {
 		if ( ! (bool) \get_option( 'wp_ai_mind_enable_write_tools', false ) ) {
@@ -220,6 +252,11 @@ class ToolExecutor {
 
 	/**
 	 * Update an existing post or page.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
 	 */
 	private function update_post( array $args, int $user_id ): array {
 		if ( ! (bool) \get_option( 'wp_ai_mind_enable_write_tools', false ) ) {
@@ -265,6 +302,11 @@ class ToolExecutor {
 
 	/**
 	 * Retrieve a list of published pages.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
 	 */
 	private function get_pages( array $args, int $user_id ): array {
 		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
@@ -298,6 +340,11 @@ class ToolExecutor {
 
 	/**
 	 * Retrieve general site information.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
 	 */
 	private function get_site_info( array $args, int $user_id ): array {
 		if ( ! \user_can( $user_id, 'read' ) ) {

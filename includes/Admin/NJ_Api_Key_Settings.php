@@ -1,4 +1,10 @@
 <?php
+/**
+ * Pro BYOK: API key management settings page and REST handling.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
@@ -186,6 +192,13 @@ class NJ_Api_Key_Settings {
 		<?php
 	}
 
+	/**
+	 * Return a masked display string for the stored API key of a provider.
+	 *
+	 * @since 1.2.0
+	 * @param string $provider Provider slug (e.g. 'claude', 'openai').
+	 * @return string Bullet-character mask when a key is stored, or empty string otherwise.
+	 */
 	private static function get_masked_key( string $provider ): string {
 		$encrypted = get_user_meta( get_current_user_id(), "wp_ai_mind_api_key_{$provider}", true );
 		return $encrypted ? '••••••••••••••••••••' : '';

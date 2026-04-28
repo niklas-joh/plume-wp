@@ -1,4 +1,10 @@
 <?php
+/**
+ * Sends authenticated requests to the Cloudflare Worker AI proxy.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Proxy;
@@ -22,7 +28,7 @@ class NJ_Proxy_Client {
 	/**
 	 * Send a chat request through the Cloudflare proxy.
 	 *
-	 * @param array<array{role: string, content: string}> $messages
+	 * @param array<array{role: string, content: string}> $messages Chat message history.
 	 * @param array<string, mixed>                        $options  Supports 'model', 'max_tokens', 'system'.
 	 * @return array<string, mixed>|WP_Error
 	 */

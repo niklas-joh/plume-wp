@@ -1,8 +1,18 @@
 <?php
-// includes/Providers/OpenAIProvider.php
+/**
+ * AI provider implementation for the OpenAI API.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Providers;
 
+/**
+ * Handles completions, streaming, and image generation for OpenAI models.
+ *
+ * @since 1.0.0
+ */
 class OpenAIProvider extends AbstractProvider {
 
 	private const API_BASE      = 'https://api.openai.com/v1';
@@ -34,17 +44,62 @@ class OpenAIProvider extends AbstractProvider {
 		],
 	];
 
+	/**
+	 * Constructor.
+	 *
+	 * @since 1.0.0
+	 * @param string $api_key OpenAI API key.
+	 */
 	public function __construct( private readonly string $api_key ) {}
 
+	/**
+	 * Return the provider slug used throughout the plugin.
+	 *
+	 * @since 1.0.0
+	 * @return string
+	 */
 	public function get_slug(): string {
-		return 'openai'; }
-	public function get_models(): array {
-		return self::MODELS; }
-	public function get_default_model(): string {
-		return self::DEFAULT_MODEL; }
-	public function is_available(): bool {
-		return '' !== $this->api_key; }
+		return 'openai';
+	}
 
+	/**
+	 * Return the available model identifiers keyed by model ID.
+	 *
+	 * @since 1.0.0
+	 * @return array<string, string>
+	 */
+	public function get_models(): array {
+		return self::MODELS;
+	}
+
+	/**
+	 * Return the default model identifier.
+	 *
+	 * @since 1.0.0
+	 * @return string
+	 */
+	public function get_default_model(): string {
+		return self::DEFAULT_MODEL;
+	}
+
+	/**
+	 * Return true when an API key is configured.
+	 *
+	 * @since 1.0.0
+	 * @return bool
+	 */
+	public function is_available(): bool {
+		return '' !== $this->api_key;
+	}
+
+	/**
+	 * Send a completion request to the OpenAI Chat Completions endpoint.
+	 *
+	 * @since 1.0.0
+	 * @param CompletionRequest $request The completion request.
+	 * @return CompletionResponse
+	 * @throws ProviderException On HTTP failure or non-2xx status.
+	 */
 	protected function do_complete( CompletionRequest $request ): CompletionResponse {
 		$messages = $request->messages;
 		if ( '' !== $request->system ) {
@@ -64,13 +119,22 @@ class OpenAIProvider extends AbstractProvider {
 			'temperature' => $request->temperature,
 		];
 		if ( ! empty( $request->tools ) ) {
-			$body['tools']       = $request->tools; // already in OpenAI wire format from ToolRegistry
+			$body['tools']       = $request->tools; // Already in OpenAI wire format from ToolRegistry.
 			$body['tool_choice'] = 'auto';
 		}
 		$raw = $this->post( '/chat/completions', $body );
 		return $this->parse_response( $raw, $model );
 	}
 
+	/**
+	 * Simulate streaming by word-chunking a non-streaming completion.
+	 *
+	 * @since 1.0.0
+	 * @param CompletionRequest $request  The completion request.
+	 * @param callable          $on_chunk Callback invoked with each word token.
+	 * @return CompletionResponse
+	 * @throws ProviderException On HTTP failure or non-2xx status.
+	 */
 	protected function do_stream( CompletionRequest $request, callable $on_chunk ): CompletionResponse {
 		$response = $this->do_complete( $request );
 		$words    = explode( ' ', $response->content );
@@ -80,6 +144,15 @@ class OpenAIProvider extends AbstractProvider {
 		return $response;
 	}
 
+	/**
+	 * Generate an image using the DALL-E 3 model.
+	 *
+	 * @since 1.0.0
+	 * @param string $prompt  Image generation prompt.
+	 * @param array  $options Optional overrides: 'size' and 'quality'.
+	 * @return int WordPress attachment ID.
+	 * @throws ProviderException When the API returns no image URL.
+	 */
 	public function generate_image( string $prompt, array $options = [] ): int {
 		$body = [
 			'model'   => 'dall-e-3',
@@ -96,6 +169,15 @@ class OpenAIProvider extends AbstractProvider {
 		return $this->save_image_to_media_library( $url, 'dalle-' . time(), $prompt );
 	}
 
+	/**
+	 * POST a JSON body to the OpenAI API and return the decoded response.
+	 *
+	 * @since 1.0.0
+	 * @param string $path API endpoint path (e.g. '/chat/completions').
+	 * @param array  $body Request payload.
+	 * @return array
+	 * @throws ProviderException On HTTP failure or non-2xx status.
+	 */
 	private function post( string $path, array $body ): array {
 		$response = wp_remote_post(
 			self::API_BASE . $path,
@@ -124,6 +206,17 @@ class OpenAIProvider extends AbstractProvider {
 		return $data;
 	}
 
+	/**
+	 * Parse a raw OpenAI API response into a CompletionResponse value object.
+	 *
+	 * Detects tool_calls finish reason and populates tool_call on the response
+	 * when the model has invoked a function.
+	 *
+	 * @since 1.0.0
+	 * @param array  $data  Decoded API response body.
+	 * @param string $model Model identifier used for pricing lookup.
+	 * @return CompletionResponse
+	 */
 	private function parse_response( array $data, string $model ): CompletionResponse {
 		$in_tokens  = (int) ( $data['usage']['prompt_tokens'] ?? 0 );
 		$out_tokens = (int) ( $data['usage']['completion_tokens'] ?? 0 );

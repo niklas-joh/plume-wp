@@ -1,12 +1,30 @@
 <?php
+/**
+ * Admin page rendering the WP AI Mind dashboard.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
 use WP_AI_Mind\Settings\ProviderSettings;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 
+/**
+ * Renders the WP AI Mind dashboard admin page.
+ *
+ * Also handles the "Run setup again" GET action, which clears the
+ * onboarding-seen flag and redirects back to the dashboard root.
+ */
 class DashboardPage {
 
+	/**
+	 * Handle the optional run-setup action, then output the page markup and enqueue assets.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function render(): void {
 		// Handle "Run setup again" — nonce-protected GET action.
 		if (
@@ -23,6 +41,12 @@ class DashboardPage {
 		echo '<div id="wp-ai-mind-dashboard" class="wp-ai-mind-page"></div>';
 	}
 
+	/**
+	 * Enqueue the admin script and stylesheet, and localise dashboard data.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	private static function enqueue_assets(): void {
 		$asset_file = WP_AI_MIND_DIR . 'assets/admin/index.asset.php';
 		$asset      = file_exists( $asset_file )
@@ -54,6 +78,15 @@ class DashboardPage {
 		);
 	}
 
+	/**
+	 * Assemble the data object passed to the dashboard React app.
+	 *
+	 * Determines the upgrade banner state: suppressed for Pro/BYOK users and
+	 * trial users (who already have access and receive a separate expiry notice).
+	 *
+	 * @since 1.0.0
+	 * @return array<string, mixed> Associative array of localised dashboard data.
+	 */
 	private static function get_dashboard_data(): array {
 		$provider_settings = new ProviderSettings();
 		$provider          = (string) get_option( 'wp_ai_mind_default_provider', '' );

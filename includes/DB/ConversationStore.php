@@ -1,10 +1,29 @@
 <?php
-// includes/DB/ConversationStore.php
+/**
+ * Data-access layer for conversations and their messages.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\DB;
 
+/**
+ * Data-access layer for conversations and their messages.
+ *
+ * Authentication is not enforced here — callers (REST controllers) are
+ * responsible for ownership and permission checks before invoking these methods.
+ */
 class ConversationStore {
 
+	/**
+	 * Create a new conversation owned by the current logged-in user.
+	 *
+	 * @since 1.0.0
+	 * @param string   $title   Optional conversation title; sanitised before storage.
+	 * @param int|null $post_id Optional WordPress post ID to associate the conversation with.
+	 * @return int Inserted conversation row ID, or 0 on failure.
+	 */
 	public function create( string $title = '', ?int $post_id = null ): int {
 		global $wpdb;
 		$wpdb->insert(
@@ -19,6 +38,19 @@ class ConversationStore {
 		return (int) $wpdb->insert_id;
 	}
 
+	/**
+	 * Append a message to an existing conversation.
+	 *
+	 * $role must be 'user' or 'assistant'. $model is empty for user turns.
+	 *
+	 * @since 1.0.0
+	 * @param int    $conversation_id The conversation record ID.
+	 * @param string $role            Message author: 'user' or 'assistant'.
+	 * @param string $content         Message text; HTML-sanitised via wp_kses_post before storage.
+	 * @param string $model           Model slug (e.g. 'claude-opus-4-6'); empty for user turns.
+	 * @param int    $tokens          Token count for usage tracking; 0 if unknown.
+	 * @return int Inserted message row ID, or 0 on failure.
+	 */
 	public function add_message( int $conversation_id, string $role, string $content, string $model = '', int $tokens = 0 ): int {
 		global $wpdb;
 		$wpdb->insert(
@@ -35,6 +67,13 @@ class ConversationStore {
 		return (int) $wpdb->insert_id;
 	}
 
+	/**
+	 * Retrieve all messages for a conversation in ascending ID order.
+	 *
+	 * @since 1.0.0
+	 * @param int $conversation_id The conversation record ID.
+	 * @return array<int, array<string, mixed>> Rows from the messages table; empty array if none.
+	 */
 	public function get_messages( int $conversation_id ): array {
 		global $wpdb;
 		$table   = Schema::table( 'messages' );
@@ -45,6 +84,14 @@ class ConversationStore {
 		return ! empty( $results ) ? $results : [];
 	}
 
+	/**
+	 * List conversations belonging to a user, newest first.
+	 *
+	 * @since 1.0.0
+	 * @param int $user_id WordPress user ID.
+	 * @param int $limit   Maximum rows to return; defaults to 50.
+	 * @return array<int, array<string, mixed>> Conversation rows; empty array if none.
+	 */
 	public function list_for_user( int $user_id, int $limit = 50 ): array {
 		global $wpdb;
 		$table   = Schema::table( 'conversations' );
@@ -59,6 +106,13 @@ class ConversationStore {
 		return ! empty( $results ) ? $results : [];
 	}
 
+	/**
+	 * Fetch a single conversation row by ID.
+	 *
+	 * @since 1.0.0
+	 * @param int $conversation_id The conversation record ID.
+	 * @return array<string, mixed>|null Conversation row, or null if not found.
+	 */
 	public function get_conversation( int $conversation_id ): ?array {
 		global $wpdb;
 		$table = Schema::table( 'conversations' );
@@ -69,12 +123,30 @@ class ConversationStore {
 		return ! empty( $row ) ? $row : null;
 	}
 
+	/**
+	 * Delete a conversation and all its messages.
+	 *
+	 * Messages are deleted before the conversation row to respect the logical
+	 * foreign-key relationship (no DB constraint enforces this ordering).
+	 *
+	 * @since 1.0.0
+	 * @param int $conversation_id The conversation record ID.
+	 * @return void
+	 */
 	public function delete( int $conversation_id ): void {
 		global $wpdb;
 		$wpdb->delete( Schema::table( 'messages' ), [ 'conversation_id' => $conversation_id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'conversations' ), [ 'id' => $conversation_id ], [ '%d' ] );
 	}
 
+	/**
+	 * Update the title of an existing conversation.
+	 *
+	 * @since 1.0.0
+	 * @param int    $conversation_id The conversation record ID.
+	 * @param string $title           New title text; sanitised before storage.
+	 * @return void
+	 */
 	public function update_title( int $conversation_id, string $title ): void {
 		global $wpdb;
 		$wpdb->update(

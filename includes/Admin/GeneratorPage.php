@@ -1,5 +1,10 @@
 <?php
-// includes/Admin/GeneratorPage.php
+/**
+ * Admin page rendering the AI post-generator wizard.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Admin;
@@ -13,11 +18,23 @@ use WP_AI_Mind\Tiers\NJ_Tier_Manager;
  */
 class GeneratorPage {
 
+	/**
+	 * Output the page markup and enqueue all required assets.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function render(): void {
 		self::enqueue_assets();
 		echo '<div id="wp-ai-mind-generator" class="wp-ai-mind-page"></div>';
 	}
 
+	/**
+	 * Enqueue the generator script and stylesheet, and localise runtime data.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function enqueue_assets(): void {
 		$asset_file = WP_AI_MIND_DIR . 'assets/generator/index.asset.php';
 		$asset      = file_exists( $asset_file )

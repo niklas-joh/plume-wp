@@ -1,5 +1,10 @@
 <?php
-// includes/Modules/Seo/SeoModule.php
+/**
+ * SEO module — REST routes and asset enqueuing for the AI SEO admin page.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 
 namespace WP_AI_Mind\Modules\Seo;
@@ -11,14 +16,33 @@ use WP_AI_Mind\Settings\ProviderSettings;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
 
+/**
+ * Registers the SEO module admin assets, REST routes, and the wpaim_seo_status REST field.
+ *
+ * The wpaim_seo_status field is registered with context ['edit'] so it only
+ * appears when the REST request uses context=edit (e.g. PostListTable).
+ */
 class SeoModule {
 
+	/**
+	 * Register WordPress hooks for this module.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register(): void {
 		\add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
 		\add_action( 'rest_api_init', [ self::class, 'register_routes' ] );
 		\add_action( 'rest_api_init', [ self::class, 'register_seo_status_field' ] );
 	}
 
+	/**
+	 * Enqueue SEO module assets on the SEO admin page only.
+	 *
+	 * @since 1.0.0
+	 * @param string $hook Current admin page hook suffix (unused; page detection uses $_GET).
+	 * @return void
+	 */
 	public static function enqueue_assets( string $hook ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by admin_enqueue_scripts hook signature.
 		// Only load on the SEO admin page.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page detection, never output.
@@ -61,6 +85,12 @@ class SeoModule {
 		);
 	}
 
+	/**
+	 * Register the /wp-ai-mind/v1/seo/generate and /wp-ai-mind/v1/seo/apply REST routes.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register_routes(): void {
 		\register_rest_route(
 			'wp-ai-mind/v1',
@@ -123,6 +153,13 @@ class SeoModule {
 		);
 	}
 
+	/**
+	 * Generate SEO metadata for a post using the default AI provider.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response
+	 */
 	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
 		$post_id = $request->get_param( 'post_id' );
 		$post    = \get_post( $post_id );
@@ -206,6 +243,16 @@ class SeoModule {
 		);
 	}
 
+	/**
+	 * Apply SEO metadata fields to a post and its featured image.
+	 *
+	 * Writes to both Yoast and Rank Math meta keys so the values are picked
+	 * up regardless of which SEO plugin is active.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response
+	 */
 	public static function handle_apply( \WP_REST_Request $request ): \WP_REST_Response {
 		$post_id = $request->get_param( 'post_id' );
 		$post    = \get_post( $post_id );
@@ -263,6 +310,12 @@ class SeoModule {
 		);
 	}
 
+	/**
+	 * Register the wpaim_seo_status REST field on all configured post types.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
 	public static function register_seo_status_field(): void {
 		$post_types = (array) \apply_filters( 'wp_ai_mind_seo_post_types', [ 'post', 'page' ] );
 		foreach ( $post_types as $post_type ) {
@@ -299,6 +352,13 @@ class SeoModule {
 		}
 	}
 
+	/**
+	 * REST field callback: return the SEO fill status for each tracked field.
+	 *
+	 * @since 1.0.0
+	 * @param array<string, mixed> $post_data Associative REST post data array.
+	 * @return array<string, string> Map of field names to 'filled' or 'empty'.
+	 */
 	public static function get_seo_status( array $post_data ): array {
 		$post_id = $post_data['id'];
 

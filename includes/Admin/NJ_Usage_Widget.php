@@ -1,4 +1,10 @@
 <?php
+/**
+ * WordPress admin dashboard widget showing current-user token usage.
+ *
+ * @package WP_AI_Mind
+ */
+
 declare( strict_types=1 );
 namespace WP_AI_Mind\Admin;
 
@@ -70,8 +76,8 @@ class NJ_Usage_Widget {
 	 */
 	public static function render(): void {
 		$user_id = get_current_user_id();
-		$usage = NJ_Usage_Tracker::get_usage( $user_id );
-		$tier  = $usage['tier'];
+		$usage   = NJ_Usage_Tracker::get_usage( $user_id );
+		$tier    = $usage['tier'];
 
 		$tier_labels = [
 			'free'        => __( 'Free', 'wp-ai-mind' ),
