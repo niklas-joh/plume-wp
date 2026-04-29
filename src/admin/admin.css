@@ -766,6 +766,7 @@
 	align-items: center;
 	justify-content: center;
 	gap: var(--space-3);
+	background: rgba(255, 255, 255, 0.8); /* fallback for Safari < 16.2 */
 	background: color-mix( in srgb, var(--color-surface-1, #fff) 80%, transparent );
 	border: 1px dashed var(--color-border);
 	border-radius: var(--radius-md);

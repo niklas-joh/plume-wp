@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Wraps a settings section with a locked overlay when the current plan does
@@ -28,7 +28,7 @@ export default function PlanGate( {
 	children,
 } ) {
 	if ( allowed ) {
-		return children;
+		return <>{ children }</>;
 	}
 
 	return (
@@ -36,7 +36,14 @@ export default function PlanGate( {
 			<div className="wpaim-plan-gate__content" aria-hidden="true">
 				{ children }
 			</div>
-			<div className="wpaim-plan-gate__overlay" role="status">
+			<div
+				className="wpaim-plan-gate__overlay"
+				aria-label={ sprintf(
+					/* translators: %s: plan name */
+					__( 'Upgrade to %s to unlock this feature', 'wp-ai-mind' ),
+					requiredPlan
+				) }
+			>
 				<Lock size={ 18 } aria-hidden="true" />
 				<span className="wpaim-pro-badge">{ requiredPlan }</span>
 				<p>
@@ -45,8 +52,12 @@ export default function PlanGate( {
 						'wp-ai-mind'
 					) }
 				</p>
-				<a href={ upgradeUrl } className="wpaim-btn wpaim-btn--primary">
-					{ __( 'Upgrade →', 'wp-ai-mind' ) }
+				<a
+					href={ upgradeUrl ?? '#' }
+					className="wpaim-btn wpaim-btn--primary"
+				>
+					{ __( 'Upgrade', 'wp-ai-mind' ) }
+					<span aria-hidden="true">{ ' →' }</span>
 				</a>
 			</div>
 		</div>
