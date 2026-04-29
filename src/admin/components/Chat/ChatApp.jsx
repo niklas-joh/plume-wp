@@ -145,13 +145,8 @@ export default function ChatApp() {
 	async function sendMessage( content ) {
 		// Resolve conversation ID — create one if none active.
 		let convId = activeConvId;
-		// Capture whether this conversation still needs a title update.
-		// The ref guard prevents a second PATCH if the user sends again before state settles.
-		const needsTitleUpdate =
-			! convId || titlePatchedConvsRef.current.has( convId )
-				? false
-				: conversations.find( ( c ) => c.id === convId )?.title ===
-				  NEW_CONVERSATION_TITLE;
+		// Track whether an inline conversation was just created so needsTitleUpdate is set correctly.
+		let inlineCreated = false;
 
 		if ( ! convId ) {
 			const conv = await apiFetch( {
@@ -163,7 +158,17 @@ export default function ChatApp() {
 			skipLoadRef.current = true;
 			setActiveConvId( conv.id );
 			convId = conv.id; // capture new ID — do NOT use activeConvId (stale closure)
+			inlineCreated = true;
 		}
+
+		// Capture whether this conversation still needs a title update.
+		// Inline-created conversations always start with NEW_CONVERSATION_TITLE and need
+		// a PATCH after the assistant replies. The ref guard prevents a second PATCH if
+		// the user sends again before state settles.
+		const needsTitleUpdate = ! titlePatchedConvsRef.current.has( convId ) &&
+			( inlineCreated ||
+				conversations.find( ( c ) => c.id === convId )?.title ===
+					NEW_CONVERSATION_TITLE );
 
 		setMessages( ( prev ) => [ ...prev, { role: 'user', content } ] );
 		setIsLoading( true );
