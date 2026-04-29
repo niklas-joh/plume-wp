@@ -406,7 +406,7 @@ class ChatRestController {
 	/**
 	 * Update the title of a conversation owned by the current user.
 	 *
-	 * @since {{VERSION}}
+	 * @since 1.0.0
 	 * @param \WP_REST_Request $request Incoming REST request; must contain 'id' and 'title' parameters.
 	 * @return \WP_REST_Response|\WP_Error 200 on success; 404 if not found; 403 if forbidden; 500 on DB failure.
 	 */
