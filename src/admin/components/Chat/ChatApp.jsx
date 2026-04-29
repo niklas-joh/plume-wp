@@ -199,13 +199,13 @@ export default function ChatApp() {
 				// Avoid cutting mid-word; fall back to hard slice if no word boundary found.
 				const newTitle = rawTitle.replace( /\s+\S*$/, '' ) || rawTitle;
 				if ( newTitle.trim() ) {
-					titlePatchedConvsRef.current.add( convId );
 					apiFetch( {
 						path: `/wp-ai-mind/v1/conversations/${ convId }`,
 						method: 'PATCH',
 						data: { title: newTitle },
 					} )
 						.then( () => {
+							titlePatchedConvsRef.current.add( convId );
 							setConversations( ( prev ) =>
 								prev.map( ( c ) =>
 									c.id === convId
