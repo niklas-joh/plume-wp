@@ -129,7 +129,8 @@ class ChatRestControllerTest extends TestCase {
         $request->set_url_params( [ 'id' => '10' ] );
         $request->set_body_params( [ 'title' => '<b>bold</b>' ] );
 
-        $controller->update_conversation( $request );
+        $response = $controller->update_conversation( $request );
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
     }
 
     public function test_update_conversation_returns_500_when_db_update_fails(): void {

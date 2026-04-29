@@ -430,6 +430,8 @@ class ChatRestController {
 			return new \WP_Error( 'forbidden', __( 'You cannot update this conversation.', 'wp-ai-mind' ), [ 'status' => 403 ] );
 		}
 
+		// Sanitise explicitly: the route schema runs sanitize_callback in production,
+		// but unit tests bypass the schema, so a second call here ensures correctness.
 		$updated = $store->update_title( $conv_id, sanitize_text_field( $request->get_param( 'title' ) ) );
 		if ( ! $updated ) {
 			return new \WP_Error( 'db_error', __( 'Failed to update conversation.', 'wp-ai-mind' ), [ 'status' => 500 ] );
