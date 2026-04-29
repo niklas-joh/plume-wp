@@ -38,6 +38,7 @@ export default function PlanGate( {
 			</div>
 			<div
 				className="wpaim-plan-gate__overlay"
+				role="region"
 				aria-label={ sprintf(
 					/* translators: %s: plan name */
 					__( 'Upgrade to %s to unlock this feature', 'wp-ai-mind' ),
