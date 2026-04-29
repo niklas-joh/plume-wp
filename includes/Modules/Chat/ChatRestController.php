@@ -422,8 +422,7 @@ class ChatRestController {
 			return new \WP_Error( 'forbidden', __( 'You cannot update this conversation.', 'wp-ai-mind' ), [ 'status' => 403 ] );
 		}
 
-		// Route args declare sanitize_callback => sanitize_text_field, so the param is already clean.
-		$updated = $store->update_title( $conv_id, $request->get_param( 'title' ) );
+		$updated = $store->update_title( $conv_id, sanitize_text_field( $request->get_param( 'title' ) ) );
 		if ( ! $updated ) {
 			return new \WP_Error( 'db_error', __( 'Failed to update conversation.', 'wp-ai-mind' ), [ 'status' => 500 ] );
 		}

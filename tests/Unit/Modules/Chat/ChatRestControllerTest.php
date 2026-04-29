@@ -96,7 +96,8 @@ class ChatRestControllerTest extends TestCase {
         $store_mock->method( 'get_conversation' )->with( 7 )->willReturn( [ 'user_id' => '5' ] );
         $store_mock->expects( $this->once() )
             ->method( 'update_title' )
-            ->with( 7, 'My updated title' );
+            ->with( 7, 'My updated title' )
+            ->willReturn( true );
 
         $controller = $this->make_controller_with_store( $store_mock );
 
@@ -119,7 +120,8 @@ class ChatRestControllerTest extends TestCase {
         $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => '3' ] );
         $store_mock->expects( $this->once() )
             ->method( 'update_title' )
-            ->with( $this->anything(), 'bold' ); // HTML stripped by sanitize_text_field.
+            ->with( $this->anything(), 'bold' ) // HTML stripped by sanitize_text_field.
+            ->willReturn( true );
 
         $controller = $this->make_controller_with_store( $store_mock );
 
@@ -127,7 +129,8 @@ class ChatRestControllerTest extends TestCase {
         $request->set_url_params( [ 'id' => '10' ] );
         $request->set_body_params( [ 'title' => '<b>bold</b>' ] );
 
-        $controller->update_conversation( $request );
+        $response = $controller->update_conversation( $request );
+        $this->assertSame( [ 'updated' => true ], $response->data );
     }
 
     // ── list_conversations ────────────────────────────────────────────────────
