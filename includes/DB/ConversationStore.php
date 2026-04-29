@@ -145,16 +145,17 @@ class ConversationStore {
 	 * @since 1.0.0
 	 * @param int    $conversation_id The conversation record ID.
 	 * @param string $title           New title text; sanitised before storage.
-	 * @return void
+	 * @return bool True on success, false if the DB update failed.
 	 */
-	public function update_title( int $conversation_id, string $title ): void {
+	public function update_title( int $conversation_id, string $title ): bool {
 		global $wpdb;
-		$wpdb->update(
+		$result = $wpdb->update(
 			Schema::table( 'conversations' ),
 			[ 'title' => sanitize_text_field( $title ) ],
 			[ 'id' => $conversation_id ],
 			[ '%s' ],
 			[ '%d' ]
 		);
+		return false !== $result;
 	}
 }

@@ -8,7 +8,7 @@ import QuickActions from '../RightPanel/QuickActions';
 import ModelSelector from '../RightPanel/ModelSelector';
 import apiFetch from '@wordpress/api-fetch';
 
-const NEW_CONVERSATION_TITLE = 'New conversation';
+const NEW_CONVERSATION_TITLE = __( 'New conversation', 'wp-ai-mind' );
 
 /**
  * Root chat application: conversation list, message thread, and composer.
@@ -32,6 +32,9 @@ export default function ChatApp() {
 	const [ deletingIds, setDeletingIds ] = useState( new Set() );
 	const [ deleteErrors, setDeleteErrors ] = useState( {} );
 	const skipLoadRef = useRef( false );
+	// Tracks which conversation IDs have already had a title PATCH dispatched,
+	// preventing a second send if the user types quickly before state settles.
+	const titlePatchedConvsRef = useRef( new Set() );
 
 	useEffect( () => {
 		loadConversations();
@@ -142,11 +145,13 @@ export default function ChatApp() {
 	async function sendMessage( content ) {
 		// Resolve conversation ID — create one if none active.
 		let convId = activeConvId;
-		// Capture whether a pre-existing conversation needs a title update.
-		const needsTitleUpdate = ! convId
-			? false
-			: conversations.find( ( c ) => c.id === convId )?.title ===
-			  NEW_CONVERSATION_TITLE;
+		// Capture whether this conversation still needs a title update.
+		// The ref guard prevents a second PATCH if the user sends again before state settles.
+		const needsTitleUpdate =
+			! convId || titlePatchedConvsRef.current.has( convId )
+				? false
+				: conversations.find( ( c ) => c.id === convId )?.title ===
+				  NEW_CONVERSATION_TITLE;
 
 		if ( ! convId ) {
 			const conv = await apiFetch( {
@@ -184,20 +189,33 @@ export default function ChatApp() {
 				},
 			] );
 			if ( needsTitleUpdate ) {
-				const newTitle = content.slice( 0, 60 );
-				apiFetch( {
-					path: `/wp-ai-mind/v1/conversations/${ convId }`,
-					method: 'PATCH',
-					data: { title: newTitle },
-				} )
-					.then( () => {
-						setConversations( ( prev ) =>
-							prev.map( ( c ) =>
-								c.id === convId ? { ...c, title: newTitle } : c
+				const rawTitle = content.slice( 0, 60 );
+				// Avoid cutting mid-word; fall back to hard slice if no word boundary found.
+				const newTitle = rawTitle.replace( /\s+\S*$/, '' ) || rawTitle;
+				if ( newTitle.trim() ) {
+					titlePatchedConvsRef.current.add( convId );
+					apiFetch( {
+						path: `/wp-ai-mind/v1/conversations/${ convId }`,
+						method: 'PATCH',
+						data: { title: newTitle },
+					} )
+						.then( () => {
+							setConversations( ( prev ) =>
+								prev.map( ( c ) =>
+									c.id === convId
+										? { ...c, title: newTitle }
+										: c
+								)
+							);
+						} )
+						.catch( ( err ) =>
+							// eslint-disable-next-line no-console
+							console.warn(
+								'[wp-ai-mind] title update failed',
+								err
 							)
 						);
-					} )
-					.catch( () => {} ); // Background update — ignore failures.
+				}
 			}
 		} catch ( err ) {
 			const errorText =
@@ -219,8 +237,8 @@ export default function ChatApp() {
 					<button
 						className="wpaim-btn wpaim-btn--ghost wpaim-btn--icon"
 						onClick={ newConversation }
-						title="New conversation"
-						aria-label="New conversation"
+						title={ NEW_CONVERSATION_TITLE }
+						aria-label={ NEW_CONVERSATION_TITLE }
 						type="button"
 					>
 						<Plus size={ 14 } strokeWidth={ 1.5 } />

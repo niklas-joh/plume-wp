@@ -134,6 +134,7 @@ class ChatRestController {
 							'type'              => 'string',
 							'required'          => true,
 							'sanitize_callback' => 'sanitize_text_field',
+							'maxLength'         => 100,
 						],
 					],
 				],
@@ -405,9 +406,9 @@ class ChatRestController {
 	/**
 	 * Update the title of a conversation owned by the current user.
 	 *
-	 * @since 1.2.0
+	 * @since 1.4.0
 	 * @param \WP_REST_Request $request Incoming REST request; must contain 'id' and 'title' parameters.
-	 * @return \WP_REST_Response|\WP_Error 200 on success; 404 if not found; 403 if forbidden.
+	 * @return \WP_REST_Response|\WP_Error 200 on success; 404 if not found; 403 if forbidden; 500 on DB failure.
 	 */
 	public function update_conversation( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$store   = $this->make_store();
@@ -421,7 +422,11 @@ class ChatRestController {
 			return new \WP_Error( 'forbidden', __( 'You cannot update this conversation.', 'wp-ai-mind' ), [ 'status' => 403 ] );
 		}
 
-		$store->update_title( $conv_id, sanitize_text_field( $request->get_param( 'title' ) ) );
+		// Route args declare sanitize_callback => sanitize_text_field, so the param is already clean.
+		$updated = $store->update_title( $conv_id, $request->get_param( 'title' ) );
+		if ( ! $updated ) {
+			return new \WP_Error( 'db_error', __( 'Failed to update conversation.', 'wp-ai-mind' ), [ 'status' => 500 ] );
+		}
 		return rest_ensure_response( [ 'updated' => true ] );
 	}
 
@@ -559,6 +564,7 @@ class ChatRestController {
 	/**
 	 * Append a complete tool exchange (assistant tool call + user tool result) to the message history.
 	 *
+	 * @since 1.0.0
 	 * @param array              $messages      Existing message history.
 	 * @param string             $provider_slug Provider identifier.
 	 * @param CompletionResponse $tool_response The provider response that triggered tool execution.
