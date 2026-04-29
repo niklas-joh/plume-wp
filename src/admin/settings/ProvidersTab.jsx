@@ -128,7 +128,10 @@ export default function ProvidersTab( { settings, saveSettings, isSaving } ) {
 									placeholder={
 										apiKeys[ id ]
 											? '••••••••••••'
-											: __( 'Enter API key…', 'wp-ai-mind' )
+											: __(
+													'Enter API key…',
+													'wp-ai-mind'
+											  )
 									}
 									onChange={ ( val ) =>
 										handleKeyChange( id, val )
@@ -143,7 +146,9 @@ export default function ProvidersTab( { settings, saveSettings, isSaving } ) {
 									}
 									onClick={ () => handleSaveKey( id ) }
 								>
-									{ isSaving ? __( 'Saving…', 'wp-ai-mind' ) : __( 'Save', 'wp-ai-mind' ) }
+									{ isSaving
+										? __( 'Saving…', 'wp-ai-mind' )
+										: __( 'Save', 'wp-ai-mind' ) }
 								</Button>
 							</div>
 						</div>
@@ -176,7 +181,9 @@ export default function ProvidersTab( { settings, saveSettings, isSaving } ) {
 							}
 							onClick={ handleSaveUrl }
 						>
-							{ isSaving ? __( 'Saving…', 'wp-ai-mind' ) : __( 'Save', 'wp-ai-mind' ) }
+							{ isSaving
+								? __( 'Saving…', 'wp-ai-mind' )
+								: __( 'Save', 'wp-ai-mind' ) }
 						</Button>
 					</div>
 				</div>
