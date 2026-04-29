@@ -117,10 +117,12 @@ export default function ChatApp() {
 				path: `/wp-ai-mind/v1/conversations/${ convId }`,
 				method: 'DELETE',
 			} );
+			titlePatchedConvsRef.current.delete( convId );
 			removeConversationFromState( convId );
 		} catch ( e ) {
 			if ( e?.data?.status === 404 ) {
 				// Already gone on the server — remove from list.
+				titlePatchedConvsRef.current.delete( convId );
 				removeConversationFromState( convId );
 			} else {
 				// eslint-disable-next-line no-console

@@ -143,6 +143,7 @@ class ConversationStore {
 	 * Update the title of an existing conversation.
 	 *
 	 * @since 1.0.0
+	 * @since 1.3.4 Return type changed from void to bool.
 	 * @param int    $conversation_id The conversation record ID.
 	 * @param string $title           New title text; sanitised before storage.
 	 * @return bool True on success, false if the DB update failed.

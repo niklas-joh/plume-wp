@@ -384,6 +384,9 @@ class ChatRestControllerTest extends TestCase {
 
     // ── Permission check ───────────────────────────────────────────────────────
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::check_permission
+     */
     public function test_permission_check_returns_true_for_editors(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
         $controller = new ChatRestController( $this->tool_registry, $this->tool_executor );
@@ -392,6 +395,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertTrue( $result );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::check_permission
+     */
     public function test_permission_check_fails_for_non_editors(): void {
         Functions\when( 'current_user_can' )->justReturn( false );
         Functions\when( '__' )->alias( fn( $s ) => $s );
@@ -401,6 +407,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertInstanceOf( \WP_Error::class, $result );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::check_permission
+     */
     public function test_permission_check_error_has_403_status(): void {
         Functions\when( 'current_user_can' )->justReturn( false );
         Functions\when( '__' )->alias( fn( $s ) => $s );
@@ -526,6 +535,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 'Final answer', $response->data['content'] );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::send_message
+     */
     public function test_send_message_returns_429_with_retry_after_header_on_rate_limit(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
@@ -565,6 +577,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertGreaterThanOrEqual( 0, (int) $headers['Retry-After'], 'Retry-After must be a non-negative number of seconds.' );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::send_message
+     */
     public function test_send_message_maps_provider_403_to_502(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
