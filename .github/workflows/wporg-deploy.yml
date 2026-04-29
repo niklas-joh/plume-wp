@@ -24,6 +24,9 @@ on:
         description: 'Release tag to deploy (e.g. v1.3.3)'
         required: true
 
+permissions:
+  contents: read  # needed to download release assets via gh CLI
+
 jobs:
   deploy:
     name: Deploy to WordPress.org SVN
