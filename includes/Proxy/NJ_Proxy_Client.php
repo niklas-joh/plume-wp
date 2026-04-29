@@ -22,6 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Free/Trial/Pro Managed users are routed through this class.
  * Pro BYOK tier bypasses this class entirely and routes via ClaudeProvider.
+ *
+ * @since 1.2.0
  */
 class NJ_Proxy_Client {
 
@@ -88,9 +90,11 @@ class NJ_Proxy_Client {
 		}
 
 		if ( 401 === $code ) {
-			// Token may be stale — clear it so maybe_register() re-issues on next init.
+			// Token may be stale — clear it so maybe_register() re-issues on next admin_init.
+			// Re-registration is async; the current request cannot be retried transparently.
+			// TODO #326: inline register() + retry once to avoid user-visible auth errors.
 			delete_option( NJ_Site_Registration::OPTION_TOKEN );
-			return new WP_Error( 'proxy_auth_failed', __( 'Proxy authentication failed. Please try again.', 'wp-ai-mind' ) );
+			return new WP_Error( 'proxy_auth_failed', __( 'Proxy authentication failed. Please reload the page and try again.', 'wp-ai-mind' ) );
 		}
 
 		if ( $code < 200 || $code >= 300 ) {

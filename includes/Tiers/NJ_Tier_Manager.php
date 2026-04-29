@@ -123,15 +123,18 @@ class NJ_Tier_Manager {
 	 * Intended to be called by a daily WP-Cron event. Processes users in batches
 	 * to avoid memory exhaustion on sites with large user tables.
 	 *
+	 * The loop uses no offset because each demotion removes the user from the
+	 * 'trial' result set, so the next query always fetches from the new front.
+	 * The `$demoted > 0` guard prevents an infinite loop when a full batch
+	 * contains only active (non-expired) trial users — without it the query
+	 * would return the same 200 users indefinitely.
+	 *
 	 * @since 1.2.0
 	 * @return void
 	 */
 	public static function maybe_demote_expired_trials(): void {
 		$batch_size = 200;
 
-		// No offset — each demotion removes the user from the 'trial' result set,
-		// so the next query always fetches from the new front of the list.
-		// An advancing offset would skip users as the set shrinks mid-loop.
 		do {
 			$users = get_users(
 				[
@@ -141,12 +144,15 @@ class NJ_Tier_Manager {
 					'number'     => $batch_size,
 				]
 			);
-			$found = count( $users );
+			$found   = count( $users );
+			$demoted = 0;
 			foreach ( $users as $user_id ) {
 				if ( ! self::is_trial_active( (int) $user_id ) ) {
-					self::set_user_tier( 'free', (int) $user_id );
+					if ( self::set_user_tier( 'free', (int) $user_id ) ) {
+						++$demoted;
+					}
 				}
 			}
-		} while ( $found === $batch_size );
+		} while ( $found === $batch_size && $demoted > 0 );
 	}
 }

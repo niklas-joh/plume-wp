@@ -96,7 +96,8 @@ class ChatRestControllerTest extends TestCase {
         $store_mock->method( 'get_conversation' )->with( 7 )->willReturn( [ 'user_id' => '5' ] );
         $store_mock->expects( $this->once() )
             ->method( 'update_title' )
-            ->with( 7, 'My updated title' );
+            ->with( 7, 'My updated title' )
+            ->willReturn( true );
 
         $controller = $this->make_controller_with_store( $store_mock );
 
@@ -119,7 +120,8 @@ class ChatRestControllerTest extends TestCase {
         $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => '3' ] );
         $store_mock->expects( $this->once() )
             ->method( 'update_title' )
-            ->with( $this->anything(), 'bold' ); // HTML stripped by sanitize_text_field.
+            ->with( $this->anything(), 'bold' ) // HTML stripped by sanitize_text_field.
+            ->willReturn( true );
 
         $controller = $this->make_controller_with_store( $store_mock );
 
@@ -128,6 +130,27 @@ class ChatRestControllerTest extends TestCase {
         $request->set_body_params( [ 'title' => '<b>bold</b>' ] );
 
         $controller->update_conversation( $request );
+    }
+
+    public function test_update_conversation_returns_500_when_db_update_fails(): void {
+        Functions\when( '__' )->alias( fn( $s ) => $s );
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
+
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => '5' ] );
+        $store_mock->method( 'update_title' )->willReturn( false );
+
+        $controller = $this->make_controller_with_store( $store_mock );
+
+        $request = new \WP_REST_Request( 'PATCH' );
+        $request->set_url_params( [ 'id' => '7' ] );
+        $request->set_body_params( [ 'title' => 'Some title' ] );
+
+        $response = $controller->update_conversation( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 500, $response->get_error_data()['status'] );
     }
 
     // ── list_conversations ────────────────────────────────────────────────────
@@ -360,6 +383,14 @@ class ChatRestControllerTest extends TestCase {
 
     // ── Permission check ───────────────────────────────────────────────────────
 
+    public function test_permission_check_returns_true_for_editors(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        $controller = new ChatRestController( $this->tool_registry, $this->tool_executor );
+
+        $result = $controller->check_permission();
+        $this->assertTrue( $result );
+    }
+
     public function test_permission_check_fails_for_non_editors(): void {
         Functions\when( 'current_user_can' )->justReturn( false );
         Functions\when( '__' )->alias( fn( $s ) => $s );
@@ -367,6 +398,16 @@ class ChatRestControllerTest extends TestCase {
 
         $result = $controller->check_permission();
         $this->assertInstanceOf( \WP_Error::class, $result );
+    }
+
+    public function test_permission_check_error_has_403_status(): void {
+        Functions\when( 'current_user_can' )->justReturn( false );
+        Functions\when( '__' )->alias( fn( $s ) => $s );
+        $controller = new ChatRestController( $this->tool_registry, $this->tool_executor );
+
+        $result = $controller->check_permission();
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 403, $result->get_error_data()['status'] );
     }
 
     // ── Ownership guard ────────────────────────────────────────────────────────
@@ -471,39 +512,7 @@ class ChatRestControllerTest extends TestCase {
         $voice_mock = $this->createMock( \WP_AI_Mind\Voice\VoiceInjector::class );
         $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
 
-        $controller = new class(
-            $this->tool_registry,
-            $this->tool_executor,
-            $store_mock,
-            $factory_mock,
-            $voice_mock
-        ) extends ChatRestController {
-            private \WP_AI_Mind\DB\ConversationStore $store_override;
-            private \WP_AI_Mind\Providers\ProviderFactory $factory_override;
-            private \WP_AI_Mind\Voice\VoiceInjector $voice_override;
-
-            public function __construct(
-                ToolRegistry $tr,
-                ToolExecutor $te,
-                \WP_AI_Mind\DB\ConversationStore $store,
-                \WP_AI_Mind\Providers\ProviderFactory $factory,
-                \WP_AI_Mind\Voice\VoiceInjector $voice
-            ) {
-                parent::__construct( $tr, $te );
-                $this->store_override   = $store;
-                $this->factory_override = $factory;
-                $this->voice_override   = $voice;
-            }
-            protected function make_store(): \WP_AI_Mind\DB\ConversationStore {
-                return $this->store_override;
-            }
-            protected function make_provider_factory(): \WP_AI_Mind\Providers\ProviderFactory {
-                return $this->factory_override;
-            }
-            protected function make_voice_injector(): \WP_AI_Mind\Voice\VoiceInjector {
-                return $this->voice_override;
-            }
-        };
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
 
         $request = new \WP_REST_Request( 'POST' );
         $request->set_url_params( [ 'id' => '42' ] );
@@ -514,6 +523,81 @@ class ChatRestControllerTest extends TestCase {
         $this->assertInstanceOf( \WP_REST_Response::class, $response );
         $this->assertSame( 200, $response->get_status() );
         $this->assertSame( 'Final answer', $response->data['content'] );
+    }
+
+    public function test_send_message_returns_429_with_retry_after_header_on_rate_limit(): void {
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->justReturn( 'claude' );
+
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [] );
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [] );
+
+        $provider_mock = $this->createMock( \WP_AI_Mind\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( false );
+        $provider_mock->method( 'complete' )->willThrowException(
+            new \WP_AI_Mind\Providers\ProviderException( 'Rate limit exceeded', 'claude', 429 )
+        );
+
+        $factory_mock = $this->createMock( \WP_AI_Mind\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \WP_AI_Mind\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '10' ] );
+        $request->set_body_params( [ 'content' => 'Hi', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
+        $this->assertSame( 429, $response->get_status() );
+        $headers = $response->get_headers();
+        $this->assertArrayHasKey( 'Retry-After', $headers, 'Retry-After header must be present on 429 responses.' );
+        $this->assertGreaterThanOrEqual( 0, (int) $headers['Retry-After'], 'Retry-After must be a non-negative number of seconds.' );
+    }
+
+    public function test_send_message_maps_provider_403_to_502(): void {
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->justReturn( 'claude' );
+
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [] );
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [] );
+
+        $provider_mock = $this->createMock( \WP_AI_Mind\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( false );
+        $provider_mock->method( 'complete' )->willThrowException(
+            new \WP_AI_Mind\Providers\ProviderException( 'Forbidden', 'claude', 403 )
+        );
+
+        $factory_mock = $this->createMock( \WP_AI_Mind\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \WP_AI_Mind\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '11' ] );
+        $request->set_body_params( [ 'content' => 'Hi', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
+        $this->assertSame( 502, $response->get_status(), 'Provider 403 must be masked as 502.' );
     }
 
     public function test_send_message_returns_500_after_max_iterations(): void {
@@ -553,12 +637,30 @@ class ChatRestControllerTest extends TestCase {
         $voice_mock = $this->createMock( \WP_AI_Mind\Voice\VoiceInjector::class );
         $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
 
-        $controller = new class(
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '99' ] );
+        $request->set_body_params( [ 'content' => 'Hi', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $this->assertInstanceOf( \WP_REST_Response::class, $response );
+        $this->assertSame( 500, $response->get_status() );
+        $this->assertStringContainsString( 'limit', $response->data['message'] );
+    }
+
+    private function make_controller(
+        \WP_AI_Mind\DB\ConversationStore $store,
+        \WP_AI_Mind\Providers\ProviderFactory $factory,
+        \WP_AI_Mind\Voice\VoiceInjector $voice
+    ): ChatRestController {
+        return new class(
             $this->tool_registry,
             $this->tool_executor,
-            $store_mock,
-            $factory_mock,
-            $voice_mock
+            $store,
+            $factory,
+            $voice
         ) extends ChatRestController {
             private \WP_AI_Mind\DB\ConversationStore $store_override;
             private \WP_AI_Mind\Providers\ProviderFactory $factory_override;
@@ -586,15 +688,5 @@ class ChatRestControllerTest extends TestCase {
                 return $this->voice_override;
             }
         };
-
-        $request = new \WP_REST_Request( 'POST' );
-        $request->set_url_params( [ 'id' => '99' ] );
-        $request->set_body_params( [ 'content' => 'Hi', 'provider' => 'claude', 'model' => '' ] );
-
-        $response = $controller->send_message( $request );
-
-        $this->assertInstanceOf( \WP_REST_Response::class, $response );
-        $this->assertSame( 500, $response->get_status() );
-        $this->assertStringContainsString( 'limit', $response->data['message'] );
     }
 }

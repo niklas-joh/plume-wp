@@ -69,8 +69,7 @@ export default function ModelSelector( {
 					<button
 						className="wpaim-model-advanced-toggle"
 						type="button"
-						// isPro guard for programmatic invocation; button is also disabled for free users.
-						onClick={ () => isPro && toggleAdvanced( true ) }
+						onClick={ () => toggleAdvanced( true ) }
 						disabled={ ! isPro }
 						title={
 							isPro

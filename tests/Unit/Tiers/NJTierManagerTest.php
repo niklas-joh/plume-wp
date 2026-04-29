@@ -7,6 +7,11 @@ use PHPUnit\Framework\TestCase;
 use WP_AI_Mind\Tiers\NJ_Tier_Config;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 
+/**
+ * Unit tests for NJ_Tier_Manager.
+ *
+ * @since 1.1.0
+ */
 class NJTierManagerTest extends TestCase {
 
 	protected function setUp(): void {
@@ -157,6 +162,113 @@ class NJTierManagerTest extends TestCase {
 		Functions\expect( 'get_user_meta' )->once()->with( 6, 'wp_ai_mind_trial_started', true )->andReturn( (string) $started );
 
 		$this->assertTrue( NJ_Tier_Manager::is_trial_active( 6 ) );
+	}
+
+	/**
+	 * Verifies that the loop exits after one pass when a full batch yields zero successful demotions.
+	 *
+	 * @since 1.1.0
+	 */
+	public function test_maybe_demote_expired_trials_exits_when_no_demotions_in_full_batch(): void {
+		// 200 trial users, all still active — loop must exit after one pass (no progress).
+		$user_ids   = range( 1, 200 );
+		$started_at = (string) time(); // all trials started now, so none are expired
+
+		Functions\expect( 'get_users' )
+			->once()
+			->andReturn( $user_ids );
+
+		// is_trial_active() calls get_user_meta twice per user: once for tier, once for trial_started.
+		Functions\expect( 'get_user_meta' )
+			->times( 400 )
+			->andReturnUsing(
+				function ( $uid, $key ) use ( $started_at ) {
+					if ( 'wp_ai_mind_tier' === $key ) {
+						return 'trial';
+					}
+					return $started_at;
+				}
+			);
+
+		// set_user_tier / update_user_meta must NOT be called — no users are demoted.
+		Functions\expect( 'update_user_meta' )->never();
+
+		NJ_Tier_Manager::maybe_demote_expired_trials();
+		$this->addToAssertionCount( 1 ); // loop exited without infinite loop
+	}
+
+	/**
+	 * Verifies that all expired-trial users are demoted across multiple batches and the loop terminates.
+	 *
+	 * @since 1.1.0
+	 */
+	public function test_maybe_demote_expired_trials_demotes_expired_users_and_continues(): void {
+		$expired_start = time() - ( 31 * DAY_IN_SECONDS );
+
+		// First batch: 200 expired users → all demoted → second batch: fewer than 200.
+		Functions\expect( 'get_users' )
+			->twice()
+			->andReturn( range( 1, 200 ), range( 201, 210 ) );
+
+		// Tier meta for is_trial_active(): all are 'trial'.
+		Functions\expect( 'get_user_meta' )
+			->andReturnUsing(
+				function ( $uid, $key ) use ( $expired_start ) {
+					if ( 'wp_ai_mind_tier' === $key ) {
+						return 'trial';
+					}
+					return (string) $expired_start;
+				}
+			);
+
+		// update_user_meta called once per user (set_user_tier stores 'free').
+		Functions\expect( 'update_user_meta' )
+			->times( 210 )
+			->andReturn( true );
+
+		NJ_Tier_Manager::maybe_demote_expired_trials();
+		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * Verifies that the loop continues when a full batch contains a mix of expired and active
+	 * trials, and terminates once a subsequent batch is smaller than the batch size.
+	 *
+	 * @since 1.1.0
+	 */
+	public function test_maybe_demote_expired_trials_continues_while_partial_batch_demoted(): void {
+		$expired_start = time() - ( 31 * DAY_IN_SECONDS );
+		$active_start  = (string) time();
+
+		// First batch: 200 users — 100 expired, 100 active.
+		// Second batch: fewer than 200 users → loop terminates.
+		Functions\expect( 'get_users' )
+			->twice()
+			->andReturn( range( 1, 200 ), range( 201, 210 ) );
+
+		// Users 1–100 are expired; 101–200 are active.
+		// Second batch (201–210) are all expired.
+		Functions\expect( 'get_user_meta' )
+			->andReturnUsing(
+				function ( $uid, $key ) use ( $expired_start, $active_start ) {
+					if ( 'wp_ai_mind_tier' === $key ) {
+						return 'trial';
+					}
+					// Users 101–200 are still within their trial window.
+					if ( $uid >= 101 && $uid <= 200 ) {
+						return $active_start;
+					}
+					return (string) $expired_start;
+				}
+			);
+
+		// update_user_meta called once per expired user: 100 from batch 1 + 10 from batch 2.
+		Functions\expect( 'update_user_meta' )
+			->times( 110 )
+			->andReturn( true );
+
+		NJ_Tier_Manager::maybe_demote_expired_trials();
+		$this->addToAssertionCount( 1 ); // loop terminated without infinite loop
 	}
 
 	public function test_tier_config_has_four_tiers(): void {

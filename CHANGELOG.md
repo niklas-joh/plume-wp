@@ -1,3 +1,24 @@
+## [1.3.4](https://github.com/niklas-joh/wp-ai-mind/compare/v1.3.3...v1.3.4) (2026-04-29)
+
+
+### Bug Fixes
+
+* **chat:** default provider selection, conversation title update, inline delete errors ([#337](https://github.com/niklas-joh/wp-ai-mind/issues/337)) ([0630043](https://github.com/niklas-joh/wp-ai-mind/commit/0630043649049aefe86f615cdcc46792c58c7a28))
+
+## [1.3.3](https://github.com/niklas-joh/wp-ai-mind/compare/v1.3.2...v1.3.3) (2026-04-28)
+
+
+### Bug Fixes
+
+* **proxy:** add pro_byok guard in Worker and clarify 401 error message ([#334](https://github.com/niklas-joh/wp-ai-mind/issues/334)) ([fac9721](https://github.com/niklas-joh/wp-ai-mind/commit/fac9721bfa4d91464784c38abc05f21cce1d24c4))
+
+## [1.3.2](https://github.com/niklas-joh/wp-ai-mind/compare/v1.3.1...v1.3.2) (2026-04-28)
+
+
+### Bug Fixes
+
+* **tiers:** prevent infinite loop in maybe_demote_expired_trials() ([#333](https://github.com/niklas-joh/wp-ai-mind/issues/333)) ([9d33d04](https://github.com/niklas-joh/wp-ai-mind/commit/9d33d04a3615ad879988018141b451f8c43ee989)), closes [#323](https://github.com/niklas-joh/wp-ai-mind/issues/323)
+
 ## [1.3.1](https://github.com/niklas-joh/wp-ai-mind/compare/v1.3.0...v1.3.1) (2026-04-27)
 
 
