@@ -406,7 +406,7 @@ class ChatRestController {
 	/**
 	 * Update the title of a conversation owned by the current user.
 	 *
-	 * @since 1.4.0
+	 * @since {{VERSION}}
 	 * @param \WP_REST_Request $request Incoming REST request; must contain 'id' and 'title' parameters.
 	 * @return \WP_REST_Response|\WP_Error 200 on success; 404 if not found; 403 if forbidden; 500 on DB failure.
 	 */
@@ -422,7 +422,7 @@ class ChatRestController {
 			return new \WP_Error( 'forbidden', __( 'You cannot update this conversation.', 'wp-ai-mind' ), [ 'status' => 403 ] );
 		}
 
-		$updated = $store->update_title( $conv_id, sanitize_text_field( $request->get_param( 'title' ) ) );
+		$updated = $store->update_title( $conv_id, $request->get_param( 'title' ) );
 		if ( ! $updated ) {
 			return new \WP_Error( 'db_error', __( 'Failed to update conversation.', 'wp-ai-mind' ), [ 'status' => 500 ] );
 		}
