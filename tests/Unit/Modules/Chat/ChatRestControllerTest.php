@@ -112,25 +112,47 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( [ 'updated' => true ], $response->data );
     }
 
-    public function test_update_conversation_sanitises_html_in_title(): void {
+    public function test_update_conversation_passes_title_to_store_unchanged(): void {
+        // The route-level sanitize_callback runs before the controller method, so by the
+        // time update_conversation() executes, get_param('title') already returns a clean
+        // value. The controller must not sanitise again — it passes the value straight through.
         Functions\when( 'get_current_user_id' )->justReturn( 3 );
-        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => strip_tags( $v ) );
 
         $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
         $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => '3' ] );
         $store_mock->expects( $this->once() )
             ->method( 'update_title' )
-            ->with( $this->anything(), 'bold' ) // HTML stripped by sanitize_text_field.
+            ->with( 10, 'My title' )
             ->willReturn( true );
 
         $controller = $this->make_controller_with_store( $store_mock );
 
         $request = new \WP_REST_Request( 'PATCH' );
         $request->set_url_params( [ 'id' => '10' ] );
-        $request->set_body_params( [ 'title' => '<b>bold</b>' ] );
+        $request->set_body_params( [ 'title' => 'My title' ] );
 
         $response = $controller->update_conversation( $request );
         $this->assertSame( [ 'updated' => true ], $response->data );
+    }
+
+    public function test_update_conversation_returns_500_when_db_update_fails(): void {
+        Functions\when( '__' )->alias( fn( $s ) => $s );
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+
+        $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => '5' ] );
+        $store_mock->method( 'update_title' )->willReturn( false );
+
+        $controller = $this->make_controller_with_store( $store_mock );
+
+        $request = new \WP_REST_Request( 'PATCH' );
+        $request->set_url_params( [ 'id' => '7' ] );
+        $request->set_body_params( [ 'title' => 'Some title' ] );
+
+        $response = $controller->update_conversation( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 500, $response->get_error_data()['status'] );
     }
 
     // ── list_conversations ────────────────────────────────────────────────────
