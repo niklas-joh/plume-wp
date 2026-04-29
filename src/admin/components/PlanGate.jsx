@@ -33,7 +33,7 @@ export default function PlanGate( {
 
 	return (
 		<div className="wpaim-plan-gate">
-			<div className="wpaim-plan-gate__content" aria-hidden="true">
+			<div className="wpaim-plan-gate__content" aria-hidden="true" inert>
 				{ children }
 			</div>
 			<div
