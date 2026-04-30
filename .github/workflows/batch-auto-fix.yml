@@ -73,49 +73,60 @@ jobs:
 
             ---
 
-            ## Your task
+            ## Your task — two phases
 
-            Work through each issue number listed above **in order**. For each issue,
-            complete steps A–F fully before moving to the next. This ensures every fixed
-            issue is committed, pushed, and closed even if the session ends early.
+            ### Phase 1 — Read all issue bodies and pre-load affected files
 
-            ### A — Read the issue body
+            For every issue number listed above:
             ```
             cat /tmp/issue-<N>-body.txt
             ```
-            The body contains a `## Context` section with the exact source lines to change —
-            use it to go straight to editing without a separate file-read step.
 
-            ### B — Decide: fix or skip
-            - Fix it if the correct change is clear from the codebase alone.
-            - If it requires an external value (API key, secret, account ID, business decision):
-              post a comment on the issue explaining what information is needed, then continue
-              to the next issue. Do NOT stop — always process every issue in the list.
+            Extract the file path from each issue's `## Context` section and build a map of
+            `file → [issue numbers that touch it]`.
 
-            ### C — Apply the minimal fix
-            Read only the files mentioned in the issue. Make the smallest correct change.
-            If this issue has the `nits` label, apply ALL listed nit items in a single commit.
+            Read each unique file **exactly once** now, using the Read tool, and keep the
+            contents in working memory. Do not re-read a file you have already read.
+            Issues that touch no identifiable file are processed last as a single group.
 
-            ### D — Commit
+            ### Phase 2 — Fix and commit each issue individually
+
+            Work through all issues in file-group order (all issues for file A, then file B,
+            etc.) but commit and close each issue as its own atomic unit:
+
+            **A — Apply the minimal fix for this issue**
+            Use the file content already in memory from Phase 1. Make the smallest correct change.
+            If this issue has the `nits` label, apply ALL listed nit items in a single edit.
+            If the fix requires an external value (API key, secret, account ID, business decision):
+            post a comment on the issue explaining what is needed, then move to the next issue
+            without committing. Do NOT stop — always process every issue in the list.
+
+            **B — Run linting (PHP files only)**
+            ```bash
+            ./vendor/bin/phpcs --standard=phpcs.xml.dist <file>
+            ```
+            Fix any new PHPCS violations before committing.
+
+            **C — Commit this issue's fix**
             ```bash
             git commit -m "fix: <concise description> (closes #<N>)"
             ```
 
-            ### E — Push immediately
-            Push after every individual fix so the commit is not lost if the session ends early:
+            **D — Push immediately**
             ```bash
             git push origin ${{ github.event.client_payload.head_branch }}
             ```
+            Push after every individual commit so progress is never lost if the session ends early.
 
-            ### F — Close the issue immediately after pushing
+            **E — Close the issue**
             ```bash
             gh issue close <N> \
               --comment "✅ Fixed in $(git rev-parse --short HEAD). <One sentence summary.>" \
               --repo ${{ github.repository }}
             ```
 
-            ### G — Move to the next issue
-            Repeat A–F for every issue in the list.
+            **F — Move to the next issue**
+            Repeat A–F for every remaining issue.
 
             ---
 
