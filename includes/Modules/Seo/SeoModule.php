@@ -173,7 +173,7 @@ class SeoModule {
 	 *
 	 * @since 1.0.0
 	 * @param int $post_id Post ID to generate metadata for.
-	 * @param int $user_id WordPress user ID requesting generation; checked against edit_post capability.
+	 * @param int $user_id WordPress user ID on whose behalf generation is performed; must hold edit_post for $post_id.
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function generate_for_post( int $post_id, int $user_id ): array|\WP_Error {
@@ -278,6 +278,7 @@ class SeoModule {
 				'not_found'      => 404,
 				'forbidden'      => 403,
 				'provider_error' => 502,
+				// 'invalid_json' and 'unexpected_error' intentionally fall through to 500.
 			];
 			$status   = $code_map[ $result->get_error_code() ] ?? 500;
 			return new \WP_REST_Response( [ 'error' => $result->get_error_message() ], $status );
@@ -295,7 +296,12 @@ class SeoModule {
 	 *
 	 * @since 1.0.0
 	 * @param int                  $post_id Post ID to apply metadata to.
-	 * @param array<string,string> $fields  Associative array of SEO field values.
+	 * @param array<string,string> $fields  Associative array of SEO field values. Callers are responsible
+	 *                                      for sanitising values before passing them in — this method writes
+	 *                                      values directly to post meta and wp_update_post() without additional
+	 *                                      sanitisation. The REST path sanitises via register_rest_route() args;
+	 *                                      any future direct caller must apply sanitize_text_field() /
+	 *                                      sanitize_textarea_field() itself.
 	 * @return array<string,mixed>
 	 */
 	public static function apply_for_post( int $post_id, array $fields ): array {

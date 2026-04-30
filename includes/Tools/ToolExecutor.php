@@ -392,7 +392,7 @@ class ToolExecutor {
 				'seo_access'           => false,
 				'post_title'           => \html_entity_decode( $post->post_title, ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
 				'post_content_snippet' => mb_substr( \wp_strip_all_tags( $post->post_content ), 0, 500 ),
-				'note'                 => 'SEO auto-generation requires the Pro plan. Use the post data above to suggest appropriate SEO fields manually, and let the user know they can upgrade to Pro for one-click automated SEO optimisation.',
+				'note'                 => __( 'SEO auto-generation requires the Pro plan. Use the post data above to suggest appropriate SEO fields manually, and let the user know they can upgrade to Pro for one-click automated SEO optimisation.', 'wp-ai-mind' ),
 			];
 		}
 
