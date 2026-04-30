@@ -95,12 +95,13 @@ class NJ_Proxy_Client {
 
 		if ( 401 === $code ) {
 			// Token is stale — re-register inline and retry the request once.
+			// On success, $code and $body are re-assigned; subsequent checks apply to the retry response.
 			delete_option( NJ_Site_Registration::OPTION_TOKEN );
 			$new_token = NJ_Site_Registration::register();
 			if ( is_wp_error( $new_token ) ) {
 				return new WP_Error( 'proxy_auth_failed', __( 'Proxy authentication failed. Please reload the page and try again.', 'wp-ai-mind' ) );
 			}
-			$retry = wp_remote_post(
+			$retry_response = wp_remote_post(
 				NJ_Tier_Config::get_proxy_url() . '/v1/chat',
 				[
 					'headers' => [
@@ -111,10 +112,10 @@ class NJ_Proxy_Client {
 					'timeout' => 60,
 				]
 			);
-			if ( is_wp_error( $retry ) ) {
-				return $retry;
+			if ( is_wp_error( $retry_response ) ) {
+				return $retry_response;
 			}
-			[ 'code' => $code, 'body' => $body ] = self::parse_response( $retry );
+			[ 'code' => $code, 'body' => $body ] = self::parse_response( $retry_response );
 			if ( 429 === $code ) {
 				return new WP_Error( 'rate_limit_exceeded', __( 'Monthly usage limit reached.', 'wp-ai-mind' ) );
 			}
@@ -135,6 +136,9 @@ class NJ_Proxy_Client {
 
 	/**
 	 * Extract HTTP status code and decoded JSON body from a wp_remote_post() response.
+	 *
+	 * Native return type is bare `array` because PHP does not support typed array shapes;
+	 * the precise shape is documented in the @return tag for static-analysis tools (PHPStan).
 	 *
 	 * @since 1.3.6
 	 * @param array<string, mixed> $raw Raw response array from wp_remote_post().
