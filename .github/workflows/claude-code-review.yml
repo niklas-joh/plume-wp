@@ -2,7 +2,7 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
     paths-ignore:
       - "package-lock.json"
       - "composer.lock"
@@ -65,12 +65,38 @@ jobs:
 
             Review this pull request against the repository's CLAUDE.md conventions. Be constructive and helpful.
 
-            Cover:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
+            Check every category below and report findings. Each finding MUST be prefixed with
+            its category tag in square brackets, e.g. `[DRY]`, `[Security]`, `[Performance]`.
+            For categories where you find nothing wrong, you MUST still output a ✅ line in the
+            coverage checklist (see Step 2 format). Do not silently skip a category.
+
+            **Correctness & safety**
+            - **[Bugs]** — potential bugs, edge-cases, or logic errors
+            - **[Security]** — input sanitisation, escaping, capability checks, nonces
+            - **[Data-loss]** — irreversible side-effects, destructive operations
+
+            **Design principles**
+            - **[DRY]** — duplicated logic or data that should be extracted into a shared function/constant
+            - **[SRP]** — classes or functions doing more than one job; hooks that mix unrelated concerns
+            - **[KISS]** — unnecessary complexity, over-engineering, or abstractions with no current use-case
+            - **[YAGNI]** — speculative code, flags, or extension points added "just in case"
+            - **[Concerns]** — presentation logic leaking into data/business layers (or vice versa)
+            - **[Naming]** — misleading, ambiguous, or overly abbreviated identifiers
+
+            **Code quality**
+            - **[Dead-code]** — commented-out blocks, unreachable branches
+            - **[Complexity]** — deeply nested conditionals or high cyclomatic complexity
+            - **[Constants]** — magic numbers/strings that should be named constants
+            - **[Style]** — deviations from project conventions (see CLAUDE.md)
+            - **[Reuse]** — new code that duplicates or could extend something already in the codebase
+
+            **Performance**
+            - **[N+1]** — unnecessary database queries inside loops
+            - **[Caching]** — missing caching for expensive operations
+            - **[Autoload]** — options that should be non-autoloaded
+
+            **Test coverage**
+            - **[Tests]** — untested public methods, critical branches, or only happy-path assertions
 
             ### Step 0 — Ensure required labels exist
 
@@ -140,13 +166,42 @@ jobs:
                 --repo ${{ github.repository }}
 
             Structure the comment as:
+
             1. **Summary** — 1–3 sentence overview of the PR
-            2. **Findings** — grouped by severity (bugs → improvements → nits):
-               - For bugs and improvements: include the issue URL inline, e.g. "See #42 for tracking."
-               - **For nits:** Provide the **full verbose explanation** of each nit as you normally would.
-                 Then, at the end of the nits section, add: "All nits are tracked in #N for auto-fix."
-                 This keeps the detailed feedback visible in the PR while also referencing the consolidated issue.
-            3. **Verdict** — Approved / Needs changes / Needs discussion
+
+            2. **Coverage table** — one row per category, always present, no exceptions:
+               ```
+               | Category    | Status | Note |
+               |-------------|--------|------|
+               | Bugs        | ✅     | — |
+               | Security    | 🔴     | `includes/Foo.php` capability check missing — See #N |
+               | Data-loss   | ✅     | — |
+               | DRY         | ✅     | — |
+               | SRP         | 🟡     | `SeoModule` mixes HTTP and business logic — See #N |
+               | KISS        | ✅     | — |
+               | YAGNI       | ✅     | — |
+               | Concerns    | ✅     | — |
+               | Naming      | 🔵     | See #N |
+               | Dead-code   | ✅     | — |
+               | Complexity  | ✅     | — |
+               | Constants   | ✅     | — |
+               | Style       | ✅     | — |
+               | Reuse       | ✅     | — |
+               | N+1         | ✅     | — |
+               | Caching     | ✅     | — |
+               | Autoload    | ✅     | — |
+               | Tests       | 🟡     | missing error-path coverage — See #N |
+               ```
+               Use 🔴 for bugs/blocking, 🟡 for improvements, 🔵 for nits, ✅ for clean.
+               Every category must appear — checked and clean rows prove the review was thorough.
+
+            3. **Findings detail** — only for categories that have issues, grouped by severity
+               (bugs → improvements → nits). Each finding must open with its tag:
+               - `[Category] \`path/to/file.php\` lines N–M — description (See #N for tracking.)`
+               - **For nits:** give the full verbose explanation, then end the section with:
+                 "All nits are tracked in #N for auto-fix."
+
+            4. **Verdict** — Approved / Needs changes / Needs discussion
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options
