@@ -158,6 +158,7 @@ class SeoModule {
 	 *
 	 * Returns an associative array with keys meta_title, og_description, excerpt,
 	 * alt_text, and tokens_used. Returns WP_Error on provider or parsing failure.
+	 * Token usage is NOT logged here — callers must call NJ_Usage_Tracker::log_usage() after a successful return.
 	 *
 	 * **Authorization:** This method does not perform any capability check.
 	 * Callers MUST verify that the acting user holds 'edit_post' permission for
@@ -172,9 +173,14 @@ class SeoModule {
 	 *
 	 * @since 1.0.0
 	 * @param int $post_id Post ID to generate metadata for.
+	 * @param int $user_id WordPress user ID requesting generation; checked against edit_post capability.
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public static function generate_for_post( int $post_id ): array|\WP_Error {
+	public static function generate_for_post( int $post_id, int $user_id ): array|\WP_Error {
+		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
+			return new \WP_Error( 'forbidden', __( 'Forbidden.', 'wp-ai-mind' ) );
+		}
+
 		$post = \get_post( $post_id );
 
 		if ( ! $post ) {
@@ -221,7 +227,6 @@ class SeoModule {
 			$factory  = new ProviderFactory( new ProviderSettings() );
 			$provider = $factory->make_default();
 			$response = $provider->complete( $req );
-			NJ_Usage_Tracker::log_usage( $response->total_tokens );
 		} catch ( ProviderException $e ) {
 			\error_log( 'WP AI Mind SeoModule provider error: ' . $e->getMessage() );
 			return new \WP_Error( 'provider_error', __( 'Provider error. Please try again later.', 'wp-ai-mind' ) );
@@ -260,8 +265,9 @@ class SeoModule {
 	 */
 	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
 		$post_id = $request->get_param( 'post_id' );
-		$post    = \get_post( $post_id );
+		$user_id = \get_current_user_id();
 
+		$post = \get_post( $post_id );
 		if ( ! $post ) {
 			return new \WP_REST_Response( [ 'error' => __( 'Post not found.', 'wp-ai-mind' ) ], 404 );
 		}
@@ -270,16 +276,18 @@ class SeoModule {
 			return new \WP_REST_Response( [ 'error' => __( 'Forbidden.', 'wp-ai-mind' ) ], 403 );
 		}
 
-		$result = self::generate_for_post( $post_id );
+		$result = self::generate_for_post( $post_id, $user_id );
 		if ( \is_wp_error( $result ) ) {
 			$code_map = [
 				'not_found'      => 404,
+				'forbidden'      => 403,
 				'provider_error' => 502,
 			];
 			$status   = $code_map[ $result->get_error_code() ] ?? 500;
 			return new \WP_REST_Response( [ 'error' => $result->get_error_message() ], $status );
 		}
 
+		NJ_Usage_Tracker::log_usage( $result['tokens_used'] );
 		return new \WP_REST_Response( array_merge( [ 'post_id' => $post_id ], $result ), 200 );
 	}
 

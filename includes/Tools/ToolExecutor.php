@@ -397,14 +397,15 @@ class ToolExecutor {
 		}
 
 		if ( ! \WP_AI_Mind\Tiers\NJ_Usage_Tracker::check_limit( $user_id ) ) {
-			return [ 'error' => 'Monthly usage limit reached. Please upgrade your plan to continue.' ];
+			return [ 'error' => __( 'Monthly usage limit reached. Please upgrade your plan to continue.', 'wp-ai-mind' ) ];
 		}
 
-		$seo_data = \WP_AI_Mind\Modules\Seo\SeoModule::generate_for_post( $post_id );
+		$seo_data = \WP_AI_Mind\Modules\Seo\SeoModule::generate_for_post( $post_id, $user_id );
 		if ( \is_wp_error( $seo_data ) ) {
 			return [ 'error' => $seo_data->get_error_message() ];
 		}
 
+		\WP_AI_Mind\Tiers\NJ_Usage_Tracker::log_usage( $seo_data['tokens_used'], $user_id );
 		$applied = \WP_AI_Mind\Modules\Seo\SeoModule::apply_for_post( $post_id, $seo_data );
 
 		return [

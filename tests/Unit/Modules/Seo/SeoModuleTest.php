@@ -221,6 +221,7 @@ class SeoModuleTest extends TestCase {
 	// ── handle_generate error paths ────────────────────────────────────────────
 
 	public function test_handle_generate_returns_404_for_invalid_post_id(): void {
+		Functions\when( 'get_current_user_id' )->justReturn( 0 );
 		Functions\when( 'get_post' )->justReturn( null );
 		Functions\when( '__' )->alias( fn( $s ) => $s );
 
@@ -240,6 +241,7 @@ class SeoModuleTest extends TestCase {
 		$post->post_excerpt = '';
 		$post->post_content = 'Content here.';
 
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_post' )->justReturn( $post );
 		Functions\when( 'current_user_can' )->justReturn( false );
 		Functions\when( '__' )->alias( fn( $s ) => $s );
