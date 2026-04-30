@@ -52,7 +52,7 @@ export default function DashboardApp() {
 
 			<div className="wpaim-dash-body">
 				<StartTiles urls={ urls } />
-				<UsageWidget usage={ data.usage ?? null } />
+				<UsageWidget usage={ usage } />
 				<ResourceList
 					resourceUrls={ resourceUrls }
 					version={ version }

@@ -11,7 +11,7 @@ import { __, sprintf } from '@wordpress/i18n';
  * @param {Object|null}  props.usage  Usage summary from `NJ_Usage_Tracker::get_usage()`:
  *                                    `{ tier, used, limit, remaining, can_use }`.
  *                                    When null or falsy the component renders nothing.
- * @returns {ReactElement|null}
+ * @return {ReactElement|null}
  *
  * @example
  * <UsageWidget usage={ data.usage ?? null } />
@@ -24,7 +24,9 @@ export default function UsageWidget( { usage } ) {
 	const { tier, used, limit, can_use: canUse } = usage;
 
 	const hasLimit = limit !== null && limit !== undefined;
-	const usedPct = hasLimit ? Math.min( 100, Math.round( ( used / limit ) * 100 ) ) : 0;
+	const usedPct = hasLimit
+		? Math.min( 100, Math.round( ( used / limit ) * 100 ) )
+		: 0;
 
 	return (
 		<div className="wpaim-usage-widget">
@@ -33,12 +35,21 @@ export default function UsageWidget( { usage } ) {
 					{ __( 'Usage', 'wp-ai-mind' ) }
 				</span>
 				<span className="wpaim-usage-widget__tier-badge">
-					{ sprintf( __( 'Tier: %s', 'wp-ai-mind' ), tier ) }
+					{
+						/* translators: %s: the user's current subscription tier slug */
+						sprintf( __( 'Tier: %s', 'wp-ai-mind' ), tier )
+					}
 				</span>
 			</div>
 
 			<div className="wpaim-usage-widget__value-row">
-				<span className={ `wpaim-usage-widget__value${ canUse ? '' : ' wpaim-usage-widget__value--limit-reached' }` }>
+				<span
+					className={ `wpaim-usage-widget__value${
+						canUse
+							? ''
+							: ' wpaim-usage-widget__value--limit-reached'
+					}` }
+				>
 					{ hasLimit ? usedPct + '%' : 'Unlimited' }
 				</span>
 				{ hasLimit && (
@@ -50,14 +61,19 @@ export default function UsageWidget( { usage } ) {
 
 			{ hasLimit && (
 				<div className="wpaim-usage-widget__token-count">
-					{ used.toLocaleString() } / { limit.toLocaleString() } tokens
+					{ used.toLocaleString() } / { limit.toLocaleString() }{ ' ' }
+					tokens
 				</div>
 			) }
 
 			{ hasLimit && (
 				<div className="wpaim-usage-widget__bar-track">
 					<div
-						className={ `wpaim-usage-widget__bar-fill${ canUse ? '' : ' wpaim-usage-widget__bar-fill--limit-reached' }` }
+						className={ `wpaim-usage-widget__bar-fill${
+							canUse
+								? ''
+								: ' wpaim-usage-widget__bar-fill--limit-reached'
+						}` }
 						style={ { width: `${ usedPct }%` } }
 					/>
 				</div>
@@ -65,7 +81,10 @@ export default function UsageWidget( { usage } ) {
 
 			{ hasLimit && ! canUse && (
 				<p className="wpaim-usage-widget__limit-message">
-					{ __( 'Monthly limit reached. Upgrade your plan to continue.', 'wp-ai-mind' ) }
+					{ __(
+						'Monthly limit reached. Upgrade your plan to continue.',
+						'wp-ai-mind'
+					) }
 				</p>
 			) }
 		</div>

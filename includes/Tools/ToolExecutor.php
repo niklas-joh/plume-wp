@@ -40,14 +40,13 @@ class ToolExecutor {
 	 */
 	public function execute( string $tool_name, array $args, int $user_id ): array {
 		$dispatch = [
-			'get_recent_posts'  => [ $this, 'get_recent_posts' ],
-			'get_post_content'  => [ $this, 'get_post_content' ],
-			'search_posts'      => [ $this, 'search_posts' ],
-			'create_post'       => [ $this, 'create_post' ],
-			'update_post'       => [ $this, 'update_post' ],
-			'get_pages'         => [ $this, 'get_pages' ],
-			'get_site_info'     => [ $this, 'get_site_info' ],
-			'generate_seo_meta' => [ $this, 'generate_seo_meta' ],
+			'get_recent_posts' => [ $this, 'get_recent_posts' ],
+			'get_post_content' => [ $this, 'get_post_content' ],
+			'search_posts'     => [ $this, 'search_posts' ],
+			'create_post'      => [ $this, 'create_post' ],
+			'update_post'      => [ $this, 'update_post' ],
+			'get_pages'        => [ $this, 'get_pages' ],
+			'get_site_info'    => [ $this, 'get_site_info' ],
 		];
 
 		if ( ! isset( $dispatch[ $tool_name ] ) ) {
@@ -358,63 +357,6 @@ class ToolExecutor {
 			'url'          => \get_bloginfo( 'url' ),
 			'wp_version'   => $GLOBALS['wp_version'],
 			'active_theme' => \wp_get_theme()->get( 'Name' ),
-		];
-	}
-
-	/**
-	 * Generate and apply SEO metadata for a post.
-	 *
-	 * Pro users: calls the AI provider and applies metadata automatically.
-	 * Free-tier users: returns post data for manual suggestion by the AI.
-	 *
-	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
-	 */
-	private function generate_seo_meta( array $args, int $user_id ): array {
-		$post_id = \absint( $args['post_id'] ?? 0 );
-		if ( 0 === $post_id ) {
-			return [ 'error' => 'A valid post_id is required.' ];
-		}
-
-		$post = \get_post( $post_id );
-		if ( null === $post ) {
-			return [ 'error' => 'Post not found.' ];
-		}
-
-		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
-			return [ 'error' => 'Insufficient permissions.' ];
-		}
-
-		if ( ! \WP_AI_Mind\Tiers\NJ_Tier_Manager::user_can( 'seo', $user_id ) ) {
-			return [
-				'seo_access'           => false,
-				'post_title'           => \html_entity_decode( $post->post_title, ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
-				'post_content_snippet' => mb_substr( \wp_strip_all_tags( $post->post_content ), 0, 500 ),
-				'note'                 => 'SEO auto-generation requires the Pro plan. Use the post data above to suggest appropriate SEO fields manually, and let the user know they can upgrade to Pro for one-click automated SEO optimisation.',
-			];
-		}
-
-		if ( ! \WP_AI_Mind\Tiers\NJ_Usage_Tracker::check_limit( $user_id ) ) {
-			return [ 'error' => 'Monthly usage limit reached. Please upgrade your plan to continue.' ];
-		}
-
-		$seo_data = \WP_AI_Mind\Modules\Seo\SeoModule::generate_for_post( $post_id );
-		if ( \is_wp_error( $seo_data ) ) {
-			return [ 'error' => $seo_data->get_error_message() ];
-		}
-
-		$applied = \WP_AI_Mind\Modules\Seo\SeoModule::apply_for_post( $post_id, $seo_data );
-
-		return [
-			'post_id'        => $post_id,
-			'meta_title'     => $seo_data['meta_title'],
-			'og_description' => $seo_data['og_description'],
-			'excerpt'        => $seo_data['excerpt'],
-			'alt_text'       => $seo_data['alt_text'],
-			'applied'        => $applied['updated'],
-			'tokens_used'    => $seo_data['tokens_used'],
 		];
 	}
 }
