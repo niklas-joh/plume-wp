@@ -156,20 +156,35 @@ class SeoModule {
 	/**
 	 * Generate SEO metadata for a post using the default AI provider.
 	 *
+	 * Returns an associative array with keys meta_title, og_description, excerpt,
+	 * alt_text, and tokens_used. Returns WP_Error on provider or parsing failure.
+	 * Token usage is NOT logged here — callers must call NJ_Usage_Tracker::log_usage() after a successful return.
+	 *
+	 * **Authorization:** This method does not perform any capability check.
+	 * Callers MUST verify that the acting user holds 'edit_post' permission for
+	 * $post_id before invoking it. The REST path enforces this via
+	 * handle_generate(); the chat path enforces it via ToolExecutor::generate_seo_meta().
+	 * Any future caller must supply its own guard.
+	 *
+	 * **Side effects:** On success this method fires a live AI provider request
+	 * and records token consumption via NJ_Usage_Tracker::log_usage(). Callers
+	 * are responsible for checking usage limits before invoking this method;
+	 * the token spend is not reversible if the result is discarded.
+	 *
 	 * @since 1.0.0
-	 * @param \WP_REST_Request $request Incoming REST request.
-	 * @return \WP_REST_Response
+	 * @param int $post_id Post ID to generate metadata for.
+	 * @param int $user_id WordPress user ID on whose behalf generation is performed; must hold edit_post for $post_id.
+	 * @return array<string,mixed>|\WP_Error
 	 */
-	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
-		$post_id = $request->get_param( 'post_id' );
-		$post    = \get_post( $post_id );
+	public static function generate_for_post( int $post_id, int $user_id ): array|\WP_Error {
+		$post = \get_post( $post_id );
 
 		if ( ! $post ) {
-			return new \WP_REST_Response( [ 'error' => __( 'Post not found.', 'wp-ai-mind' ) ], 404 );
+			return new \WP_Error( 'not_found', __( 'Post not found.', 'wp-ai-mind' ) );
 		}
 
-		if ( ! \current_user_can( 'edit_post', $post_id ) ) {
-			return new \WP_REST_Response( [ 'error' => __( 'Forbidden.', 'wp-ai-mind' ) ], 403 );
+		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
+			return new \WP_Error( 'forbidden', __( 'Forbidden.', 'wp-ai-mind' ) );
 		}
 
 		$title   = $post->post_title;
@@ -212,13 +227,12 @@ class SeoModule {
 			$factory  = new ProviderFactory( new ProviderSettings() );
 			$provider = $factory->make_default();
 			$response = $provider->complete( $req );
-			NJ_Usage_Tracker::log_usage( $response->total_tokens );
 		} catch ( ProviderException $e ) {
 			\error_log( 'WP AI Mind SeoModule provider error: ' . $e->getMessage() );
-			return new \WP_REST_Response( [ 'error' => __( 'Provider error. Please try again later.', 'wp-ai-mind' ) ], 502 );
+			return new \WP_Error( 'provider_error', __( 'Provider error. Please try again later.', 'wp-ai-mind' ) );
 		} catch ( \Exception $e ) {
 			\error_log( 'WP AI Mind SeoModule unexpected error: ' . $e->getMessage() );
-			return new \WP_REST_Response( [ 'error' => __( 'An unexpected error occurred. Please try again later.', 'wp-ai-mind' ) ], 500 );
+			return new \WP_Error( 'unexpected_error', __( 'An unexpected error occurred. Please try again later.', 'wp-ai-mind' ) );
 		}
 
 		$raw  = trim( $response->content );
@@ -227,20 +241,110 @@ class SeoModule {
 		$data = json_decode( $raw, true );
 
 		if ( ! is_array( $data ) ) {
-			return new \WP_REST_Response( [ 'error' => __( 'AI returned invalid JSON.', 'wp-ai-mind' ) ], 502 );
+			return new \WP_Error( 'invalid_json', __( 'AI returned invalid JSON.', 'wp-ai-mind' ) );
 		}
 
-		return new \WP_REST_Response(
-			[
-				'post_id'        => $post_id,
-				'meta_title'     => \sanitize_text_field( $data['meta_title'] ?? '' ),
-				'og_description' => \sanitize_text_field( $data['og_description'] ?? '' ),
-				'excerpt'        => \sanitize_textarea_field( $data['excerpt'] ?? '' ),
-				'alt_text'       => \sanitize_text_field( $data['alt_text'] ?? '' ),
-				'tokens_used'    => $response->total_tokens,
-			],
-			200
-		);
+		return [
+			'meta_title'     => \sanitize_text_field( $data['meta_title'] ?? '' ),
+			'og_description' => \sanitize_text_field( $data['og_description'] ?? '' ),
+			'excerpt'        => \sanitize_textarea_field( $data['excerpt'] ?? '' ),
+			'alt_text'       => \sanitize_text_field( $data['alt_text'] ?? '' ),
+			'tokens_used'    => $response->total_tokens,
+		];
+	}
+
+	/**
+	 * REST handler for POST /wp-ai-mind/v1/seo/generate.
+	 *
+	 * Validates the request, checks post-level edit capability, then delegates
+	 * to generate_for_post() and maps any WP_Error to the appropriate HTTP status.
+	 *
+	 * @since 1.0.0
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
+		$post_id = $request->get_param( 'post_id' );
+		$user_id = \get_current_user_id();
+
+		$post = \get_post( $post_id );
+		if ( ! $post ) {
+			return new \WP_REST_Response( [ 'error' => __( 'Post not found.', 'wp-ai-mind' ) ], 404 );
+		}
+
+		$result = self::generate_for_post( $post_id, $user_id );
+		if ( \is_wp_error( $result ) ) {
+			$code_map = [
+				'not_found'      => 404,
+				'forbidden'      => 403,
+				'provider_error' => 502,
+				// 'invalid_json' and 'unexpected_error' intentionally fall through to 500.
+			];
+			$status   = $code_map[ $result->get_error_code() ] ?? 500;
+			return new \WP_REST_Response( [ 'error' => $result->get_error_message() ], $status );
+		}
+
+		NJ_Usage_Tracker::log_usage( $result['tokens_used'] );
+		return new \WP_REST_Response( array_merge( [ 'post_id' => $post_id ], $result ), 200 );
+	}
+
+	/**
+	 * Apply SEO metadata fields to a post and its featured image.
+	 *
+	 * Expects $fields with optional keys: 'excerpt', 'meta_title', 'og_description', 'alt_text'.
+	 * Returns an array with 'post_id' and 'updated' (list of applied field names).
+	 *
+	 * @since 1.0.0
+	 * @param int                  $post_id Post ID to apply metadata to.
+	 * @param array<string,string> $fields  Associative array of SEO field values. Callers are responsible
+	 *                                      for sanitising values before passing them in — this method writes
+	 *                                      values directly to post meta and wp_update_post() without additional
+	 *                                      sanitisation. The REST path sanitises via register_rest_route() args;
+	 *                                      any future direct caller must apply sanitize_text_field() /
+	 *                                      sanitize_textarea_field() itself.
+	 * @return array<string,mixed>
+	 */
+	public static function apply_for_post( int $post_id, array $fields ): array {
+		$updated = [];
+
+		$excerpt = $fields['excerpt'] ?? null;
+		if ( null !== $excerpt && '' !== $excerpt ) {
+			\wp_update_post(
+				[
+					'ID'           => $post_id,
+					'post_excerpt' => $excerpt,
+				]
+			);
+			$updated[] = 'excerpt';
+		}
+
+		$meta_title = $fields['meta_title'] ?? null;
+		if ( null !== $meta_title && '' !== $meta_title ) {
+			\update_post_meta( $post_id, '_yoast_wpseo_title', $meta_title );
+			\update_post_meta( $post_id, 'rank_math_title', $meta_title );
+			$updated[] = 'meta_title';
+		}
+
+		$og_description = $fields['og_description'] ?? null;
+		if ( null !== $og_description && '' !== $og_description ) {
+			\update_post_meta( $post_id, '_yoast_wpseo_metadesc', $og_description );
+			\update_post_meta( $post_id, 'rank_math_description', $og_description );
+			$updated[] = 'og_description';
+		}
+
+		$alt_text = $fields['alt_text'] ?? null;
+		if ( null !== $alt_text && '' !== $alt_text ) {
+			$thumb_id = \get_post_thumbnail_id( $post_id );
+			if ( $thumb_id ) {
+				\update_post_meta( $thumb_id, '_wp_attachment_image_alt', $alt_text );
+				$updated[] = 'alt_text';
+			}
+		}
+
+		return [
+			'post_id' => $post_id,
+			'updated' => $updated,
+		];
 	}
 
 	/**
@@ -265,49 +369,16 @@ class SeoModule {
 			return new \WP_REST_Response( [ 'error' => __( 'Forbidden.', 'wp-ai-mind' ) ], 403 );
 		}
 
-		$updated = [];
+		$fields = [
+			'excerpt'        => $request->get_param( 'excerpt' ),
+			'meta_title'     => $request->get_param( 'meta_title' ),
+			'og_description' => $request->get_param( 'og_description' ),
+			'alt_text'       => $request->get_param( 'alt_text' ),
+		];
 
-		$excerpt = $request->get_param( 'excerpt' );
-		if ( null !== $excerpt && '' !== $excerpt ) {
-			\wp_update_post(
-				[
-					'ID'           => $post_id,
-					'post_excerpt' => $excerpt,
-				]
-			);
-			$updated[] = 'excerpt';
-		}
+		$result = self::apply_for_post( $post_id, $fields );
 
-		$meta_title = $request->get_param( 'meta_title' );
-		if ( null !== $meta_title && '' !== $meta_title ) {
-			\update_post_meta( $post_id, '_yoast_wpseo_title', $meta_title );
-			\update_post_meta( $post_id, 'rank_math_title', $meta_title );
-			$updated[] = 'meta_title';
-		}
-
-		$og_description = $request->get_param( 'og_description' );
-		if ( null !== $og_description && '' !== $og_description ) {
-			\update_post_meta( $post_id, '_yoast_wpseo_metadesc', $og_description );
-			\update_post_meta( $post_id, 'rank_math_description', $og_description );
-			$updated[] = 'og_description';
-		}
-
-		$alt_text = $request->get_param( 'alt_text' );
-		if ( null !== $alt_text && '' !== $alt_text ) {
-			$thumb_id = \get_post_thumbnail_id( $post_id );
-			if ( $thumb_id ) {
-				\update_post_meta( $thumb_id, '_wp_attachment_image_alt', $alt_text );
-				$updated[] = 'alt_text';
-			}
-		}
-
-		return new \WP_REST_Response(
-			[
-				'post_id' => $post_id,
-				'updated' => $updated,
-			],
-			200
-		);
+		return new \WP_REST_Response( $result, 200 );
 	}
 
 	/**
