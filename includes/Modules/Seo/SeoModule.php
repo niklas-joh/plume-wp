@@ -272,7 +272,7 @@ class SeoModule {
 	/**
 	 * Apply SEO metadata fields to a post and its featured image.
 	 *
-	 * Accepts the same field names as the /seo/apply REST endpoint.
+	 * Expects $fields with optional keys: 'excerpt', 'meta_title', 'og_description', 'alt_text'.
 	 * Returns an array with 'post_id' and 'updated' (list of applied field names).
 	 *
 	 * @since 1.0.0

@@ -27,123 +27,44 @@ export default function UsageWidget( { usage } ) {
 	const usedPct = hasLimit ? Math.min( 100, Math.round( ( used / limit ) * 100 ) ) : 0;
 
 	return (
-		<div
-			className="wpaim-usage-widget"
-			style={ {
-				background: '#f8f9fa',
-				border: '1px solid #e0e1e6',
-				borderRadius: 'var(--radius)',
-				padding: 'var(--space-4)',
-			} }
-		>
-			<div
-				style={ {
-					display: 'flex',
-					alignItems: 'baseline',
-					justifyContent: 'space-between',
-					marginBottom: 'var(--space-3)',
-				} }
-			>
-				<span
-					className="wpaim-dash-section-title"
-					style={ {
-						fontSize: '0.625rem',
-						fontWeight: 600,
-						color: 'var(--color-text-muted)',
-						textTransform: 'uppercase',
-						letterSpacing: '0.1em',
-						fontFamily: 'var(--font-mono, monospace)',
-					} }
-				>
+		<div className="wpaim-usage-widget">
+			<div className="wpaim-usage-widget__header">
+				<span className="wpaim-dash-section-title">
 					{ __( 'Usage', 'wp-ai-mind' ) }
 				</span>
-				<span
-					style={ {
-						fontSize: '0.625rem',
-						padding: '2px 6px',
-						borderRadius: '3px',
-						background: '#e0e1e6',
-						color: '#787c82',
-						fontWeight: 600,
-						textTransform: 'uppercase',
-						letterSpacing: '0.05em',
-					} }
-				>
+				<span className="wpaim-usage-widget__tier-badge">
 					{ sprintf( __( 'Tier: %s', 'wp-ai-mind' ), tier ) }
 				</span>
 			</div>
 
-			<div
-				style={ {
-					display: 'flex',
-					alignItems: 'baseline',
-					gap: 'var(--space-2)',
-				} }
-			>
-				<span
-					style={ {
-						fontSize: '1.5rem',
-						fontWeight: 700,
-						color: canUse ? 'var(--color-text-primary, #1d2327)' : '#d63638',
-						lineHeight: 1,
-					} }
-				>
+			<div className="wpaim-usage-widget__value-row">
+				<span className={ `wpaim-usage-widget__value${ canUse ? '' : ' wpaim-usage-widget__value--limit-reached' }` }>
 					{ hasLimit ? usedPct + '%' : 'Unlimited' }
 				</span>
 				{ hasLimit && (
-					<span
-						style={ {
-							fontSize: '0.6875rem',
-							color: 'var(--color-text-secondary)',
-						} }
-					>
+					<span className="wpaim-usage-widget__sub-label">
 						{ __( 'of quota used', 'wp-ai-mind' ) }
 					</span>
 				) }
 			</div>
 
 			{ hasLimit && (
-				<div
-					style={ {
-						fontSize: '0.625rem',
-						color: 'var(--color-text-muted)',
-						marginTop: '2px',
-						marginBottom: 'var(--space-2)',
-					} }
-				>
+				<div className="wpaim-usage-widget__token-count">
 					{ used.toLocaleString() } / { limit.toLocaleString() } tokens
 				</div>
 			) }
 
 			{ hasLimit && (
-				<div
-					style={ {
-						background: 'var(--color-border, #ddd)',
-						borderRadius: '4px',
-						height: '6px',
-						overflow: 'hidden',
-						marginTop: 'var(--space-2)',
-					} }
-				>
+				<div className="wpaim-usage-widget__bar-track">
 					<div
-						style={ {
-							width: `${ usedPct }%`,
-							height: '100%',
-							background: canUse ? 'var(--wp-admin-theme-color)' : '#d63638',
-							transition: 'width 0.3s ease',
-						} }
+						className={ `wpaim-usage-widget__bar-fill${ canUse ? '' : ' wpaim-usage-widget__bar-fill--limit-reached' }` }
+						style={ { width: `${ usedPct }%` } }
 					/>
 				</div>
 			) }
 
 			{ hasLimit && ! canUse && (
-				<p
-					style={ {
-						color: '#d63638',
-						margin: 'var(--space-2) 0 0',
-						fontSize: '0.6875rem',
-					} }
-				>
+				<p className="wpaim-usage-widget__limit-message">
 					{ __( 'Monthly limit reached. Upgrade your plan to continue.', 'wp-ai-mind' ) }
 				</p>
 			) }
