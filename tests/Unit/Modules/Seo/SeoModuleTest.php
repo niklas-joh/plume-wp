@@ -247,7 +247,9 @@ class SeoModuleTest extends TestCase {
 
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_post' )->justReturn( $post );
-		Functions\when( 'current_user_can' )->justReturn( false );
+		Functions\when( 'user_can' )->justReturn( false );
+		// is_wp_error must recognise the WP_Error returned by generate_for_post.
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
 		Functions\when( '__' )->alias( fn( $s ) => $s );
 
 		$request = new \WP_REST_Request( 'POST' );

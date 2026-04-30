@@ -177,14 +177,14 @@ class SeoModule {
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function generate_for_post( int $post_id, int $user_id ): array|\WP_Error {
-		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
-			return new \WP_Error( 'forbidden', __( 'Forbidden.', 'wp-ai-mind' ) );
-		}
-
 		$post = \get_post( $post_id );
 
 		if ( ! $post ) {
 			return new \WP_Error( 'not_found', __( 'Post not found.', 'wp-ai-mind' ) );
+		}
+
+		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
+			return new \WP_Error( 'forbidden', __( 'Forbidden.', 'wp-ai-mind' ) );
 		}
 
 		$title   = $post->post_title;
@@ -270,10 +270,6 @@ class SeoModule {
 		$post = \get_post( $post_id );
 		if ( ! $post ) {
 			return new \WP_REST_Response( [ 'error' => __( 'Post not found.', 'wp-ai-mind' ) ], 404 );
-		}
-
-		if ( ! \current_user_can( 'edit_post', $post_id ) ) {
-			return new \WP_REST_Response( [ 'error' => __( 'Forbidden.', 'wp-ai-mind' ) ], 403 );
 		}
 
 		$result = self::generate_for_post( $post_id, $user_id );
