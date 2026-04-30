@@ -8,12 +8,14 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Minimal wpdb stub that supports insert() and update().
+ *
+ * @package WP_AI_Mind\Tests
  */
 class FakeWpdb {
     public string $prefix    = 'wp_';
     public int    $insert_id = 0;
 
-    public function insert( string $table, array $data, array $format = [] ): int {
+    public function insert( string $table, array $data, array $format = [] ): int|false {
         return 1;
     }
 

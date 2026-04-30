@@ -51,6 +51,9 @@ class ChatRestControllerTest extends TestCase {
         };
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::update_conversation
+     */
     public function test_update_conversation_returns_404_when_not_found(): void {
         Functions\when( '__' )->alias( fn( $s ) => $s );
 
@@ -69,6 +72,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 404, $response->get_error_data()['status'] );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::update_conversation
+     */
     public function test_update_conversation_returns_403_when_not_owned(): void {
         Functions\when( '__' )->alias( fn( $s ) => $s );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
@@ -88,6 +94,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 403, $response->get_error_data()['status'] );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::update_conversation
+     */
     public function test_update_conversation_happy_path_calls_update_title_and_returns_updated(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 5 );
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
@@ -112,6 +121,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( [ 'updated' => true ], $response->data );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::update_conversation
+     */
     public function test_update_conversation_sanitises_html_in_title(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 3 );
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => strip_tags( $v ) );
@@ -133,6 +145,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertInstanceOf( \WP_REST_Response::class, $response );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::update_conversation
+     */
     public function test_update_conversation_returns_500_when_db_update_fails(): void {
         Functions\when( '__' )->alias( fn( $s ) => $s );
         Functions\when( 'get_current_user_id' )->justReturn( 5 );
@@ -156,6 +171,9 @@ class ChatRestControllerTest extends TestCase {
 
     // ── list_conversations ────────────────────────────────────────────────────
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::list_conversations
+     */
     public function test_list_conversations_returns_only_expected_keys(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
 
@@ -202,6 +220,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertArrayNotHasKey( 'post_id', $item, 'post_id must not be exposed in the response.' );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::list_conversations
+     */
     public function test_list_conversations_casts_id_to_int(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
 
@@ -231,6 +252,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 99, $response->data[0]['id'], 'id must be cast to int, not returned as a string.' );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::list_conversations
+     */
     public function test_list_conversations_returns_empty_array_when_no_conversations(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
 
@@ -262,6 +286,9 @@ class ChatRestControllerTest extends TestCase {
 
     // ── create_conversation ───────────────────────────────────────────────────
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::create_conversation
+     */
     public function test_create_conversation_returns_201_with_conversation_data(): void {
         $store_mock = $this->createMock( \WP_AI_Mind\DB\ConversationStore::class );
         $store_mock->method( 'create' )->willReturn( 7 );
@@ -296,6 +323,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertArrayHasKey( 'updated_at', $response->data );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::create_conversation
+     */
     public function test_create_conversation_returns_500_when_db_insert_fails(): void {
         Functions\when( '__' )->alias( fn( $s ) => $s );
 
@@ -329,6 +359,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertArrayHasKey( 'message', $response->data );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::create_conversation
+     */
     public function test_create_conversation_returns_500_when_get_conversation_returns_null(): void {
         Functions\when( '__' )->alias( fn( $s ) => $s );
 
@@ -364,6 +397,9 @@ class ChatRestControllerTest extends TestCase {
 
     // ── Route registration ─────────────────────────────────────────────────────
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::register_routes
+     */
     public function test_register_routes_registers_expected_endpoints(): void {
         $registered = [];
         Functions\when( 'register_rest_route' )->alias(
@@ -422,6 +458,9 @@ class ChatRestControllerTest extends TestCase {
 
     // ── Ownership guard ────────────────────────────────────────────────────────
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::send_message
+     */
     public function test_send_message_returns_403_when_conversation_not_owned(): void {
         // Arrange: conversation belongs to user 999, but current user is 1.
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
@@ -460,6 +499,9 @@ class ChatRestControllerTest extends TestCase {
 
     // ── Tool loop ──────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::send_message
+     */
     public function test_send_message_tool_loop_executes_tool_and_returns_final(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
@@ -616,6 +658,9 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 502, $response->get_status(), 'Provider 403 must be masked as 502.' );
     }
 
+    /**
+     * @covers \WP_AI_Mind\Modules\Chat\ChatRestController::send_message
+     */
     public function test_send_message_returns_500_after_max_iterations(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
