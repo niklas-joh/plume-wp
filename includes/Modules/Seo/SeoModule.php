@@ -258,7 +258,11 @@ class SeoModule {
 
 		$result = self::generate_for_post( $post_id );
 		if ( \is_wp_error( $result ) ) {
-			$status = 'not_found' === $result->get_error_code() ? 404 : 502;
+			$code_map = [
+				'not_found'      => 404,
+				'provider_error' => 502,
+			];
+			$status = $code_map[ $result->get_error_code() ] ?? 500;
 			return new \WP_REST_Response( [ 'error' => $result->get_error_message() ], $status );
 		}
 
