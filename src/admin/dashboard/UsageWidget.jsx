@@ -1,3 +1,5 @@
+import { __, sprintf } from '@wordpress/i18n';
+
 /**
  * Compact usage widget embedded in the main Dashboard page.
  *
@@ -53,7 +55,7 @@ export default function UsageWidget( { usage } ) {
 						fontFamily: 'var(--font-mono, monospace)',
 					} }
 				>
-					Usage
+					{ __( 'Usage', 'wp-ai-mind' ) }
 				</span>
 				<span
 					style={ {
@@ -67,7 +69,7 @@ export default function UsageWidget( { usage } ) {
 						letterSpacing: '0.05em',
 					} }
 				>
-					Tier: { tier }
+					{ sprintf( __( 'Tier: %s', 'wp-ai-mind' ), tier ) }
 				</span>
 			</div>
 
@@ -95,7 +97,7 @@ export default function UsageWidget( { usage } ) {
 							color: 'var(--color-text-secondary)',
 						} }
 					>
-						of quota used
+						{ __( 'of quota used', 'wp-ai-mind' ) }
 					</span>
 				) }
 			</div>
@@ -142,7 +144,7 @@ export default function UsageWidget( { usage } ) {
 						fontSize: '0.6875rem',
 					} }
 				>
-					Monthly limit reached. Upgrade your plan to continue.
+					{ __( 'Monthly limit reached. Upgrade your plan to continue.', 'wp-ai-mind' ) }
 				</p>
 			) }
 		</div>
