@@ -20,7 +20,6 @@ export default function DashboardApp() {
 	const {
 		bannerState = 'none',
 		onboardingSeen = true,
-		usage = null,
 		version = '',
 		nonce = '',
 		restUrl = '',

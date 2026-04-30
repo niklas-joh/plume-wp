@@ -9,7 +9,7 @@
  * @param {Object|null}  props.usage  Usage summary from `NJ_Usage_Tracker::get_usage()`:
  *                                    `{ tier, used, limit, remaining, can_use }`.
  *                                    When null or falsy the component renders nothing.
- * @returns {ReactElement|null}
+ * @return {ReactElement|null}
  *
  * @example
  * <UsageWidget usage={ data.usage ?? null } />
@@ -22,7 +22,9 @@ export default function UsageWidget( { usage } ) {
 	const { tier, used, limit, can_use: canUse } = usage;
 
 	const hasLimit = limit !== null && limit !== undefined;
-	const usedPct = hasLimit ? Math.min( 100, Math.round( ( used / limit ) * 100 ) ) : 0;
+	const usedPct = hasLimit
+		? Math.min( 100, Math.round( ( used / limit ) * 100 ) )
+		: 0;
 
 	return (
 		<div
@@ -82,7 +84,9 @@ export default function UsageWidget( { usage } ) {
 					style={ {
 						fontSize: '1.5rem',
 						fontWeight: 700,
-						color: canUse ? 'var(--color-text-primary, #1d2327)' : '#d63638',
+						color: canUse
+							? 'var(--color-text-primary, #1d2327)'
+							: '#d63638',
 						lineHeight: 1,
 					} }
 				>
@@ -109,7 +113,8 @@ export default function UsageWidget( { usage } ) {
 						marginBottom: 'var(--space-2)',
 					} }
 				>
-					{ used.toLocaleString() } / { limit.toLocaleString() } tokens
+					{ used.toLocaleString() } / { limit.toLocaleString() }{ ' ' }
+					tokens
 				</div>
 			) }
 
