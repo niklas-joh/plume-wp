@@ -311,7 +311,7 @@ class ToolRegistry {
 				'required'   => [ 'post_id' ],
 			],
 			capability:           'edit_posts',
-			requires_write_tools: false,
+			requires_write_tools: true,
 		);
 	}
 
