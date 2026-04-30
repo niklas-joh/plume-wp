@@ -82,9 +82,9 @@ export default function UsageDashboard() {
 						} }
 					/>
 					<div className="wpaim-usage__stat-value">
-						{ used.toLocaleString() }
+						{ hasLimit ? Math.round( usedPct ) + '%' : '∞' }
 					</div>
-					<div className="wpaim-usage__stat-label">Requests used</div>
+					<div className="wpaim-usage__stat-label">of quota used</div>
 				</div>
 				<div className="wpaim-usage__stat-card">
 					<BarChart2
@@ -95,9 +95,9 @@ export default function UsageDashboard() {
 						} }
 					/>
 					<div className="wpaim-usage__stat-value">
-						{ hasLimit ? remaining.toLocaleString() : '∞' }
+						{ hasLimit ? ( 100 - Math.round( usedPct ) ) + '%' : '∞' }
 					</div>
-					<div className="wpaim-usage__stat-label">Remaining</div>
+					<div className="wpaim-usage__stat-label">remaining</div>
 				</div>
 				<div className="wpaim-usage__stat-card">
 					<BarChart2
