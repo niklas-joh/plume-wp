@@ -249,7 +249,10 @@ class SeoModule {
 	}
 
 	/**
-	 * Generate SEO metadata for a post using the default AI provider.
+	 * REST handler for POST /wp-ai-mind/v1/seo/generate.
+	 *
+	 * Validates the request, checks post-level edit capability, then delegates
+	 * to generate_for_post() and maps any WP_Error to the appropriate HTTP status.
 	 *
 	 * @since 1.0.0
 	 * @param \WP_REST_Request $request Incoming REST request.

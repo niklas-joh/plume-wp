@@ -368,23 +368,23 @@ class ToolExecutor {
 	 * Free-tier users: returns post data for manual suggestion by the AI.
 	 *
 	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
+	 * @param array<string,mixed> $args    Tool arguments from the AI provider.
+	 * @param int                 $user_id WordPress user ID performing the call.
+	 * @return array<string,mixed>
 	 */
 	private function generate_seo_meta( array $args, int $user_id ): array {
 		$post_id = \absint( $args['post_id'] ?? 0 );
 		if ( 0 === $post_id ) {
-			return [ 'error' => 'A valid post_id is required.' ];
+			return [ 'error' => __( 'A valid post_id is required.', 'wp-ai-mind' ) ];
 		}
 
 		$post = \get_post( $post_id );
 		if ( null === $post ) {
-			return [ 'error' => 'Post not found.' ];
+			return [ 'error' => __( 'Post not found.', 'wp-ai-mind' ) ];
 		}
 
 		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
-			return [ 'error' => 'Insufficient permissions.' ];
+			return [ 'error' => __( 'Insufficient permissions.', 'wp-ai-mind' ) ];
 		}
 
 		if ( ! \WP_AI_Mind\Tiers\NJ_Tier_Manager::user_can( 'seo', $user_id ) ) {
