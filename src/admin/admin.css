@@ -4,11 +4,13 @@
    WordPress wraps admin page callbacks in #wpbody-content (padding-bottom: 65px)
    and #wpbody. Without these overrides the shell overflows the viewport and
    creates a vertical scrollbar. The 32px subtraction accounts for #wpadminbar. */
+/* stylelint-disable-next-line selector-class-pattern */
 .toplevel_page_wp-ai-mind #wpbody {
 	height: calc(100vh - 32px);
 	overflow: hidden;
 }
 
+/* stylelint-disable-next-line selector-class-pattern */
 .toplevel_page_wp-ai-mind #wpbody-content {
 	padding-bottom: 0;
 	overflow: hidden;
@@ -38,18 +40,6 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-}
-
-/* Collapsed sidebar: hide list and title, centre the toggle */
-.wpaim-shell--sidebar-collapsed .wpaim-sidebar__title,
-.wpaim-shell--sidebar-collapsed .wpaim-conv-list,
-.wpaim-shell--sidebar-collapsed .wpaim-sidebar__empty {
-	display: none;
-}
-
-.wpaim-shell--sidebar-collapsed .wpaim-sidebar__header {
-	justify-content: center;
-	padding: var(--space-4) var(--space-2) var(--space-3);
 }
 
 .wpaim-sidebar__toggle {
@@ -100,6 +90,19 @@
 	flex: 1;
 	overflow-y: auto;
 	padding: var(--space-2);
+}
+
+/* Collapsed sidebar: hide list and title, centre the toggle.
+   Placed after all base selectors to satisfy no-descending-specificity. */
+.wpaim-shell--sidebar-collapsed .wpaim-sidebar__title,
+.wpaim-shell--sidebar-collapsed .wpaim-conv-list,
+.wpaim-shell--sidebar-collapsed .wpaim-sidebar__empty {
+	display: none;
+}
+
+.wpaim-shell--sidebar-collapsed .wpaim-sidebar__header {
+	justify-content: center;
+	padding: var(--space-4) var(--space-2) var(--space-3);
 }
 
 .wpaim-conv-item {
