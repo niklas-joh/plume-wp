@@ -11,11 +11,12 @@ import ContextPicker from './ContextPicker';
  * while a post is attached.
  *
  * @param {Object}        props
- * @param {Function}      props.onSend       Called with the trimmed message string when submitted.
- * @param {boolean}       props.isLoading    Disables the input and shows a spinner while true.
- * @param {Object|null}   props.attachedPost Currently attached post object (`{ id, title }`) or null.
- * @param {Function}      props.onAttach     Called with the selected post object when context is chosen.
- * @param {Function}      props.onDetach     Called when the attachment pill dismiss button is clicked.
+ * @param {Function}      props.onSend         Called with the trimmed message string when submitted.
+ * @param {boolean}       props.isLoading      Disables the input and shows a spinner while true.
+ * @param {Object|null}   props.attachedPost   Currently attached post object (`{ id, title }`) or null.
+ * @param {Function}      props.onAttach       Called with the selected post object when context is chosen.
+ * @param {Function}      props.onDetach       Called when the attachment pill dismiss button is clicked.
+ * @param {boolean}       [props.noBorderTop]  When true, removes the top border (used in the centred launch view).
  * @return {ReactElement}
  */
 export default function Composer( {
@@ -24,6 +25,7 @@ export default function Composer( {
 	attachedPost,
 	onAttach,
 	onDetach,
+	noBorderTop,
 } ) {
 	const [ value, setValue ] = useState( '' );
 	const [ showPicker, setShowPicker ] = useState( false );
@@ -45,7 +47,7 @@ export default function Composer( {
 	}
 
 	return (
-		<div className="wpaim-composer">
+		<div className={ `wpaim-composer${ noBorderTop ? ' wpaim-composer--borderless' : '' }` }>
 			{ showPicker && (
 				<ContextPicker
 					onSelect={ ( post ) => {

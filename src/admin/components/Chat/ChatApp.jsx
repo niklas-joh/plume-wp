@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { MessageSquare, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import ConversationHistory from '../Sidebar/ConversationHistory';
 import MessageList from './MessageList';
 import Composer from './Composer';
@@ -9,6 +9,12 @@ import ModelSelector from '../RightPanel/ModelSelector';
 import apiFetch from '@wordpress/api-fetch';
 
 const NEW_CONVERSATION_TITLE = __( 'New conversation', 'wp-ai-mind' );
+
+const LAUNCH_SUGGESTIONS = [
+	{ label: __( 'Summarise this post', 'wp-ai-mind' ), prompt: 'Please summarise the current post in 2-3 sentences.' },
+	{ label: __( 'Improve readability', 'wp-ai-mind' ), prompt: 'Review this content and suggest readability improvements.' },
+	{ label: __( 'Write a post', 'wp-ai-mind' ), prompt: 'Help me write a new blog post. What topic should we start with?' },
+];
 
 /**
  * Root chat application: conversation list, message thread, and composer.
@@ -262,20 +268,29 @@ export default function ChatApp() {
 
 			<main className="wpaim-main">
 				{ messages.length === 0 && ! isLoading ? (
-					<EmptyState />
-				) : (
-					<MessageList
-						messages={ messages }
+					<CenteredLaunch
+						suggestions={ LAUNCH_SUGGESTIONS }
+						onSend={ sendMessage }
 						isLoading={ isLoading }
+						attachedPost={ attachedPost }
+						onAttach={ setAttachedPost }
+						onDetach={ () => setAttachedPost( null ) }
 					/>
+				) : (
+					<>
+						<MessageList
+							messages={ messages }
+							isLoading={ isLoading }
+						/>
+						<Composer
+							onSend={ sendMessage }
+							isLoading={ isLoading }
+							attachedPost={ attachedPost }
+							onAttach={ setAttachedPost }
+							onDetach={ () => setAttachedPost( null ) }
+						/>
+					</>
 				) }
-				<Composer
-					onSend={ sendMessage }
-					isLoading={ isLoading }
-					attachedPost={ attachedPost }
-					onAttach={ setAttachedPost }
-					onDetach={ () => setAttachedPost( null ) }
-				/>
 			</main>
 
 			<aside className="wpaim-right-panel">
@@ -294,24 +309,48 @@ export default function ChatApp() {
 }
 
 /**
- * Placeholder displayed when no messages have been sent yet.
+ * Centred launch view shown before any message has been sent.
  *
+ * Vertically centres a heading, three suggestion chips, and the full composer
+ * in the main column. Clicking a chip auto-submits that prompt.
+ *
+ * @param {Object}      props
+ * @param {Array}       props.suggestions  Array of {label, prompt} objects.
+ * @param {Function}    props.onSend       Forwarded to Composer and chip clicks.
+ * @param {boolean}     props.isLoading    Forwarded to Composer.
+ * @param {Object|null} props.attachedPost Forwarded to Composer.
+ * @param {Function}    props.onAttach     Forwarded to Composer.
+ * @param {Function}    props.onDetach     Forwarded to Composer.
  * @return {ReactElement}
  */
-function EmptyState() {
+function CenteredLaunch( { suggestions, onSend, isLoading, attachedPost, onAttach, onDetach } ) {
 	return (
-		<div className="wpaim-empty">
-			<MessageSquare
-				size={ 32 }
-				strokeWidth={ 1 }
-				className="wpaim-empty__icon"
-			/>
-			<p className="wpaim-empty__title">
-				What would you like to work on?
-			</p>
-			<p className="wpaim-empty__subtitle">
-				Ask anything, or choose a quick action on the right.
-			</p>
+		<div className="wpaim-launch">
+			<div className="wpaim-launch__inner">
+				<p className="wpaim-launch__title">
+					{ __( 'How can I help you today?', 'wp-ai-mind' ) }
+				</p>
+				<div className="wpaim-launch__suggestions">
+					{ suggestions.map( ( s ) => (
+						<button
+							key={ s.label }
+							className="wpaim-suggestion-chip"
+							type="button"
+							onClick={ () => onSend( s.prompt ) }
+						>
+							{ s.label }
+						</button>
+					) ) }
+				</div>
+				<Composer
+					onSend={ onSend }
+					isLoading={ isLoading }
+					attachedPost={ attachedPost }
+					onAttach={ onAttach }
+					onDetach={ onDetach }
+					noBorderTop
+				/>
+			</div>
 		</div>
 	);
 }
