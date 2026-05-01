@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/niklas-joh/wp-ai-mind/compare/v1.7.0...v1.7.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* **chat:** fix post content not read and add post-attach guard for quick actions ([#436](https://github.com/niklas-joh/wp-ai-mind/issues/436)) ([1327247](https://github.com/niklas-joh/wp-ai-mind/commit/1327247d43b5bbbf2a19dcacd830109d0208a2f6))
+
 # [1.7.0](https://github.com/niklas-joh/wp-ai-mind/compare/v1.6.0...v1.7.0) (2026-05-01)
 
 
