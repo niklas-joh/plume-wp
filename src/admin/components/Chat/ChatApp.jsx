@@ -11,9 +11,18 @@ import apiFetch from '@wordpress/api-fetch';
 const NEW_CONVERSATION_TITLE = __( 'New conversation', 'wp-ai-mind' );
 
 const LAUNCH_SUGGESTIONS = [
-	{ label: __( 'Summarise this post', 'wp-ai-mind' ), prompt: 'Please summarise the current post in 2-3 sentences.' },
-	{ label: __( 'Improve readability', 'wp-ai-mind' ), prompt: 'Review this content and suggest readability improvements.' },
-	{ label: __( 'Write a post', 'wp-ai-mind' ), prompt: 'Help me write a new blog post. What topic should we start with?' },
+	{
+		label: __( 'Summarise this post', 'wp-ai-mind' ),
+		prompt: 'Please summarise the current post in 2-3 sentences.',
+	},
+	{
+		label: __( 'Improve readability', 'wp-ai-mind' ),
+		prompt: 'Review this content and suggest readability improvements.',
+	},
+	{
+		label: __( 'Write a post', 'wp-ai-mind' ),
+		prompt: 'Help me write a new blog post. What topic should we start with?',
+	},
 ];
 
 /**
@@ -323,7 +332,14 @@ export default function ChatApp() {
  * @param {Function}    props.onDetach     Forwarded to Composer.
  * @return {ReactElement}
  */
-function CenteredLaunch( { suggestions, onSend, isLoading, attachedPost, onAttach, onDetach } ) {
+function CenteredLaunch( {
+	suggestions,
+	onSend,
+	isLoading,
+	attachedPost,
+	onAttach,
+	onDetach,
+} ) {
 	return (
 		<div className="wpaim-launch">
 			<div className="wpaim-launch__inner">

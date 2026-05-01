@@ -47,7 +47,11 @@ export default function Composer( {
 	}
 
 	return (
-		<div className={ `wpaim-composer${ noBorderTop ? ' wpaim-composer--borderless' : '' }` }>
+		<div
+			className={ `wpaim-composer${
+				noBorderTop ? ' wpaim-composer--borderless' : ''
+			}` }
+		>
 			{ showPicker && (
 				<ContextPicker
 					onSelect={ ( post ) => {
