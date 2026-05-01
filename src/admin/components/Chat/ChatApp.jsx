@@ -288,6 +288,7 @@ export default function ChatApp() {
 								? __( 'Expand sidebar', 'wp-ai-mind' )
 								: __( 'Collapse sidebar', 'wp-ai-mind' )
 						}
+						aria-expanded={ ! isSidebarCollapsed }
 						type="button"
 					>
 						{ isSidebarCollapsed ? (
