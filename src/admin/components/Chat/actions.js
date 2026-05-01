@@ -50,4 +50,8 @@ export const PRO_ACTIONS = [
 ];
 
 /** Actions shown as suggestion chips on the centred launch screen. */
-export const LAUNCH_ACTIONS = [ FREE_ACTIONS[ 0 ], FREE_ACTIONS[ 1 ], PRO_ACTIONS[ 0 ] ];
+export const LAUNCH_ACTIONS = [
+	FREE_ACTIONS[ 0 ],
+	FREE_ACTIONS[ 1 ],
+	PRO_ACTIONS[ 0 ],
+];

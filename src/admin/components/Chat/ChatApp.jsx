@@ -11,10 +11,17 @@ import { LAUNCH_ACTIONS } from './actions';
 
 const NEW_CONVERSATION_TITLE = __( 'New conversation', 'wp-ai-mind' );
 
-const LAUNCH_SUGGESTIONS = LAUNCH_ACTIONS.map( ( a ) => ( {
-	...a,
-	label: __( a.label, 'wp-ai-mind' ),
-} ) );
+const LAUNCH_SUGGESTIONS = [
+	{
+		...LAUNCH_ACTIONS[ 0 ],
+		label: __( 'Summarise this post', 'wp-ai-mind' ),
+	},
+	{
+		...LAUNCH_ACTIONS[ 1 ],
+		label: __( 'Improve readability', 'wp-ai-mind' ),
+	},
+	{ ...LAUNCH_ACTIONS[ 2 ], label: __( 'Write a post', 'wp-ai-mind' ) },
+];
 
 /**
  * Root chat application: conversation list, message thread, and composer.
