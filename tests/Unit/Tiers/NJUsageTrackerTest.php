@@ -5,6 +5,7 @@ namespace WP_AI_Mind\Tests\Unit\Tiers;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use WP_AI_Mind\Tests\Helpers\WpdbStubFactory;
 use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
 
 class NJUsageTrackerTest extends TestCase {
@@ -15,9 +16,9 @@ class NJUsageTrackerTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
-		// Reset $wpdb mock between tests.
+		// Restore a valid $wpdb baseline so log_usage() does not crash in later test classes.
 		global $wpdb;
-		$wpdb = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$wpdb = WpdbStubFactory::create(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		Monkey\tearDown();
 		parent::tearDown();
 	}
