@@ -162,9 +162,9 @@ class SeoModule {
 	 *
 	 * **Authorization:** This method performs a post-level capability check.
 	 * It verifies that $user_id holds 'edit_post' for $post_id and returns a
-	 * 'forbidden' WP_Error if not. Both direct callers (handle_generate, ToolExecutor)
-	 * also enforce this upstream as defence-in-depth; any future caller should
-	 * do the same.
+	 * 'forbidden' WP_Error if not. The REST path enforces 'edit_posts' via the
+	 * route permission_callback; any future caller should supply its own guard
+	 * at minimum.
 	 *
 	 * **Side effects:** On success this method fires a live AI provider request
 	 * and records token consumption via NJ_Usage_Tracker::log_usage(). Callers
