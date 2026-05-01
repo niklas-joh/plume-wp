@@ -406,7 +406,7 @@ function CenteredLaunch( {
 					) ) }
 				</div>
 				<Composer
-					onSend={ ( text ) => onSend( text ) }
+					onSend={ onSend }
 					isLoading={ isLoading }
 					attachedPost={ attachedPost }
 					onAttach={ onAttach }

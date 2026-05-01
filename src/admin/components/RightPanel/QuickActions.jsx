@@ -9,7 +9,7 @@ import { FREE_ACTIONS, PRO_ACTIONS } from '../Chat/actions';
  * no post is currently attached, so the user is prompted to select one first.
  *
  * @param {Object}      props
- * @param {Function}    props.onAction        Called with (prompt, requiresPost) when an action fires.
+ * @param {Function}    props.onAction        Called with (prompt) when an action fires without a post requirement.
  * @param {boolean}     props.isPro           When true, the full Pro action set is displayed.
  * @param {Object|null} props.attachedPost    Currently attached post, or null.
  * @param {Function}    props.onRequestAttach Called with the pending prompt when a post is required but missing.

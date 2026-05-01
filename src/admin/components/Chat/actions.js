@@ -4,6 +4,12 @@
  * Single source of truth for prompt strings used by both QuickActions
  * and the launch-view suggestion chips in ChatApp. Centralising here
  * means a prompt update only needs to happen in one place.
+ *
+ * Each action object has the shape:
+ *   { id: string, label: string, prompt: string, icon: Component, requiresPost: boolean }
+ *
+ * When `requiresPost` is true the consumer must ensure a post is attached
+ * before dispatching the prompt; otherwise the context picker should be opened first.
  */
 import { FilePenLine, Search, Image } from 'lucide-react';
 
