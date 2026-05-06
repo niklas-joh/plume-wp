@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace WP_AI_Mind\Proxy;
 
 use WP_Error;
+use WP_AI_Mind\Admin\ActivationVerifyRestController;
 use WP_AI_Mind\Tiers\NJ_Tier_Config;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -110,16 +111,51 @@ class NJ_Site_Registration {
 	/**
 	 * Send a registration request to the proxy Worker.
 	 *
+	 * Performs a two-step challenge handshake: fetches a single-use challenge
+	 * token from the Worker, stores it as a transient so the Worker callback
+	 * can verify it, then sends the challenge alongside the site URL.
+	 *
 	 * @since 1.2.0
 	 * @return string|WP_Error The stored site token on success, or a WP_Error on failure.
 	 */
 	public static function register(): string|WP_Error {
+		$proxy_url = NJ_Tier_Config::get_proxy_url();
+
+		// Step 1 — fetch a single-use challenge from the Worker.
+		$challenge_response = wp_remote_get(
+			$proxy_url . '/activation-challenge',
+			[ 'timeout' => 10 ]
+		);
+
+		if ( is_wp_error( $challenge_response ) ) {
+			return $challenge_response;
+		}
+
+		$challenge_code = (int) wp_remote_retrieve_response_code( $challenge_response );
+		$challenge_body = json_decode( wp_remote_retrieve_body( $challenge_response ), true ) ?? [];
+
+		if ( 200 !== $challenge_code || empty( $challenge_body['challenge'] ) ) {
+			return new WP_Error( 'challenge_failed', "Could not obtain activation challenge (HTTP {$challenge_code})" );
+		}
+
+		$challenge = sanitize_text_field( $challenge_body['challenge'] );
+
+		// Step 2 — store the challenge locally so the Worker callback succeeds.
+		ActivationVerifyRestController::store_challenge( $challenge );
+
+		// Step 3 — register with the Worker, sending the challenge token.
 		$response = wp_remote_post(
-			NJ_Tier_Config::get_proxy_url() . '/register',
+			$proxy_url . '/register',
 			[
 				'headers' => [ 'Content-Type' => 'application/json' ],
-				'body'    => wp_json_encode( [ 'site_url' => home_url() ] ),
-				'timeout' => 15,
+				'body'    => wp_json_encode(
+					[
+						'site_url'        => home_url(),
+						'challenge_token' => $challenge,
+					]
+				),
+				// Increased timeout: Worker makes a callback to this site before responding.
+				'timeout' => 20,
 			]
 		);
 

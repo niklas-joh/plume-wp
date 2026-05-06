@@ -1,27 +1,36 @@
 // src/index.ts
 
-import { Env, ProxyRequest, ProxyTier } from './types';
+import { Env, ProxyRequest, ProxyTier, SiteRecord } from './types';
 import { authenticateRequest } from './auth';
-import { handleRegistration } from './registration';
+import { handleActivationChallenge, handleRegistration } from './registration';
 import { handleWebhook } from './webhook';
+import { TRIAL_PERIOD_MS } from './constants';
 
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
 
 export default {
 	async fetch( request: Request, env: Env ): Promise< Response > {
-		if ( request.method !== 'POST' ) {
-			return jsonResponse( { error: 'Method not allowed' }, 405 );
-		}
-
 		const { pathname } = new URL( request.url );
 
+		if ( pathname === '/activation-challenge' ) {
+			return handleActivationChallenge( request, env );
+		}
 		if ( pathname === '/register' ) {
+			if ( request.method !== 'POST' ) {
+				return jsonResponse( { error: 'Method not allowed' }, 405 );
+			}
 			return handleRegistration( request, env );
 		}
 		if ( pathname === '/webhook' ) {
+			if ( request.method !== 'POST' ) {
+				return jsonResponse( { error: 'Method not allowed' }, 405 );
+			}
 			return handleWebhook( request, env );
 		}
 		if ( pathname === '/v1/chat' ) {
+			if ( request.method !== 'POST' ) {
+				return jsonResponse( { error: 'Method not allowed' }, 405 );
+			}
 			return handleChatProxy( request, env );
 		}
 
@@ -63,7 +72,22 @@ async function handleChatProxy(
 			);
 		}
 
-		const rateLimitCheck = await checkRateLimit( siteToken, tier, env );
+		// Lazily downgrade expired trials to free without blocking the request.
+		let effectiveTier = tier as ProxyTier;
+		if ( effectiveTier === 'trial' && auth.record ) {
+			const startedAt =
+				auth.record.trial_started_at ?? auth.record.created_at;
+			if ( Date.now() - startedAt > TRIAL_PERIOD_MS ) {
+				const demoted: SiteRecord = { ...auth.record, tier: 'free' };
+				await env.USAGE_KV.put(
+					`site:${ siteToken }`,
+					JSON.stringify( demoted )
+				);
+				effectiveTier = 'free';
+			}
+		}
+
+		const rateLimitCheck = await checkRateLimit( siteToken, effectiveTier, env );
 		if ( ! rateLimitCheck.allowed ) {
 			return jsonResponse(
 				{
@@ -75,10 +99,10 @@ async function handleChatProxy(
 			);
 		}
 
-		const selectedModel = getModelForTier( tier, model );
+		const selectedModel = getModelForTier( effectiveTier, model );
 		const clampedMaxTokens = Math.min(
-			maxTokens ?? ( tier === 'free' ? 1000 : 4000 ),
-			MAX_TOKENS[ tier ]
+			maxTokens ?? ( effectiveTier === 'free' ? 1000 : 4000 ),
+			MAX_TOKENS[ effectiveTier ]
 		);
 
 		const anthropicBody: Record< string, unknown > = {

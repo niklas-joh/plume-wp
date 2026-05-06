@@ -7,6 +7,7 @@ export interface AuthResult {
 	site_token?: string;
 	tier?: SiteTier;
 	site_url?: string;
+	record?: SiteRecord;
 }
 
 export async function authenticateRequest(
@@ -36,6 +37,7 @@ export async function authenticateRequest(
 		site_token: token,
 		tier: record.tier,
 		site_url: record.site_url,
+		record,
 	};
 }
 
