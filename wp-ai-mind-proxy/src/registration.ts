@@ -62,14 +62,13 @@ export async function handleRegistration(
 		return jsonResponse( { error: 'challenge_token required' }, 403 );
 	}
 
-	// Validate challenge: must exist in KV (single-use, deleted before callback).
+	// Validate challenge: must exist in KV (single-use, deleted after successful callback).
 	const storedChallenge = await env.USAGE_KV.get(
 		`challenge:${ challengeToken }`
 	);
 	if ( ! storedChallenge ) {
 		return jsonResponse( { error: 'Invalid or expired challenge' }, 403 );
 	}
-	await env.USAGE_KV.delete( `challenge:${ challengeToken }` );
 
 	// Verify the site is live by calling back to its WP REST endpoint.
 	const verifyUrl =
@@ -89,6 +88,9 @@ export async function handleRegistration(
 	if ( ! callbackOk ) {
 		return jsonResponse( { error: 'Site verification failed' }, 403 );
 	}
+	// Consume the challenge only after a successful callback so a transient
+	// network failure does not permanently invalidate the token.
+	await env.USAGE_KV.delete( `challenge:${ challengeToken }` );
 
 	// Idempotent — return the existing token if already registered.
 	// If the stored record is an expired trial, demote it to free.
