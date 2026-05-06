@@ -20,6 +20,8 @@ class NJSiteRegistrationTest extends TestCase {
 		parent::tearDown();
 	}
 
+	// ── Accessors ───────────────────────────────────────────────────────────────
+
 	public function test_get_site_token_returns_stored_token(): void {
 		Functions\expect( 'get_option' )
 			->with( NJ_Site_Registration::OPTION_TOKEN, '' )
@@ -61,5 +63,154 @@ class NJSiteRegistrationTest extends TestCase {
 
 		$this->assertStringContainsString( 'lemonsqueezy.com', $url );
 		$this->assertStringContainsString( 'mytoken', $url );
+	}
+
+	// ── register() — challenge fetch failure ────────────────────────────────────
+
+	public function test_register_returns_wp_error_when_challenge_request_fails(): void {
+		Functions\when( 'wp_remote_get' )->justReturn(
+			new \WP_Error( 'http_request_failed', 'Connection refused' )
+		);
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+
+		$result = NJ_Site_Registration::register();
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+	}
+
+	public function test_register_returns_wp_error_when_challenge_response_is_not_200(): void {
+		Functions\when( 'wp_remote_get' )->justReturn( [] );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 500 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( '{}' );
+
+		$result = NJ_Site_Registration::register();
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'challenge_failed', $result->get_error_code() );
+	}
+
+	public function test_register_returns_wp_error_when_challenge_body_has_no_challenge_key(): void {
+		Functions\when( 'wp_remote_get' )->justReturn( [] );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( '{"other":"value"}' );
+
+		$result = NJ_Site_Registration::register();
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'challenge_failed', $result->get_error_code() );
+	}
+
+	// ── register() — registration request failure ───────────────────────────────
+
+	public function test_register_returns_wp_error_when_registration_post_fails(): void {
+		$challenge = str_repeat( 'a', 64 );
+
+		// Challenge fetch succeeds.
+		Functions\when( 'wp_remote_get' )->justReturn( [] );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( '{"challenge":"' . $challenge . '"}' );
+		Functions\when( 'sanitize_text_field' )->alias( fn( $s ) => $s );
+		Functions\when( 'set_transient' )->justReturn( true );
+		Functions\when( 'home_url' )->justReturn( 'https://mysite.example.com' );
+		Functions\when( 'wp_json_encode' )->alias( fn( $d ) => json_encode( $d ) );
+
+		// Registration POST fails.
+		Functions\when( 'wp_remote_post' )->justReturn(
+			new \WP_Error( 'http_request_failed', 'Connection refused' )
+		);
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+
+		$result = NJ_Site_Registration::register();
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+	}
+
+	public function test_register_returns_wp_error_when_registration_returns_non_2xx(): void {
+		$challenge = str_repeat( 'b', 64 );
+
+		Functions\when( 'wp_remote_get' )->justReturn( [] );
+		Functions\when( 'wp_remote_post' )->justReturn( [] );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		// First body call returns the challenge, second returns the registration failure.
+		Functions\when( 'wp_remote_retrieve_body' )->alias(
+			( function () use ( $challenge ) {
+				$calls = 0;
+				return function () use ( $challenge, &$calls ): string {
+					++$calls;
+					return 1 === $calls
+						? '{"challenge":"' . $challenge . '"}'
+						: '{"error":"site verification failed"}';
+				};
+			} )()
+		);
+		Functions\when( 'sanitize_text_field' )->alias( fn( $s ) => $s );
+		Functions\when( 'set_transient' )->justReturn( true );
+		Functions\when( 'home_url' )->justReturn( 'https://mysite.example.com' );
+		Functions\when( 'wp_json_encode' )->alias( fn( $d ) => json_encode( $d ) );
+
+		// Registration returns 403 from the worker.
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+
+		// Override: first call 200 (challenge), second call 403 (register).
+		$callNum = 0;
+		Functions\when( 'wp_remote_retrieve_response_code' )->alias(
+			function () use ( &$callNum ): int {
+				++$callNum;
+				return 1 === $callNum ? 200 : 403;
+			}
+		);
+
+		$result = NJ_Site_Registration::register();
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'registration_failed', $result->get_error_code() );
+	}
+
+	// ── register() — happy path ─────────────────────────────────────────────────
+
+	public function test_register_stores_token_and_returns_it_on_success(): void {
+		$challenge     = str_repeat( 'c', 64 );
+		$token         = str_repeat( 'd', 64 );
+		$captured_args = null;
+
+		Functions\when( 'wp_remote_get' )->justReturn( [] );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_post' )->alias(
+			function ( $url, $args ) use ( &$captured_args ) {
+				$captured_args = $args;
+				return [];
+			}
+		);
+		$callNum = 0;
+		Functions\when( 'wp_remote_retrieve_response_code' )->alias(
+			function () use ( &$callNum ): int {
+				return 1 === ++$callNum ? 200 : 201;
+			}
+		);
+		$bodyCallNum = 0;
+		Functions\when( 'wp_remote_retrieve_body' )->alias(
+			function () use ( &$bodyCallNum, $challenge, $token ): string {
+				return 1 === ++$bodyCallNum
+					? '{"challenge":"' . $challenge . '"}'
+					: '{"token":"' . $token . '","tier":"trial"}';
+			}
+		);
+		Functions\when( 'sanitize_text_field' )->alias( fn( $s ) => $s );
+		Functions\when( 'set_transient' )->justReturn( true );
+		Functions\when( 'home_url' )->justReturn( 'https://mysite.example.com' );
+		Functions\when( 'wp_json_encode' )->alias( fn( $d ) => json_encode( $d ) );
+		Functions\when( 'update_option' )->justReturn( true );
+
+		$result = NJ_Site_Registration::register();
+
+		$this->assertSame( $token, $result );
+
+		// Confirm challenge_token is forwarded in the registration body.
+		$body = json_decode( $captured_args['body'], true );
+		$this->assertSame( $challenge, $body['challenge_token'] );
+		$this->assertSame( 'https://mysite.example.com', $body['site_url'] );
 	}
 }
