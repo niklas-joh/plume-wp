@@ -2,6 +2,7 @@
 
 import { Env, SiteRecord } from './types';
 import { generateToken } from './auth';
+import { TRIAL_PERIOD_MS } from './constants';
 
 export const REGISTRATION_RATE_LIMIT = 5; // max new registrations per IP per hour
 const REGISTRATION_WINDOW_TTL = 3600; // seconds
@@ -102,11 +103,10 @@ export async function handleRegistration(
 			'json'
 		);
 		if ( record ) {
-			const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 			const startedAt = record.trial_started_at ?? record.created_at;
 			if (
 				record.tier === 'trial' &&
-				Date.now() - startedAt > THIRTY_DAYS_MS
+				Date.now() - startedAt > TRIAL_PERIOD_MS
 			) {
 				const demoted: SiteRecord = { ...record, tier: 'free' };
 				await env.USAGE_KV.put(

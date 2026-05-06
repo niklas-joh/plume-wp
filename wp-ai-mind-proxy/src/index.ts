@@ -4,9 +4,9 @@ import { Env, ProxyRequest, ProxyTier, SiteRecord } from './types';
 import { authenticateRequest } from './auth';
 import { handleActivationChallenge, handleRegistration } from './registration';
 import { handleWebhook } from './webhook';
+import { TRIAL_PERIOD_MS } from './constants';
 
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default {
 	async fetch( request: Request, env: Env ): Promise< Response > {
@@ -77,7 +77,7 @@ async function handleChatProxy(
 		if ( effectiveTier === 'trial' && auth.record ) {
 			const startedAt =
 				auth.record.trial_started_at ?? auth.record.created_at;
-			if ( Date.now() - startedAt > THIRTY_DAYS_MS ) {
+			if ( Date.now() - startedAt > TRIAL_PERIOD_MS ) {
 				const demoted: SiteRecord = { ...auth.record, tier: 'free' };
 				await env.USAGE_KV.put(
 					`site:${ siteToken }`,
