@@ -124,15 +124,14 @@
 }
 
 /* Spinning animation for Loader2 icon */
+/* Note: @keyframes wpaim-spin is also defined in admin.css.
+   Both files compile to separate bundles, so there is no runtime conflict,
+   but both definitions must be kept in sync. */
 .wpaim-spin {
 	animation: wpaim-spin 1s linear infinite;
 }
 
 @keyframes wpaim-spin {
-
-	from {
-		transform: rotate(0deg);
-	}
 
 	to {
 		transform: rotate(360deg);

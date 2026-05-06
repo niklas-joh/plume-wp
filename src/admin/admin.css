@@ -648,7 +648,10 @@
 	padding-top: 0;
 }
 
-/* ── Animations ── */
+/* ── Animations ──
+   Note: @keyframes wpaim-spin is also defined in editor.css.
+   Both files compile to separate bundles, so there is no runtime conflict,
+   but both definitions must be kept in sync. */
 @keyframes wpaim-spin {
 
 	to {
