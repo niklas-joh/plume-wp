@@ -86,10 +86,7 @@ export default function BlockActions( { convId, onResult } ) {
 					className="wpaim-block-actions__btn"
 					onClick={ () => runAction( action ) }
 				>
-					<action.icon
-						size={ 14 }
-						strokeWidth={ 1.5 }
-					/>
+					<action.icon size={ 14 } strokeWidth={ 1.5 } />
 					{ action.label }
 				</button>
 			) ) }

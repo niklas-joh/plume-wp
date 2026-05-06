@@ -59,9 +59,7 @@ export default function SeoPanel() {
 	if ( ! isPro ) {
 		return (
 			<div className="wpaim-seo-panel wpaim-seo-panel--locked">
-				<Lock
-					size={ 20 }
-				/>
+				<Lock size={ 20 } />
 				<p className="wpaim-seo-panel__locked-text">
 					SEO analysis requires WP AI Mind Pro.
 				</p>
