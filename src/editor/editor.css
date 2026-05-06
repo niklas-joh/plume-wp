@@ -9,8 +9,7 @@
 	font-size: var(--text-base);
 }
 
-/* ── Panel section ──────────────────────────────────────────────────── */
-/* layout handled entirely by the sibling divider rule below */
+/* ── Panel section — layout via adjacent-sibling rule below ─────────── */
 .wpaim-editor-panel + .wpaim-editor-panel {
 	border-top: 1px solid var(--color-border);
 	padding-top: var(--space-3);
