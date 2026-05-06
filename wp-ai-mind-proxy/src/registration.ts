@@ -5,6 +5,7 @@ import { generateToken } from './auth';
 import { TRIAL_PERIOD_MS } from './constants';
 
 export const REGISTRATION_RATE_LIMIT = 5; // max new registrations per IP per hour
+export const CHALLENGE_RATE_LIMIT = 20; // max challenge requests per IP per hour
 const REGISTRATION_WINDOW_TTL = 3600; // seconds
 const CHALLENGE_TTL = 300; // seconds
 
@@ -20,6 +21,23 @@ export async function handleActivationChallenge(
 	if ( request.method !== 'GET' ) {
 		return jsonResponse( { error: 'Method not allowed' }, 405 );
 	}
+
+	// Rate-limit challenge issuance by IP to prevent KV exhaustion.
+	const ip = request.headers.get( 'CF-Connecting-IP' ) ?? 'unknown';
+	const challengeRateLimitKey = `challenge_ip:${ ip }:${ getCurrentHour() }`;
+	const challengeAttempts = parseInt(
+		( await env.USAGE_KV.get( challengeRateLimitKey ) ) ?? '0',
+		10
+	);
+	if ( challengeAttempts >= CHALLENGE_RATE_LIMIT ) {
+		return jsonResponse(
+			{ error: 'Too many challenge requests. Try again later.' },
+			429
+		);
+	}
+	await env.USAGE_KV.put( challengeRateLimitKey, String( challengeAttempts + 1 ), {
+		expirationTtl: REGISTRATION_WINDOW_TTL,
+	} );
 
 	const bytes = new Uint8Array( 32 );
 	crypto.getRandomValues( bytes );
