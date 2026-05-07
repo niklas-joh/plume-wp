@@ -49,7 +49,7 @@ chosen provider. Review each provider's privacy policy and terms of service befo
 
 1. Upload the `wp-ai-mind` folder to the `/wp-content/plugins/` directory.
 2. Activate the plugin through the **Plugins** menu in WordPress.
-3. Navigate to **WP AI Mind → Settings** and enter an API key for your chosen AI provider.
+3. (Optional — Pro BYOK only) Navigate to **WP AI Mind → Settings** and enter your own API key. Free and managed-plan users do not need an API key.
 4. Start using the Chat, Generator, or Usage modules from the admin menu.
 
 == Frequently Asked Questions ==
