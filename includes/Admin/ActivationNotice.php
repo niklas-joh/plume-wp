@@ -59,12 +59,12 @@ class ActivationNotice {
 		?>
 		<div class="notice notice-info is-dismissible">
 			<p>
-				<strong><?php \esc_html_e( 'WP AI Mind is almost ready!', 'wp-ai-mind' ); ?></strong>
+				<strong><?php \esc_html_e( 'WP AI Mind — External Services & Privacy Notice', 'wp-ai-mind' ); ?></strong>
 			</p>
 			<p>
 				<?php
 				\esc_html_e(
-					'To power the free AI chat, the plugin connects to a secure relay service. Only your site address is shared during setup — no content leaves your site until you start a conversation. Your messages are then forwarded to the AI provider on your behalf.',
+					'This plugin connects to a secure relay service (WP AI Mind proxy) and to third-party AI providers (Anthropic Claude, OpenAI, Google Gemini). Only your site address is shared during setup — no content leaves your site until you start a conversation. Your messages are then forwarded to the AI provider on your behalf.',
 					'wp-ai-mind'
 				);
 				?>
