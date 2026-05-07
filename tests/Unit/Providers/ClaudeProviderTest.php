@@ -232,6 +232,58 @@ class ClaudeProviderTest extends TestCase {
 		$this->assertSame( 'Direct API response', $response->content );
 	}
 
+	public function test_complete_via_proxy_forwards_tools(): void {
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		// 'free' for NJ_Tier_Manager::get_user_tier(); cast to int 0 for usage key → within limit.
+		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		// NJ_Site_Registration::get_site_token() reads this option.
+		Functions\when( 'get_option' )->justReturn( 'mock-site-token' );
+		Functions\when( 'sanitize_key' )->alias( fn( $v ) => $v );
+		Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
+		Functions\stubs( [ '__' => fn( $str ) => $str ] );
+
+		global $wpdb;
+		$wpdb = new class extends \stdClass {
+			public string $usermeta      = 'wp_usermeta';
+			public int    $rows_affected = 1;
+			public string $prefix        = 'wpaim_';
+			public function prepare( string $sql, ...$args ): string { return $sql; }
+			public function query( string $sql ): int { return 1; }
+			public function insert(): int { return 1; }
+		};
+
+		$captured_body = null;
+		Functions\when( 'wp_remote_post' )->alias( function ( $url, $args ) use ( &$captured_body ) {
+			$captured_body = json_decode( $args['body'], true );
+			return [
+				'response' => [ 'code' => 200 ],
+				'body'     => json_encode( [
+					'content' => [ [ 'type' => 'text', 'text' => 'Here is a summary.' ] ],
+					'model'   => 'claude-haiku-4-5-20251001',
+					'usage'   => [ 'input_tokens' => 50, 'output_tokens' => 20 ],
+				] ),
+			];
+		} );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+		$tools    = [ [ 'name' => 'get_post_content', 'description' => 'Get post content.', 'input_schema' => [ 'type' => 'object', 'properties' => [ 'post_id' => [ 'type' => 'integer' ] ], 'required' => [ 'post_id' ] ] ] ];
+		$provider = new ClaudeProvider( '' ); // No API key — routes via proxy.
+		$request  = new CompletionRequest(
+			messages: [ [ 'role' => 'user', 'content' => 'Summarise post 140' ] ],
+			system:   'You MUST call get_post_content with post_id=140.',
+			tools:    $tools,
+		);
+
+		$provider->complete( $request );
+
+		$this->assertNotNull( $captured_body );
+		$this->assertArrayHasKey( 'tools', $captured_body );
+		$this->assertSame( 'get_post_content', $captured_body['tools'][0]['name'] );
+	}
+
 	public function test_tools_injected_in_request_body(): void {
 		$captured_body = null;
 		Functions\when( 'wp_remote_post' )->alias( function( $url, $args ) use ( &$captured_body ) {
