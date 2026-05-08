@@ -24,6 +24,8 @@ class OpenAIProviderTest extends TestCase {
 			public function query( string $sql ): int { return 1; }
 		};
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		// Return 'pro_byok' so do_complete() routes direct — preserving existing test behaviour.
+		Functions\when( 'get_user_meta' )->justReturn( 'pro_byok' );
 		Functions\when( 'sanitize_key' )->alias( fn($v) => $v );
 		Functions\when( 'sanitize_text_field' )->alias( fn($v) => $v );
 	}
@@ -34,6 +36,8 @@ class OpenAIProviderTest extends TestCase {
 	}
 
 	public function test_is_available_false_without_key(): void {
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->justReturn( 'pro_byok' );
 		$this->assertFalse( ( new OpenAIProvider( '' ) )->is_available() );
 	}
 
@@ -60,6 +64,8 @@ class OpenAIProviderTest extends TestCase {
 	}
 
 	public function test_complete_throws_on_api_error(): void {
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_user_meta' )->justReturn( 'pro_byok' );
 		Functions\when( 'wp_remote_post' )->justReturn( [
 			'response' => [ 'code' => 401 ],
 			'body'     => json_encode( [ 'error' => [ 'message' => 'Invalid API key' ] ] ),

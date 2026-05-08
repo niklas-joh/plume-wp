@@ -31,11 +31,12 @@ class NJ_Proxy_Client {
 	 * Send a chat request through the Cloudflare proxy.
 	 *
 	 * @since 1.2.0
-	 * @param array<array{role: string, content: string}> $messages Chat message history.
-	 * @param array<string, mixed>                        $options  Supports 'model', 'max_tokens', 'system', 'tools'.
+	 * @param array<array{role: string, content: string}> $messages  Chat message history.
+	 * @param array<string, mixed>                        $options   Supports 'model', 'max_tokens', 'system', 'tools'.
+	 * @param string                                      $provider  Provider slug: 'claude', 'openai', or 'gemini'. Defaults to 'claude'.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public static function chat( array $messages, array $options = [] ): array|WP_Error {
+	public static function chat( array $messages, array $options = [], string $provider = 'claude' ): array|WP_Error {
 		$token = NJ_Site_Registration::get_site_token();
 		if ( empty( $token ) ) {
 			return new WP_Error( 'not_registered', __( 'Site not registered with AI proxy.', 'wp-ai-mind' ) );
@@ -50,6 +51,7 @@ class NJ_Proxy_Client {
 
 		$payload = [
 			'messages' => $messages,
+			'provider' => $provider,
 		];
 
 		if ( isset( $options['model'] ) ) {
