@@ -183,7 +183,10 @@ class GeminiProvider extends AbstractProvider {
 		];
 		$options     = array_filter( $raw_options, fn( $v ) => null !== $v );
 		if ( ! empty( $request->tools ) ) {
-			// Re-format to canonical proxy format; $request->tools carries Gemini wire format.
+			// Re-instantiate ToolRegistry to obtain the canonical proxy format.
+			// $request->tools carries Gemini wire format so we cannot forward it directly.
+			// TODO: have the caller pass tools in canonical proxy format so providers do not
+			// need to re-register on every proxied request (SRP concern, tracked in #485).
 			$options['tools'] = ( new ToolRegistry() )->get_for_provider( 'proxy' );
 		}
 		$result = NJ_Proxy_Client::chat( $request->messages, $options, 'gemini' );
