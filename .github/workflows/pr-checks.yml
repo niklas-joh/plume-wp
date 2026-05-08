@@ -155,6 +155,8 @@ jobs:
     name: QIT — ${{ matrix.test }} (Mac via Tailscale)
     runs-on: ubuntu-latest
     if: ${{ vars.QIT_ENABLED == 'true' }}
+    # Non-blocking until the plugin is listed on WooCommerce.com. Remove once QIT is active.
+    continue-on-error: true
     concurrency:
       group: mac-runner
       cancel-in-progress: false
