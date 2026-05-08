@@ -4,6 +4,7 @@ includes:
     - phpstan-baseline.neon
 
 parameters:
+    # Level 5 — balanced; catches undefined variables and union type errors without excessive WP noise.
     level: 5
     paths:
         - includes
@@ -12,7 +13,6 @@ parameters:
     excludePaths:
         - vendor
         - node_modules
-        - tests
     bootstrapFiles:
         - tests/phpstan-bootstrap.php
     phpVersion: 80100
