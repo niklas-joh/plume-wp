@@ -128,10 +128,18 @@ jobs:
               "bash -s" << 'REMOTE'
             set -e
             export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+            # Sync main plugin repo to the PR commit.
             cd /Users/niklas/Documents/Homepages/wp-ai-mind
             git fetch origin
             git checkout ${{ github.head_ref }}
             git reset --hard ${{ github.event.pull_request.head.sha }}
+            # Sync the blog submodule copy to the same commit so both paths are in step.
+            cd /Users/niklas/Documents/Homepages/blog.njohansson.eu/wp-content/plugins/wp-ai-mind
+            git fetch origin
+            git checkout ${{ github.head_ref }}
+            git reset --hard ${{ github.event.pull_request.head.sha }}
+            # Run tests from the main plugin repo.
+            cd /Users/niklas/Documents/Homepages/wp-ai-mind
             npm ci --no-audit --no-fund
             composer install --prefer-dist --no-interaction --no-progress
             npx playwright install chromium
@@ -182,10 +190,17 @@ jobs:
             export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
             export QIT_EMAIL="$QIT_EMAIL"
             export QIT_PASSWORD="$QIT_PASSWORD"
+            # Sync main plugin repo to the PR commit.
             cd /Users/niklas/Documents/Homepages/wp-ai-mind
             git fetch origin
             git checkout ${{ github.head_ref }}
             git reset --hard ${{ github.event.pull_request.head.sha }}
+            # Sync the blog submodule copy to the same commit.
+            cd /Users/niklas/Documents/Homepages/blog.njohansson.eu/wp-content/plugins/wp-ai-mind
+            git fetch origin
+            git checkout ${{ github.head_ref }}
+            git reset --hard ${{ github.event.pull_request.head.sha }}
+            cd /Users/niklas/Documents/Homepages/wp-ai-mind
             composer install --prefer-dist --no-interaction --no-progress
             ./vendor/bin/qit partner:add \
               --user="\${QIT_EMAIL}" \
