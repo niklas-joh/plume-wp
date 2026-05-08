@@ -1,0 +1,184 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Cloud: PHPStan ──────────────────────────────────────────────────────────
+  phpstan:
+    name: PHPStan — Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer deps
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run PHPStan
+        run: ./vendor/bin/phpstan analyse --error-format=github
+
+  # ── Cloud: PHP Compatibility Matrix ────────────────────────────────────────
+  php-compat:
+    name: PHP Compat — ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run PHP Compatibility
+        run: |
+          ./vendor/bin/phpcs \
+            --standard=PHPCompatibilityWP \
+            --runtime-set testVersion ${{ matrix.php }} \
+            --extensions=php \
+            --ignore=*/vendor/*,*/node_modules/*,*/tests/* \
+            .
+
+  # ── Cloud: Security Audit ──────────────────────────────────────────────────
+  security:
+    name: Security — Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+
+      - name: Composer security audit
+        run: composer audit
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: npm security audit
+        run: npm audit --audit-level=high
+
+  # ── Mac via Tailscale SSH: E2E ──────────────────────────────────────────────
+  # Uses a shared concurrency group (mac-runner) to prevent two jobs from
+  # running wp-env simultaneously on the same machine.
+  e2e-local:
+    name: E2E — Playwright (Mac via Tailscale)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: mac-runner
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Install SSH key
+        run: |
+          echo "${{ secrets.MAC_SSH_PRIVATE_KEY }}" > /tmp/mac_ssh_key
+          chmod 600 /tmp/mac_ssh_key
+
+      - name: Run E2E tests on Mac
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -i /tmp/mac_ssh_key \
+              ${{ secrets.MAC_SSH_USER }}@${{ secrets.MAC_SSH_HOST }} \
+              "bash -s" << 'REMOTE'
+            set -e
+            cd /Users/niklas/Documents/Homepages/wp-ai-mind
+            git fetch origin
+            git checkout ${{ github.head_ref }}
+            git reset --hard ${{ github.event.pull_request.head.sha }}
+            npm ci --no-audit --no-fund
+            composer install --prefer-dist --no-interaction --no-progress
+            npx wp-env start
+            WP_BASE_URL=http://localhost:8888 CI=true npx playwright test
+            EXIT=$?
+            npx wp-env stop
+            exit $EXIT
+          REMOTE
+
+  # ── Mac via Tailscale SSH: QIT ─────────────────────────────────────────────
+  qit-local:
+    name: QIT — ${{ matrix.test }} (Mac via Tailscale)
+    runs-on: ubuntu-latest
+    if: ${{ vars.QIT_ENABLED == 'true' }}
+    concurrency:
+      group: mac-runner
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ['activation', 'phpstan', 'security']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Install SSH key
+        run: |
+          echo "${{ secrets.MAC_SSH_PRIVATE_KEY }}" > /tmp/mac_ssh_key
+          chmod 600 /tmp/mac_ssh_key
+
+      - name: Run QIT ${{ matrix.test }} on Mac
+        env:
+          QIT_EMAIL: ${{ secrets.QIT_PARTNER_EMAIL }}
+          QIT_PASSWORD: ${{ secrets.QIT_PARTNER_PASSWORD }}
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -i /tmp/mac_ssh_key \
+              ${{ secrets.MAC_SSH_USER }}@${{ secrets.MAC_SSH_HOST }} \
+              "bash -s" << REMOTE
+            set -e
+            export QIT_EMAIL="$QIT_EMAIL"
+            export QIT_PASSWORD="$QIT_PASSWORD"
+            cd /Users/niklas/Documents/Homepages/wp-ai-mind
+            git fetch origin
+            git checkout ${{ github.head_ref }}
+            git reset --hard ${{ github.event.pull_request.head.sha }}
+            composer install --prefer-dist --no-interaction --no-progress
+            ./vendor/bin/qit partner:add \
+              --user="\${QIT_EMAIL}" \
+              --application-password="\${QIT_PASSWORD}"
+            ./vendor/bin/qit run:${{ matrix.test }} wp-ai-mind
+          REMOTE
