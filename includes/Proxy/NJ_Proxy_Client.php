@@ -107,7 +107,11 @@ class NJ_Proxy_Client {
 			return new WP_Error( 'proxy_error', $body['error'] ?? sprintf( 'Proxy returned HTTP %d', $code ) );
 		}
 
-		// Mirror usage locally for dashboard display only. KV is authoritative for enforcement.
+		// Mirror usage locally for dashboard display only — KV is authoritative for quota enforcement.
+		// The proxy stores weighted tokens (raw × model weight), so the KV quota and local counter
+		// will diverge for high-weight models (e.g. Claude Opus at ×15). This is intentional:
+		// the dashboard shows raw API tokens consumed while quota enforcement operates on
+		// weighted tokens in KV to keep billing proportional across providers and models.
 		if ( isset( $body['usage']['input_tokens'], $body['usage']['output_tokens'] ) ) {
 			$tokens = (int) $body['usage']['input_tokens'] + (int) $body['usage']['output_tokens'];
 			NJ_Usage_Tracker::log_usage( $tokens, $user_id );
