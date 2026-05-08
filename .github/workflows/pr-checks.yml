@@ -151,19 +151,18 @@ jobs:
           REMOTE
 
   # ── Mac via Tailscale SSH: QIT ─────────────────────────────────────────────
+  # Single job (not matrix) to avoid concurrency-queue cancellation — GitHub
+  # only allows one pending job per concurrency group; a matrix would cancel
+  # two of the three jobs before they ever run.
+  # Non-blocking (continue-on-error) until the plugin is listed on WooCommerce.com.
   qit-local:
-    name: QIT — ${{ matrix.test }} (Mac via Tailscale)
+    name: QIT (Mac via Tailscale)
     runs-on: ubuntu-latest
     if: ${{ vars.QIT_ENABLED == 'true' }}
-    # Non-blocking until the plugin is listed on WooCommerce.com. Remove once QIT is active.
     continue-on-error: true
     concurrency:
       group: mac-runner
       cancel-in-progress: false
-    strategy:
-      fail-fast: false
-      matrix:
-        test: ['activation', 'phpstan', 'security']
     steps:
       - uses: actions/checkout@v4
 
@@ -179,7 +178,7 @@ jobs:
           echo "${{ secrets.MAC_SSH_PRIVATE_KEY }}" > /tmp/mac_ssh_key
           chmod 600 /tmp/mac_ssh_key
 
-      - name: Run QIT ${{ matrix.test }} on Mac
+      - name: Run QIT tests on Mac
         env:
           QIT_EMAIL: ${{ secrets.QIT_PARTNER_EMAIL }}
           QIT_PASSWORD: ${{ secrets.QIT_PARTNER_PASSWORD }}
@@ -207,5 +206,7 @@ jobs:
             ./vendor/bin/qit partner:add \
               --user="\${QIT_EMAIL}" \
               --application-password="\${QIT_PASSWORD}"
-            ./vendor/bin/qit run:${{ matrix.test }} wp-ai-mind
+            ./vendor/bin/qit run:activation wp-ai-mind
+            ./vendor/bin/qit run:phpstan wp-ai-mind
+            ./vendor/bin/qit run:security wp-ai-mind
           REMOTE
