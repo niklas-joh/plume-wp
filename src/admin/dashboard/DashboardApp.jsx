@@ -40,7 +40,7 @@ export default function DashboardApp() {
 			{ /* Top bar */ }
 			<div className="wpaim-dash-topbar">
 				<div>
-					<div className="wpaim-dash-title">WP AI Mind</div>
+					<div className="wpaim-dash-title">Vectra WP AI Mind</div>
 					<div className="wpaim-dash-subtitle">
 						AI-powered content creation for WordPress
 					</div>
