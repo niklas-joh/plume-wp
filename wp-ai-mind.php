@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       WP AI Mind
+ * Plugin Name:       Vectra WP AI Mind
  * Plugin URI:        https://njohansson.eu/wp-ai-mind/
  * Description:       AI-powered content co-pilot for WordPress.
  * Version:           1.8.0

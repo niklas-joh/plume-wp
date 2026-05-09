@@ -1,4 +1,4 @@
-=== WP AI Mind ===
+=== Vectra WP AI Mind ===
 Contributors: njohansson
 Tags: ai, chatbot, openai, claude, content
 Requires at least: 6.4
