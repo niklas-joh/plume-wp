@@ -139,9 +139,16 @@ jobs:
   # prefixing violations, escaping/sanitisation issues, deprecated APIs, i18n
   # problems, and file-organisation issues. Excludes the plugin_repo category
   # since this plugin is not on WordPress.org.
+  #
+  # Audits the production zip layout produced by bin/build-wporg.sh — the same
+  # allowlist used for releases — so dev-only files (docs/, src/, tests/, etc.)
+  # never reach the auditor.
   plugin-check:
     name: WP Plugin Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # for the action to post/update its PR comment
     steps:
       - uses: actions/checkout@v4
 
@@ -152,20 +159,34 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Install Composer (production-only)
-        run: composer install --prefer-dist --no-interaction --no-progress --no-dev
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build production plugin payload (dist/wp-ai-mind/)
+        run: bash bin/build-wporg.sh
 
       - name: Run WP Plugin Check
         uses: WordPress/plugin-check-action@v1
         with:
-          build-dir: '.'
+          build-dir: 'dist/wp-ai-mind'
           categories: 'general,security,performance,accessibility'
           ignore-warnings: true
 
   # ── Cloud: Lighthouse Performance Budget ───────────────────────────────────
   # Front-end audit only (admin UI requires authenticated Lighthouse). Verifies
-  # the plugin doesn't break or bloat the public-facing site. Performance/SEO
-  # are warn-only; accessibility and asset-minification are enforced as errors.
+  # the production-shape plugin doesn't break or bloat the public-facing site.
+  # Performance/SEO are warn-only; accessibility and asset-minification are
+  # enforced as errors.
+  #
+  # Tests the SHIPPING payload (bin/build-wporg.sh -> dist/wp-ai-mind/) with
+  # SCRIPT_DEBUG=false so the audit reflects what real users see, not the
+  # development-mode unminified core scripts.
   lighthouse:
     name: Lighthouse — Performance Budget
     runs-on: ubuntu-latest
@@ -185,11 +206,23 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Install Composer (production-only)
-        run: composer install --prefer-dist --no-interaction --no-progress --no-dev
-
       - name: Install npm dependencies
         run: npm ci --no-audit --no-fund
+
+      - name: Build production plugin payload (dist/wp-ai-mind/)
+        run: bash bin/build-wporg.sh
+
+      - name: Override wp-env to load the built plugin in production mode
+        run: |
+          cat > .wp-env.override.json << 'EOF'
+          {
+            "plugins": ["./dist/wp-ai-mind"],
+            "config": {
+              "WP_DEBUG": false,
+              "SCRIPT_DEBUG": false
+            }
+          }
+          EOF
 
       - name: Start wp-env
         run: npx wp-env start
@@ -237,28 +270,38 @@ jobs:
           tags: tag:github
 
       - name: Install SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.MAC_SSH_PRIVATE_KEY }}
         run: |
-          echo "${{ secrets.MAC_SSH_PRIVATE_KEY }}" > /tmp/mac_ssh_key
+          echo "$SSH_PRIVATE_KEY" > /tmp/mac_ssh_key
           chmod 600 /tmp/mac_ssh_key
 
       - name: Run E2E tests on Mac
+        # All ${{...}} values are passed via env to avoid shell-injection paths.
+        # Branch refs and SHAs end up inside the SSH'd shell as quoted "$VAR"
+        # references, never interpolated by the local shell.
+        env:
+          SSH_USER: ${{ secrets.MAC_SSH_USER }}
+          SSH_HOST: ${{ secrets.MAC_SSH_HOST }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           ssh -o StrictHostKeyChecking=no \
               -i /tmp/mac_ssh_key \
-              ${{ secrets.MAC_SSH_USER }}@${{ secrets.MAC_SSH_HOST }} \
-              "bash -s" << 'REMOTE'
+              "$SSH_USER@$SSH_HOST" \
+              "bash -s" << REMOTE
             set -e
-            export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+            export PATH="/usr/local/bin:/opt/homebrew/bin:\$PATH"
             # Sync main plugin repo to the PR commit.
             cd /Users/niklas/Documents/Homepages/wp-ai-mind
             git fetch origin
-            git checkout ${{ github.head_ref }}
-            git reset --hard ${{ github.event.pull_request.head.sha }}
+            git checkout "$HEAD_REF"
+            git reset --hard "$HEAD_SHA"
             # Sync the blog submodule copy to the same commit so both paths are in step.
             cd /Users/niklas/Documents/Homepages/blog.njohansson.eu/wp-content/plugins/wp-ai-mind
             git fetch origin
-            git checkout ${{ github.head_ref }}
-            git reset --hard ${{ github.event.pull_request.head.sha }}
+            git checkout "$HEAD_REF"
+            git reset --hard "$HEAD_SHA"
             # Run tests from the main plugin repo.
             cd /Users/niklas/Documents/Homepages/wp-ai-mind
             npm ci --no-audit --no-fund
@@ -266,7 +309,7 @@ jobs:
             npx playwright install chromium
             npx wp-env start
             WP_BASE_URL=http://localhost:8888 CI=true npx playwright test
-            EXIT=$?
+            EXIT=\$?
             npx wp-env stop
-            exit $EXIT
+            exit \$EXIT
           REMOTE
