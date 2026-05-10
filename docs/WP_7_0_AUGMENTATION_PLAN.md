@@ -78,7 +78,7 @@ Tier structure stays. **Pro BYOK becomes a monthly subscription** (e.g. €9.90/
 Single function consolidating the four scattered gates (tier feature check, monthly quota, site-registration-with-proxy, WP capability) into one canonical predicate. Returns `true|WP_Error` with a typed reason code.
 
 - **New file:** `includes/Core/Gatekeeper.php`
-- **Touch points:** `includes/Proxy/NJ_Proxy_Client.php:49`, `includes/Modules/Generator/GeneratorModule.php:91`, `includes/Modules/Seo/SeoModule.php:107`, `includes/Modules/Images/ImagesModule.php:104`
+- **Touch points:** `includes/Proxy/NJ_Proxy_Client.php:49`, `includes/Modules/Generator/GeneratorModule.php:91`, `includes/Modules/Seo/SeoModule.php:107` and `:125` (second `permission_callback` for the SEO apply route), `includes/Modules/Images/ImagesModule.php:104`, `includes/Tools/ToolExecutor.php:394` (tier check) and `:403` (quota check)
 - **Required by:** 4.1 (Abilities `permission_callback`s)
 
 ### 1.4 Recognise `ANTHROPIC_API_KEY` alongside `CLAUDE_API_KEY`
@@ -97,11 +97,11 @@ Single function consolidating the four scattered gates (tier feature check, mont
 
 ### Phase 1 acceptance
 
-- All four legacy gate sites call `Gatekeeper::can_request_ai()` — no behavioural change
+- All six legacy gate sites call `Gatekeeper::can_request_ai()` — no behavioural change
 - `ANTHROPIC_API_KEY` env var works for `claude` provider
 - Multi-call benchmark on `NJ_Tier_Manager::get_user_tier()` shows single `get_user_meta` per cache window
 - Force-update tier via `set_user_tier()` → next read hits DB (cache invalidated correctly)
-- Existing PHPUnit suite passes; new unit tests cover Gatekeeper × four tiers × four predicates
+- Existing PHPUnit suite passes; new unit tests cover Gatekeeper × four tiers × six gate sites
 
 ---
 
