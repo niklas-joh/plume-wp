@@ -115,7 +115,7 @@ export default function FeaturesTab( { settings, saveSettings } ) {
 					</h3>
 					<p className="wpaim-settings-section-desc">
 						Enable or disable individual AI modules. Pro modules
-						require an active Vectra WP AI Mind Pro licence.
+						require an active Vectra AI Writer and Designer Pro licence.
 					</p>
 				</div>
 
@@ -180,7 +180,7 @@ export default function FeaturesTab( { settings, saveSettings } ) {
 									{ isLocked && (
 										<p className="wpaim-feature-card-locked-msg">
 											<Lock size={ 11 } />
-											Requires Vectra WP AI Mind Pro
+											Requires Vectra AI Writer and Designer Pro
 										</p>
 									) }
 								</div>
