@@ -25,8 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class NJ_Tier_Manager {
 
-	const META_KEY           = 'wp_ai_mind_tier';
-	const TRIAL_STARTED_META = 'wp_ai_mind_trial_started';
+	public const META_KEY           = 'wp_ai_mind_tier';
+	public const TRIAL_STARTED_META = 'wp_ai_mind_trial_started';
 
 	/**
 	 * Option key for the site-wide tier (paid entitlement source of truth).
@@ -36,7 +36,7 @@ class NJ_Tier_Manager {
 	 *
 	 * @since 1.9.0
 	 */
-	const SITE_OPTION = 'wp_ai_mind_site_tier';
+	public const SITE_OPTION = 'wp_ai_mind_site_tier';
 
 	// ── Tier CRUD ─────────────────────────────────────────────────────────────
 

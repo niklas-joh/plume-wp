@@ -57,6 +57,17 @@ class TierSyncBackfillNotice {
 		\add_action( 'admin_notices', [ self::class, 'maybe_display' ] );
 		\add_action( 'admin_notices', [ self::class, 'maybe_display_result' ] );
 		\add_action( 'admin_post_' . self::ACTION, [ self::class, 'handle_rotate' ] );
+		\add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_styles' ] );
+	}
+
+	/**
+	 * Enqueue the minimal admin styles required by the backfill notice.
+	 *
+	 * @since 1.9.0
+	 * @return void
+	 */
+	public static function enqueue_styles(): void {
+		\wp_add_inline_style( 'common', '.nj-backfill-form { display: inline; }' );
 	}
 
 	/**
@@ -95,7 +106,7 @@ class TierSyncBackfillNotice {
 				?>
 			</p>
 			<p>
-				<form method="post" action="<?php echo \esc_url( $action_url ); ?>" style="display:inline;">
+				<form method="post" action="<?php echo \esc_url( $action_url ); ?>" class="nj-backfill-form">
 					<?php \wp_nonce_field( self::NONCE ); ?>
 					<input type="hidden" name="action" value="<?php echo \esc_attr( self::ACTION ); ?>" />
 					<button type="submit" class="button button-primary">

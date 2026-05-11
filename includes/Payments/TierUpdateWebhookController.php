@@ -65,7 +65,13 @@ class TierUpdateWebhookController {
 	 *
 	 * @since 1.9.0
 	 */
-	private const MAX_PAST_SKEW   = 300;
+	private const MAX_PAST_SKEW = 300;
+
+	/**
+	 * Maximum allowed future skew between the signed timestamp and server time, in seconds.
+	 *
+	 * @since 1.9.0
+	 */
 	private const MAX_FUTURE_SKEW = 60;
 
 	/**
