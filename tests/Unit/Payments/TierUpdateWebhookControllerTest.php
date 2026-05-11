@@ -65,7 +65,20 @@ class TierUpdateWebhookControllerTest extends TestCase {
 	// ── Happy path ──────────────────────────────────────────────────────────
 
 	public function test_valid_signature_updates_site_tier_and_returns_200(): void {
-		$this->stubOptionsAndTransients();
+		Functions\when( 'get_option' )->alias(
+			function ( $key, $default = false ) {
+				if ( TierUpdateWebhookController::OPTION_SECRET === $key ) {
+					return self::SECRET;
+				}
+				return $default;
+			}
+		);
+		Functions\when( 'get_transient' )->justReturn( false );
+		// Assert that the replay-protection transient key follows the expected format.
+		Functions\expect( 'set_transient' )
+			->once()
+			->with( \Mockery::pattern( '/^wp_ai_mind_tier_sig_[a-f0-9]{32}$/' ), 1, 360 )
+			->andReturn( true );
 		Functions\expect( 'update_option' )
 			->once()
 			->with( 'wp_ai_mind_site_tier', 'pro_managed', false )
