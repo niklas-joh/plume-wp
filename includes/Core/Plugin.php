@@ -188,15 +188,23 @@ class Plugin {
 	 *
 	 * Pre-1.9.0 the paid tier was stored only as per-user meta, which broke
 	 * logged-out callers, cron, and CLI. On upgrade we promote that meta value
-	 * to the site option so resolution stays correct. Runs only when the option
-	 * is genuinely unset (literal `false`); empty strings or 'free' are treated
-	 * as deliberate and left alone.
+	 * to the site option so resolution stays correct.
+	 *
+	 * A `wp_ai_mind_backfill_done` marker is written after the first run so that
+	 * repeated activate/deactivate cycles and fresh installs never re-execute
+	 * the `get_users()` query.
 	 *
 	 * @since 1.9.0
 	 * @return void
 	 */
 	private static function backfill_site_tier_option(): void {
+		// Already migrated — skip without touching the DB.
+		if ( get_option( 'wp_ai_mind_backfill_done', false ) ) {
+			return;
+		}
+
 		if ( false !== get_option( NJ_Tier_Manager::SITE_OPTION, false ) ) {
+			update_option( 'wp_ai_mind_backfill_done', true, false );
 			return;
 		}
 
@@ -209,11 +217,13 @@ class Plugin {
 			]
 		);
 		if ( empty( $users ) ) {
+			update_option( 'wp_ai_mind_backfill_done', true, false );
 			return;
 		}
 
 		$tier = (string) get_user_meta( (int) $users[0], NJ_Tier_Manager::META_KEY, true );
 		NJ_Tier_Manager::set_site_tier( $tier );
+		update_option( 'wp_ai_mind_backfill_done', true, false );
 	}
 
 	/**
