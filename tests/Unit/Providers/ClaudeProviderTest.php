@@ -262,8 +262,7 @@ class ClaudeProviderTest extends TestCase {
 			return [
 				'response' => [ 'code' => 200 ],
 				'body'     => json_encode( [
-					'content' => [ [ 'type' => 'text', 'text' => 'Here is a summary.' ] ],
-					'model'   => 'claude-haiku-4-5-20251001',
+					'content' => 'Here is a summary.',
 					'usage'   => [ 'input_tokens' => 50, 'output_tokens' => 20 ],
 				] ),
 			];
