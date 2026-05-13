@@ -105,6 +105,56 @@ class TierFeatureMatrixTest extends IntegrationTestCase {
 		}
 	}
 
+	/**
+	 * Explicitly documents that the messages endpoint has no tier gate.
+	 *
+	 * The permission_callback for POST /conversations/{id}/messages checks only
+	 * edit_posts. This test makes that contract explicit so any future addition of
+	 * a tier check immediately surfaces as a named failure rather than a silent
+	 * regression buried inside the matrix loop.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
+	public function test_chat_messages_endpoint_has_no_tier_gate_for_free_users(): void {
+		$user_id = self::factory()->user->create(
+			[
+				'role'       => 'editor',
+				'user_login' => 'no_gate_contract_' . uniqid(),
+			]
+		);
+		$this->set_user_tier( $user_id, 'free' );
+		wp_set_current_user( $user_id );
+
+		$this->install_mock_for_feature( 'chat' );
+
+		// Create a conversation — not tier-gated either.
+		$create = $this->rest_do( 'POST', '/wp-ai-mind/v1/conversations', [ 'title' => 'No-gate contract test' ] );
+		$this->assertSame( 201, $create->get_status(), 'Free users must be able to create conversations.' );
+
+		$conv_data = $create->get_data();
+		$this->assertArrayHasKey( 'id', $conv_data, 'Conversation response must include an id.' );
+
+		// Send a message — the messages endpoint must remain accessible to free users.
+		$response = $this->rest_do(
+			'POST',
+			"/wp-ai-mind/v1/conversations/{$conv_data['id']}/messages",
+			[ 'content' => 'No-gate contract check' ]
+		);
+		$status = $response->get_status();
+
+		$this->assertGreaterThanOrEqual(
+			200,
+			$status,
+			'Messages endpoint must be accessible to free users (no tier gate).'
+		);
+		$this->assertLessThan(
+			400,
+			$status,
+			'Messages endpoint must not return an error for free users.'
+		);
+	}
+
 	// ── Private helpers ───────────────────────────────────────────────────────
 
 	/**
