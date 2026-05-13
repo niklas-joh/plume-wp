@@ -120,7 +120,9 @@ class TierFeatureMatrixTest extends IntegrationTestCase {
 	 */
 	private function install_mock_for_feature( string $feature ): void {
 		if ( 'images' === $feature ) {
-			$this->mock_http_with_claude_fixture( $this->gemini_image_fixture() );
+			// Images route through GeminiProvider, not the Claude proxy — use the
+			// Gemini-specific mock so the fixture origin is unambiguous.
+			$this->mock_http_with_gemini_fixture( $this->gemini_image_fixture() );
 			return;
 		}
 

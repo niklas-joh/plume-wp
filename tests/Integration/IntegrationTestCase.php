@@ -188,6 +188,41 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Install a pre_http_request filter that intercepts HTTP calls and returns a
+	 * synthetic Gemini Imagen-format 200 response.
+	 *
+	 * Use this helper when the code under test calls the Gemini provider so the
+	 * mock's intent is clear and distinct from the Claude-specific variant.
+	 *
+	 * @since 1.0.0
+	 * @param array<string, mixed> $response_body Decoded response body to return as JSON.
+	 * @return void
+	 */
+	protected function mock_http_with_gemini_fixture( array $response_body ): void {
+		// Remove any previously installed mock to avoid double-firing.
+		if ( null !== $this->http_mock_callback ) {
+			remove_filter( 'pre_http_request', $this->http_mock_callback );
+		}
+
+		$this->http_mock_callback = function ( $preempt, array $parsed_args, string $url ) use ( $response_body ) {
+			// Capture the raw request args so tests can assert on the body.
+			$this->last_http_args = $parsed_args;
+
+			return [
+				'headers'  => [ 'content-type' => 'application/json' ],
+				'body'     => wp_json_encode( $response_body ),
+				'response' => [
+					'code'    => 200,
+					'message' => 'OK',
+				],
+				'cookies'  => [],
+			];
+		};
+
+		add_filter( 'pre_http_request', $this->http_mock_callback, 10, 3 );
+	}
+
+	/**
 	 * Dispatch a request against the WordPress REST server and return the response.
 	 *
 	 * Convenience wrapper around WP_REST_Server::dispatch() that handles server
