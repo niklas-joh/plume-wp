@@ -129,7 +129,7 @@ class TierFeatureMatrixTest extends TestCase {
 		$this->assertSame(
 			$expected,
 			NJ_Tier_Config::get_limit( $tier ),
-			"get_limit( '{$tier}' ) should return " . var_export( $expected, true ) . '.'
+			"get_limit( '{$tier}' ) should return " . ( null === $expected ? 'null' : (string) $expected ) . '.'
 		);
 	}
 

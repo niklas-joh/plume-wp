@@ -1,14 +1,10 @@
 // @ts-check
 const { test, expect } = require( '@playwright/test' );
+const { wpLogin } = require( '../helpers/login' );
 
 test.describe( 'Tier gating', () => {
 	test.beforeEach( async ( { page } ) => {
-		await page.goto( '/wp-login.php' );
-		await page.waitForSelector( '#user_login', { state: 'visible' } );
-		await page.fill( '#user_login', process.env.WP_TEST_USER ?? 'nj_agent' );
-		await page.fill( '#user_pass', process.env.WP_TEST_PASS ?? '' );
-		await page.click( '#wp-submit' );
-		await page.waitForURL( '**/wp-admin/**' );
+		await wpLogin( page );
 	} );
 
 	test( 'generator page loads for authenticated user', async ( { page } ) => {

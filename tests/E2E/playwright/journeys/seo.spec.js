@@ -1,19 +1,14 @@
 // @ts-check
 const { test, expect } = require( '@playwright/test' );
+const { wpLogin } = require( '../helpers/login' );
 
 test.describe( 'SEO journey', () => {
 	test.beforeEach( async ( { page } ) => {
-		await page.goto( '/wp-login.php' );
-		await page.waitForSelector( '#user_login', { state: 'visible' } );
-		await page.fill( '#user_login', process.env.WP_TEST_USER ?? 'nj_agent' );
-		await page.fill( '#user_pass', process.env.WP_TEST_PASS ?? '' );
-		await page.click( '#wp-submit' );
-		await page.waitForURL( '**/wp-admin/**' );
+		await wpLogin( page );
 	} );
 
 	test( 'SEO page renders its root container', async ( { page } ) => {
 		await page.goto( '/wp-admin/admin.php?page=wp-ai-mind-seo' );
-		// Mount point is <div id="wp-ai-mind-seo"> (PHP enqueue).
 		// SeoApp renders either .wpaim-pro-gate (free) or .wpaim-page (Pro).
 		await expect(
 			page.locator( '#wp-ai-mind-seo' )
@@ -62,7 +57,6 @@ test.describe( 'SEO journey', () => {
 		const isProGate = await page.locator( '.wpaim-pro-gate' ).isVisible();
 		if ( isProGate ) {
 			test.skip();
-			return;
 		}
 
 		// Wait for the post list to finish loading.
@@ -105,7 +99,6 @@ test.describe( 'SEO journey', () => {
 		const isProGate = await page.locator( '.wpaim-pro-gate' ).isVisible();
 		if ( isProGate ) {
 			test.skip();
-			return;
 		}
 
 		await page.waitForSelector( '.wpaim-list-loading', { state: 'hidden', timeout: 15000 } );
