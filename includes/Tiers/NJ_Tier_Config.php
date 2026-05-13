@@ -109,7 +109,7 @@ class NJ_Tier_Config {
 	/**
 	 * Returns translatable human-readable labels for all tier slugs.
 	 *
-	 * Centralised here so TierStatusPage and NJ_Usage_Widget share
+	 * Centralised here so TierStatusPage and UsageWidget share
 	 * the same strings and cannot drift out of sync.
 	 *
 	 * @since 1.2.0
