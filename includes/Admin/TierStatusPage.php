@@ -20,14 +20,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Admin page displaying the site's current plan and monthly token usage.
  *
+ * Registered as the render callback for the "Upgrade" submenu page under the
+ * plugin's own admin menu. Not added to the Settings menu.
+ *
  * @since 1.2.0
  */
-class NJ_Tier_Status_Page {
+class TierStatusPage {
 
 	private const STYLE_HOOKS = [
-		'settings_page_wp-ai-mind-tier-status',
-		// The upgrade-page hook is registered by NJ_Upgrade_Page, not this class; included so the
-		// shared admin stylesheet loads on both pages without duplicating enqueue logic.
 		'ai-mind_page_wp-ai-mind-upgrade',
 	];
 
@@ -38,12 +38,11 @@ class NJ_Tier_Status_Page {
 	 * @return void
 	 */
 	public static function register_hooks(): void {
-		add_action( 'admin_menu', [ self::class, 'add_menu_page' ] );
 		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_styles' ] );
 	}
 
 	/**
-	 * Enqueue the admin stylesheet on the tier status and upgrade pages only.
+	 * Enqueue the admin stylesheet on the upgrade page only.
 	 *
 	 * @since 1.2.0
 	 * @param string $hook Current admin page hook suffix.
@@ -58,22 +57,6 @@ class NJ_Tier_Status_Page {
 			WP_AI_MIND_URL . 'assets/admin/wpaim-admin-widgets.css',
 			[],
 			WP_AI_MIND_VERSION
-		);
-	}
-
-	/**
-	 * Register the Plan & Usage submenu page under Settings.
-	 *
-	 * @since 1.2.0
-	 * @return void
-	 */
-	public static function add_menu_page(): void {
-		add_options_page(
-			__( 'Vectra AI Writer and Designer — Plan & Usage', 'wp-ai-mind' ),
-			__( 'AI Mind Plan', 'wp-ai-mind' ),
-			'manage_options',
-			'wp-ai-mind-tier-status',
-			[ self::class, 'render' ]
 		);
 	}
 
@@ -160,7 +143,7 @@ class NJ_Tier_Status_Page {
 			<?php endif; ?>
 			<?php if ( 'pro_byok' === $tier ) : ?>
 			<p>
-				<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-ai-mind-api-keys' ) ); ?>">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-ai-mind-settings' ) ); ?>">
 					<?php esc_html_e( 'Manage your API keys →', 'wp-ai-mind' ); ?>
 				</a>
 			</p>

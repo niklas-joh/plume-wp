@@ -54,7 +54,7 @@ class AdminMenu {
 				__( 'Upgrade ✦', 'wp-ai-mind' ),
 				'edit_posts',
 				'wp-ai-mind-upgrade',
-				[ \WP_AI_Mind\Admin\NJ_Tier_Status_Page::class, 'render' ]
+				[ \WP_AI_Mind\Admin\TierStatusPage::class, 'render' ]
 			);
 		}
 	}
