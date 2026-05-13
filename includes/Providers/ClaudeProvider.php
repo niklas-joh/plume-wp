@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use WP_AI_Mind\Proxy\NJ_Proxy_Client;
 use WP_AI_Mind\Proxy\NJ_Site_Registration;
+use WP_AI_Mind\Proxy\ProxyResponse;
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 
 /**
@@ -191,21 +192,7 @@ class ClaudeProvider extends AbstractProvider {
 		// NJ_Proxy_Client::chat() already called NJ_Usage_Tracker::log_usage() — flag to suppress parent logging.
 		$this->proxy_logged = true;
 
-		// Proxy normalises content to a flat string; parse_response() expects Anthropic block arrays.
-		$model      = ! empty( $request->model ) ? $request->model : self::DEFAULT_MODEL;
-		$in_tokens  = (int) ( $result['usage']['input_tokens'] ?? 0 );
-		$out_tokens = (int) ( $result['usage']['output_tokens'] ?? 0 );
-		$cost       = $this->calculate_cost( $model, $in_tokens, $out_tokens );
-
-		return new CompletionResponse(
-			content: $result['content'] ?? '',
-			model: $model,
-			prompt_tokens: $in_tokens,
-			completion_tokens: $out_tokens,
-			cost_usd: $cost,
-			raw: $result,
-			tool_call: $result['tool_call'] ?? null,
-		);
+		return $this->parse_response( ProxyResponse::from_array( $result )->to_claude_format(), $request );
 	}
 
 	/**
