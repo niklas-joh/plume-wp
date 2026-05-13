@@ -292,6 +292,60 @@ class ClaudeProviderTest extends TestCase {
 		$this->assertSame( $tools[0]['input_schema'], $captured_body['tools'][0]['parameters'] );
 	}
 
+	public function test_complete_via_proxy_defaults_content_to_empty_string_when_absent(): void {
+		$this->mock_wpdb();
+		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		Functions\when( 'get_option' )->justReturn( 'mock-site-token' );
+		Functions\stubs( [ '__' => fn( $str ) => $str ] );
+
+		// Proxy response omits the 'content' key entirely.
+		Functions\when( 'wp_remote_post' )->justReturn( [
+			'response' => [ 'code' => 200 ],
+			'body'     => json_encode( [
+				'usage' => [ 'input_tokens' => 10, 'output_tokens' => 5 ],
+			] ),
+		] );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+		$provider = new ClaudeProvider( '' );
+		$request  = new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ] );
+		$response = $provider->complete( $request );
+
+		$this->assertSame( '', $response->content );
+	}
+
+	public function test_complete_via_proxy_does_not_relay_tool_use_blocks(): void {
+		// The proxy contract guarantees content is always a flat string — tool-use blocks
+		// are never relayed. This test guards against silent breakage if the contract changes.
+		$this->mock_wpdb();
+		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		Functions\when( 'get_option' )->justReturn( 'mock-site-token' );
+		Functions\stubs( [ '__' => fn( $str ) => $str ] );
+
+		// Proxy always returns a flat string, never a tool-use block.
+		Functions\when( 'wp_remote_post' )->justReturn( [
+			'response' => [ 'code' => 200 ],
+			'body'     => json_encode( [
+				'content' => 'Some text response',
+				'usage'   => [ 'input_tokens' => 10, 'output_tokens' => 5 ],
+			] ),
+		] );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+		$provider = new ClaudeProvider( '' );
+		$request  = new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ] );
+		$response = $provider->complete( $request );
+
+		$this->assertSame( 'Some text response', $response->content );
+		$this->assertFalse( $response->is_tool_call() );
+	}
+
 	public function test_tools_injected_in_request_body(): void {
 		$captured_body = null;
 		Functions\when( 'wp_remote_post' )->alias( function( $url, $args ) use ( &$captured_body ) {

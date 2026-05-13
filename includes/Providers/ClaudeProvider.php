@@ -191,9 +191,7 @@ class ClaudeProvider extends AbstractProvider {
 		// NJ_Proxy_Client::chat() already called NJ_Usage_Tracker::log_usage() — flag to suppress parent logging.
 		$this->proxy_logged = true;
 
-		// The proxy returns a normalised shape { content: string, usage: {...} }, not the
-		// native Anthropic block array. Build the response directly to avoid parse_response()
-		// iterating $data['content'] as an array of blocks and returning empty content.
+		// Proxy normalises to a flat string; parse_response() expects Anthropic block arrays.
 		$model      = ! empty( $request->model ) ? $request->model : self::DEFAULT_MODEL;
 		$in_tokens  = (int) ( $result['usage']['input_tokens'] ?? 0 );
 		$out_tokens = (int) ( $result['usage']['output_tokens'] ?? 0 );
