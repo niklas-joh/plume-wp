@@ -6,9 +6,9 @@ namespace WP_AI_Mind\Tests\Unit\Admin;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
-use WP_AI_Mind\Admin\NJ_Tier_Status_Page;
+use WP_AI_Mind\Admin\TierStatusPage;
 
-class NJ_Tier_Status_Page_Test extends TestCase {
+class TierStatusPageTest extends TestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -86,7 +86,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		// No display stubs needed — render() must exit before any output.
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
@@ -99,7 +99,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'free', true );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Connected', $output );
@@ -111,7 +111,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'free', false );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Not connected', $output );
@@ -125,7 +125,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'free', true, 1000 );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( '1550505', $output );
@@ -136,7 +136,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'free', true, 1000 );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( '1550477', $output );
@@ -147,7 +147,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'free', true, 1000 );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( '1550517', $output );
@@ -158,7 +158,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'trial', true, 5000 );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( '1550505', $output );
@@ -171,7 +171,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'pro_managed', true, 100000 );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringNotContainsString( '1550505', $output );
@@ -184,7 +184,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'free', true, 0 );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'test-site-token', $output );
@@ -197,11 +197,11 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'pro_byok', true );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Manage your API keys', $output );
-		$this->assertStringContainsString( 'wp-ai-mind-api-keys', $output );
+		$this->assertStringContainsString( 'wp-ai-mind-settings', $output );
 	}
 
 	public function test_render_omits_api_keys_link_for_free_tier(): void {
@@ -209,7 +209,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'free', false );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringNotContainsString( 'Manage your API keys', $output );
@@ -220,7 +220,7 @@ class NJ_Tier_Status_Page_Test extends TestCase {
 		$this->stub_tier_and_registration( 'pro_managed', true );
 
 		ob_start();
-		NJ_Tier_Status_Page::render();
+		TierStatusPage::render();
 		$output = ob_get_clean();
 
 		$this->assertStringNotContainsString( 'Manage your API keys', $output );
