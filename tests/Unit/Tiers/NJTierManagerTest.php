@@ -38,6 +38,7 @@ class NJTierManagerTest extends TestCase {
 		// Site option wins over trial meta — paid status is per-site, not per-user.
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 5 );
 		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->once()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( '' );
 
 		$this->assertSame( 'pro_managed', NJ_Tier_Manager::get_user_tier() );
 	}
@@ -45,6 +46,7 @@ class NJTierManagerTest extends TestCase {
 	public function test_get_user_tier_returns_site_option_when_site_is_pro_byok(): void {
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 5 );
 		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_byok' );
+		Functions\expect( 'get_option' )->once()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( '' );
 
 		$this->assertSame( 'pro_byok', NJ_Tier_Manager::get_user_tier() );
 	}
@@ -83,6 +85,7 @@ class NJTierManagerTest extends TestCase {
 	public function test_get_user_tier_short_circuits_to_site_option_when_no_user(): void {
 		// $user_id <= 0 path: skip meta entirely, consult site option directly.
 		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->once()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( '' );
 		Functions\expect( 'get_user_meta' )->never();
 
 		$this->assertSame( 'pro_managed', NJ_Tier_Manager::get_user_tier( 0 ) );
@@ -119,6 +122,11 @@ class NJTierManagerTest extends TestCase {
 			->once()
 			->with( NJ_Tier_Manager::SITE_OPTION, 'pro_managed', false )
 			->andReturn( true );
+		// No sync secret on this site — skip signature write.
+		Functions\expect( 'get_option' )
+			->once()
+			->with( 'wp_ai_mind_tier_sync_secret', '' )
+			->andReturn( '' );
 		Functions\expect( 'do_action' )
 			->once()
 			->with( 'wp_ai_mind_tier_changed', 'pro_managed' );
@@ -150,6 +158,7 @@ class NJTierManagerTest extends TestCase {
 	public function test_pro_managed_site_grants_model_selection(): void {
 		Functions\expect( 'get_current_user_id' )->twice()->andReturn( 2 );
 		Functions\expect( 'get_option' )->twice()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->twice()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( '' );
 
 		$this->assertTrue( NJ_Tier_Manager::user_can( 'chat' ) );
 		$this->assertTrue( NJ_Tier_Manager::user_can( 'model_selection' ) );
@@ -158,6 +167,7 @@ class NJTierManagerTest extends TestCase {
 	public function test_pro_byok_site_grants_all_features(): void {
 		Functions\expect( 'get_current_user_id' )->times( 6 )->andReturn( 7 );
 		Functions\expect( 'get_option' )->times( 6 )->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_byok' );
+		Functions\expect( 'get_option' )->times( 6 )->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( '' );
 
 		$this->assertTrue( NJ_Tier_Manager::user_can( 'chat' ) );
 		$this->assertTrue( NJ_Tier_Manager::user_can( 'model_selection' ) );
@@ -180,6 +190,7 @@ class NJTierManagerTest extends TestCase {
 	public function test_pro_managed_site_can_use_content_features(): void {
 		Functions\expect( 'get_current_user_id' )->times( 3 )->andReturn( 2 );
 		Functions\expect( 'get_option' )->times( 3 )->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->times( 3 )->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( '' );
 
 		$this->assertTrue( NJ_Tier_Manager::user_can( 'generator' ) );
 		$this->assertTrue( NJ_Tier_Manager::user_can( 'seo' ) );
@@ -353,5 +364,98 @@ class NJTierManagerTest extends TestCase {
 		$this->assertContains( 'pro_managed', NJ_Tier_Config::get_valid_tiers() );
 		$this->assertContains( 'pro_byok', NJ_Tier_Config::get_valid_tiers() );
 		$this->assertCount( 4, NJ_Tier_Config::get_valid_tiers() );
+	}
+
+	// ── Tier integrity (HMAC signature verification) ──────────────────────────
+
+	public function test_get_user_tier_returns_paid_tier_when_signature_is_valid(): void {
+		$secret = 'test-secret';
+		$tier   = 'pro_byok';
+		$sig    = hash_hmac( 'sha256', $tier, $secret );
+
+		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
+		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( $tier );
+		Functions\expect( 'get_option' )->once()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( $secret );
+		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION_SIG, '' )->andReturn( $sig );
+
+		$this->assertSame( 'pro_byok', NJ_Tier_Manager::get_user_tier() );
+	}
+
+	public function test_get_user_tier_returns_free_when_signature_is_wrong(): void {
+		$secret = 'test-secret';
+		$tier   = 'pro_byok';
+
+		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
+		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( $tier );
+		Functions\expect( 'get_option' )->once()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( $secret );
+		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION_SIG, '' )->andReturn( 'tampered-value' );
+		// Verification failure falls through to trial check; no trial meta present.
+		Functions\expect( 'get_user_meta' )->once()->with( 1, NJ_Tier_Manager::META_KEY, true )->andReturn( '' );
+
+		$this->assertSame( 'free', NJ_Tier_Manager::get_user_tier() );
+	}
+
+	public function test_get_user_tier_returns_free_when_signature_is_absent_but_secret_exists(): void {
+		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
+		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->once()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( 'some-secret' );
+		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION_SIG, '' )->andReturn( '' );
+		// Verification failure falls through to trial check; no trial meta present.
+		Functions\expect( 'get_user_meta' )->once()->with( 1, NJ_Tier_Manager::META_KEY, true )->andReturn( '' );
+
+		$this->assertSame( 'free', NJ_Tier_Manager::get_user_tier() );
+	}
+
+	public function test_get_user_tier_trusts_paid_tier_when_no_secret_exists(): void {
+		// Unregistered site — no secret means no verification; stored value is trusted.
+		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
+		Functions\expect( 'get_option' )->once()->with( NJ_Tier_Manager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->once()->with( 'wp_ai_mind_tier_sync_secret', '' )->andReturn( '' );
+
+		$this->assertSame( 'pro_managed', NJ_Tier_Manager::get_user_tier() );
+	}
+
+	public function test_set_site_tier_writes_hmac_signature_when_secret_exists(): void {
+		$secret = 'my-secret';
+		$tier   = 'pro_managed';
+		$sig    = hash_hmac( 'sha256', $tier, $secret );
+
+		Functions\expect( 'update_option' )
+			->once()
+			->with( NJ_Tier_Manager::SITE_OPTION, $tier, false )
+			->andReturn( true );
+		Functions\expect( 'get_option' )
+			->once()
+			->with( 'wp_ai_mind_tier_sync_secret', '' )
+			->andReturn( $secret );
+		Functions\expect( 'update_option' )
+			->once()
+			->with( NJ_Tier_Manager::SITE_OPTION_SIG, $sig, false )
+			->andReturn( true );
+		Functions\expect( 'do_action' )
+			->once()
+			->with( 'wp_ai_mind_tier_changed', $tier );
+
+		$this->assertTrue( NJ_Tier_Manager::set_site_tier( $tier ) );
+	}
+
+	public function test_set_site_tier_skips_signature_when_no_secret_exists(): void {
+		Functions\expect( 'update_option' )
+			->once()
+			->with( NJ_Tier_Manager::SITE_OPTION, 'free', false )
+			->andReturn( true );
+		Functions\expect( 'get_option' )
+			->once()
+			->with( 'wp_ai_mind_tier_sync_secret', '' )
+			->andReturn( '' );
+		// SITE_OPTION_SIG must NOT be written when there is no secret.
+		Functions\expect( 'update_option' )
+			->never()
+			->with( NJ_Tier_Manager::SITE_OPTION_SIG, \Mockery::any(), false );
+		Functions\expect( 'do_action' )
+			->once()
+			->with( 'wp_ai_mind_tier_changed', 'free' );
+
+		$this->assertTrue( NJ_Tier_Manager::set_site_tier( 'free' ) );
 	}
 }

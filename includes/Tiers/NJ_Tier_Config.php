@@ -27,6 +27,9 @@ class NJ_Tier_Config {
 
 	const TIERS = [ 'free', 'trial', 'pro_managed', 'pro_byok' ];
 
+	// Authoritative feature matrix for local enforcement. Changing this file
+	// requires direct file-system access (SSH/SFTP); the Cloudflare Worker proxy
+	// is the server-side source of truth for rate limits and paid entitlements.
 	const FEATURES = [
 		'free'        => [
 			'chat'            => true,
