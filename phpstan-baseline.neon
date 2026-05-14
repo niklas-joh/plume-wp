@@ -26,7 +26,7 @@ parameters:
 			path: includes/Settings/ProviderSettings.php
 
 		-
-			message: "#^Parameter \\#1 \$parent_slug of function add_submenu_page expects string, null given\.$#"
+			message: "#^Parameter \\#1 \\$parent_slug of function add_submenu_page expects string, null given\\.$#"
 			count: 1
 			path: includes/Admin/DevToolsPage.php
 
