@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace WP_AI_Mind\Tiers;
 
+use WP_AI_Mind\Payments\TierUpdateWebhookController;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -138,7 +140,7 @@ class NJ_Tier_Manager {
 		// every page load, so paying the autoload cost on every request is wasteful.
 		$ok = (bool) update_option( self::SITE_OPTION, $tier, false );
 		if ( $ok ) {
-			$secret = (string) get_option( 'wp_ai_mind_tier_sync_secret', '' );
+			$secret = (string) get_option( TierUpdateWebhookController::OPTION_SECRET, '' );
 			if ( '' !== $secret ) {
 				update_option( self::SITE_OPTION_SIG, hash_hmac( 'sha256', $tier, $secret ), false );
 			}
@@ -186,7 +188,7 @@ class NJ_Tier_Manager {
 	 * @return bool True when verification passes or cannot be performed; false on mismatch.
 	 */
 	private static function is_site_tier_verified( string $tier ): bool {
-		$secret = (string) get_option( 'wp_ai_mind_tier_sync_secret', '' );
+		$secret = (string) get_option( TierUpdateWebhookController::OPTION_SECRET, '' );
 		if ( '' === $secret ) {
 			return true; // Unregistered site — no secret to check against.
 		}
@@ -208,7 +210,7 @@ class NJ_Tier_Manager {
 	 * @return bool True when the stored paid tier cannot be verified and a re-sync is needed.
 	 */
 	public static function needs_tier_verification_resync(): bool {
-		$secret = (string) get_option( 'wp_ai_mind_tier_sync_secret', '' );
+		$secret = (string) get_option( TierUpdateWebhookController::OPTION_SECRET, '' );
 		if ( '' === $secret ) {
 			return false; // Not registered — no action needed.
 		}
