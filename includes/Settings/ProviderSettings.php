@@ -116,36 +116,39 @@ class ProviderSettings {
 	/**
 	 * Encrypt a plaintext string with AES-256-CBC and base64-encode the result.
 	 *
+	 * IV is prepended as raw bytes (fixed length) rather than using a '::' separator,
+	 * avoiding any ambiguity when binary IV bytes contain the separator sequence.
+	 *
 	 * @since 1.0.0
 	 * @param string $plain Plaintext to encrypt.
-	 * @return string Base64-encoded "IV::ciphertext" string.
+	 * @return string Base64-encoded IV-prefixed ciphertext, or empty string on failure.
 	 */
 	private static function encrypt( string $plain ): string {
-		$iv         = random_bytes( openssl_cipher_iv_length( self::CIPHER ) );
-		$ciphertext = openssl_encrypt( $plain, self::CIPHER, self::secret(), 0, $iv );
-		return base64_encode( $iv . '::' . $ciphertext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding encrypted API key, not obfuscation.
+		$iv_len     = openssl_cipher_iv_length( self::CIPHER );
+		$iv         = random_bytes( $iv_len );
+		$ciphertext = openssl_encrypt( $plain, self::CIPHER, self::secret(), OPENSSL_RAW_DATA, $iv );
+		if ( false === $ciphertext ) {
+			return '';
+		}
+		return base64_encode( $iv . $ciphertext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding encrypted API key, not obfuscation.
 	}
 
 	/**
-	 * Decrypt a base64-encoded "IV::ciphertext" string.
-	 *
-	 * The IV is extracted by its fixed length rather than by splitting on '::'
-	 * to avoid misalignment when the random IV bytes happen to contain '::'.
+	 * Decrypt a base64-encoded IV-prefixed ciphertext produced by encrypt().
 	 *
 	 * @since 1.0.0
 	 * @param string $encoded Base64-encoded encrypted value.
 	 * @return string Decrypted plaintext, or empty string on failure.
 	 */
 	private static function decrypt( string $encoded ): string {
-		$decoded = base64_decode( $encoded, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding encrypted API key, not obfuscation.
 		$iv_len  = openssl_cipher_iv_length( self::CIPHER );
-		// Layout: IV ($iv_len raw bytes) + '::' (2 bytes) + base64-ciphertext.
-		if ( false === $decoded || strlen( $decoded ) < $iv_len + 2 ) {
+		$decoded = base64_decode( $encoded, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding encrypted API key, not obfuscation.
+		if ( false === $decoded || strlen( $decoded ) <= $iv_len ) {
 			return '';
 		}
 		$iv         = substr( $decoded, 0, $iv_len );
-		$ciphertext = substr( $decoded, $iv_len + 2 );
-		$plain      = openssl_decrypt( $ciphertext, self::CIPHER, self::secret(), 0, $iv );
+		$ciphertext = substr( $decoded, $iv_len );
+		$plain      = openssl_decrypt( $ciphertext, self::CIPHER, self::secret(), OPENSSL_RAW_DATA, $iv );
 		return false === $plain ? '' : $plain;
 	}
 }
