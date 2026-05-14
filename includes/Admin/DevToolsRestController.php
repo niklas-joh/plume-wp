@@ -161,7 +161,7 @@ class DevToolsRestController {
 	 */
 	public static function handle_reset_usage(): WP_REST_Response {
 		$user_id = get_current_user_id();
-		$key     = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
+		$key     = NJ_Usage_Tracker::get_current_month_key();
 		update_user_meta( $user_id, $key, 0 );
 
 		return new WP_REST_Response(
@@ -197,7 +197,7 @@ class DevToolsRestController {
 			);
 		}
 
-		$key = 'wp_ai_mind_usage_' . gmdate( 'Y_m' );
+		$key = NJ_Usage_Tracker::get_current_month_key();
 		update_user_meta( $user_id, $key, $limit );
 
 		return new WP_REST_Response(
