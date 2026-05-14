@@ -74,7 +74,7 @@ class ActivationVerifyRestController {
 	 * any observer of the challenge value to block legitimate Worker registration.
 	 *
 	 * @since 1.3.0
-	 * @since 1.8.0 Transient is deleted on first successful match (consume-once, fixes #457).
+	 * @since 1.8.1 Transient is deleted on first successful match (consume-once, fixes #457).
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response 200 with `verified: true` on first match; 403 on mismatch or replay.
 	 */
