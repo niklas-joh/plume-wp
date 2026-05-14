@@ -21,6 +21,7 @@ use WP_AI_Mind\Settings\ProviderSettings;
 use WP_AI_Mind\Tools\ToolRegistry;
 use WP_AI_Mind\Tools\ToolExecutor;
 use WP_AI_Mind\Voice\VoiceInjector;
+// TODO: NJ_Tier_Manager and NJ_Usage_Tracker predate the WP_AI_Mind\ namespace; rename to WP_AI_Mind\Tiers\TierManager etc. in a future refactor.
 use WP_AI_Mind\Tiers\NJ_Tier_Manager;
 use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
 
