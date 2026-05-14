@@ -248,7 +248,7 @@ class DevToolsPage {
 	 * @param string $key Plaintext key value.
 	 * @return string Hex HMAC-SHA256 digest.
 	 */
-	public static function hash_key( string $key ): string {
+	private static function hash_key( string $key ): string {
 		return hash_hmac( 'sha256', $key, wp_salt( 'secure_auth' ) );
 	}
 }
