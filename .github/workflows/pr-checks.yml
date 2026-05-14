@@ -482,7 +482,13 @@ jobs:
           exit 1
 
       - name: Run Playwright tests
-        run: WP_BASE_URL=http://localhost:8888 CI=true npx playwright test
+        env:
+          WP_BASE_URL: http://localhost:8888
+          # Test-only account created by global-setup.js inside the ephemeral wp-env container.
+          # These credentials are already hardcoded in global-setup.js and p1-activation.spec.js.
+          WP_TEST_USER: nj_agent
+          WP_TEST_PASS: C8IcqAWJu8F3dOw6E4ndWhIe
+        run: CI=true npx playwright test
 
       - name: Upload Playwright report on failure
         if: failure()
