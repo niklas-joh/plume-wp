@@ -141,7 +141,11 @@ class DevToolsPage {
 	 */
 	public static function render(): void {
 		if ( ! self::is_active() ) {
-			wp_die( esc_html__( 'Developer tools are not enabled on this site.', 'wp-ai-mind' ), 403 );
+			wp_die(
+				esc_html__( 'Developer tools are not enabled on this site.', 'wp-ai-mind' ),
+				'',
+				[ 'response' => 403 ]
+			);
 		}
 
 		self::enqueue_assets();
