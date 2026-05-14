@@ -11,7 +11,7 @@ test.describe( 'Settings journey', () => {
 		// SettingsApp.jsx fetches GET /wp-ai-mind/v1/settings on mount (line 30)
 		// and passes settings down to ProvidersTab, which renders a SelectControl
 		// for "Default AI Provider" using settings.default_provider as the value.
-		await page.route( '**/wp-json/wp-ai-mind/v1/settings', async ( route ) => {
+		await page.route( '**/wp-ai-mind/v1/settings', async ( route ) => {
 			if ( route.request().method() === 'GET' ) {
 				await route.fulfill( {
 					status: 200,
@@ -44,7 +44,7 @@ test.describe( 'Settings journey', () => {
 		// SettingsApp.jsx calls POST /wp-ai-mind/v1/settings in saveSettings (line 40)
 		// and on success sets saveResult to 'success', rendering a <Notice> with
 		// the text "Saved successfully" (SettingsApp.jsx line 85).
-		await page.route( '**/wp-json/wp-ai-mind/v1/settings', async ( route ) => {
+		await page.route( '**/wp-ai-mind/v1/settings', async ( route ) => {
 			if ( route.request().method() === 'GET' ) {
 				await route.fulfill( {
 					status: 200,
@@ -93,7 +93,7 @@ test.describe( 'Settings journey', () => {
 		// The tab panel container has className="wpaim-settings-tabpanel" (line 91).
 		// The default (first) tab is "Providers", which renders ProvidersTab containing
 		// .wpaim-providers-tab (ProvidersTab.jsx line 72).
-		await page.route( '**/wp-json/wp-ai-mind/v1/settings', async ( route ) => {
+		await page.route( '**/wp-ai-mind/v1/settings', async ( route ) => {
 			if ( route.request().method() === 'GET' ) {
 				await route.fulfill( {
 					status: 200,

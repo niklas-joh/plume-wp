@@ -11,7 +11,7 @@ test.describe( 'Generator journey', () => {
 		// Route the generate endpoint to return a verifiable fixture post.
 		// GeneratorWizard.jsx posts to /wp-ai-mind/v1/generate and on success
 		// transitions to step 3, rendering result.content in .wpaim-generator__preview.
-		await page.route( '**/wp-json/wp-ai-mind/v1/generate', async ( route ) => {
+		await page.route( '**/wp-ai-mind/v1/generate', async ( route ) => {
 			if ( route.request().method() === 'POST' ) {
 				await route.fulfill( {
 					status: 200,
@@ -52,7 +52,7 @@ test.describe( 'Generator journey', () => {
 	test( 'shows error state on API failure', async ( { page } ) => {
 		// Return a 500 WP REST error — GeneratorWizard catches the rejection,
 		// sets the error state, and renders it above the form (line 174–189).
-		await page.route( '**/wp-json/wp-ai-mind/v1/generate', async ( route ) => {
+		await page.route( '**/wp-ai-mind/v1/generate', async ( route ) => {
 			if ( route.request().method() === 'POST' ) {
 				await route.fulfill( {
 					status: 500,
