@@ -85,10 +85,13 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Reset the REST server and set a fake site token before each test.
+	 * Set a fake site token before each test.
 	 *
 	 * The site token prevents NJ_Site_Registration::maybe_register() from
-	 * firing a real outbound HTTP call during the test run.
+	 * firing a real outbound HTTP call during the test run. The REST server
+	 * is not initialised here; rest_get_server() handles lazy initialisation
+	 * on demand, and the previous server is nulled in tearDown() so each test
+	 * starts with a clean slate without redundant bootstrap overhead.
 	 *
 	 * @since 1.0.0
 	 * @return void
@@ -98,16 +101,14 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 
 		// Prevent the proxy registration flow from making real network calls.
 		update_option( NJ_Site_Registration::OPTION_TOKEN, 'test-site-token' );
-
-		// Force a fresh REST server so routes registered by the plugin are
-		// available without carrying state between tests.
-		global $wp_rest_server;
-		$wp_rest_server = null;
-		do_action( 'rest_api_init' );
 	}
 
 	/**
-	 * Remove HTTP mock filter and clean up after each test.
+	 * Null the REST server and remove the HTTP mock filter after each test.
+	 *
+	 * Nulling here (rather than in setUp) avoids a double-init race: the server
+	 * is discarded once at the end of each test so the next test's first call to
+	 * rest_get_server() triggers a single, clean re-initialisation.
 	 *
 	 * @since 1.0.0
 	 * @return void
@@ -120,6 +121,10 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 		$this->last_http_args = null;
 
 		wp_set_current_user( 0 );
+
+		// Discard the server so the next test gets a fresh instance on demand.
+		global $wp_rest_server;
+		$wp_rest_server = null;
 
 		parent::tearDown();
 	}
