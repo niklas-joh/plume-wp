@@ -78,6 +78,13 @@ class NJProxyClientTest extends TestCase {
 		Functions\expect( 'delete_option' )
 			->once()
 			->with( NJ_Site_Registration::OPTION_TOKEN );
+		Functions\expect( 'has_action' )
+			->once()
+			->with( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] )
+			->andReturn( false );
+		Functions\expect( 'add_action' )
+			->once()
+			->with( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] );
 		Functions\when( '__' )->alias( fn( $s ) => $s );
 
 		$result = NJ_Proxy_Client::chat( [ [ 'role' => 'user', 'content' => 'hi' ] ] );

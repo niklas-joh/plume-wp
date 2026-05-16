@@ -107,6 +107,9 @@ class NJ_Proxy_Client {
 			// Re-registration is async; the current request cannot be retried transparently.
 			// TODO #326: inline register() + retry once to avoid user-visible auth errors.
 			delete_option( NJ_Site_Registration::OPTION_TOKEN );
+			if ( ! has_action( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] ) ) {
+				add_action( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] );
+			}
 			return new WP_Error( 'proxy_auth_failed', __( 'Proxy authentication failed. Please reload the page and try again.', 'wp-ai-mind' ) );
 		}
 
