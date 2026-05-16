@@ -236,7 +236,8 @@ class SeoModule {
 		} catch ( ProviderException $e ) {
 			\error_log( '[Stilus] SeoModule provider error: ' . $e->getMessage() );
 			// Surface the provider message when it is user-actionable (e.g. proxy auth, not registered).
-			$msg = $e->getMessage() ? $e->getMessage() : __( 'Provider error. Please try again later.', 'wp-ai-mind' );
+			$raw_msg = $e->getMessage();
+			$msg     = '' !== $raw_msg ? $raw_msg : __( 'Provider error. Please try again later.', 'wp-ai-mind' );
 			return new \WP_Error( 'provider_error', $msg );
 		} catch ( \Throwable $e ) {
 			\error_log( '[Stilus] SeoModule unexpected error: ' . $e->getMessage() );
