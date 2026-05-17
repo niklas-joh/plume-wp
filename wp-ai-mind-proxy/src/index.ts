@@ -4,6 +4,7 @@ import { Env, ModelConfig, NormalizedResponse, ProxyRequest, ProxyTier, SiteReco
 import { authenticateRequest, generateToken } from './auth';
 import { handleActivationChallenge, handleRegistration } from './registration';
 import { handleWebhook } from './webhook';
+import { verifyHmac } from './signature';
 import { TRIAL_PERIOD_MS } from './constants';
 
 const MAX_BODY_BYTES = 1_048_576; // 1 MB
@@ -414,24 +415,8 @@ async function authenticateDevRequest(
 		return { authenticated: false, error: 'Timestamp out of window', status: 401 };
 	}
 
-	if ( signatureHex.length % 2 !== 0 || ! /^[0-9a-f]+$/i.test( signatureHex ) ) {
-		return { authenticated: false, error: 'Malformed signature', status: 401 };
-	}
-	const sigBytes = new Uint8Array( signatureHex.length / 2 );
-	for ( let i = 0; i < signatureHex.length; i += 2 ) {
-		sigBytes[ i / 2 ] = parseInt( signatureHex.slice( i, i + 2 ), 16 );
-	}
-
-	const key = await crypto.subtle.importKey(
-		'raw',
-		new TextEncoder().encode( secret ),
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		[ 'verify' ]
-	);
-	const payload = new TextEncoder().encode( `${ timestamp }.${ bodyText }` );
-	const valid = await crypto.subtle.verify( 'HMAC', key, sigBytes, payload );
-
+	// Payload mirrors TierUpdateWebhookController.php: `${timestamp}.${body}`.
+	const valid = await verifyHmac( `${ timestamp }.${ bodyText }`, signatureHex, secret );
 	if ( ! valid ) {
 		return { authenticated: false, error: 'Invalid dev signature', status: 401 };
 	}
