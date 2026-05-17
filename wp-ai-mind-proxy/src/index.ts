@@ -303,12 +303,9 @@ export default {
 			return handleRotateSecret( request, env );
 		}
 
-		// Dev-only endpoints — only active when DEV_MODE is set in the Worker environment.
-		// Each route still requires Bearer-token auth (the registered site token).
+		// Dev endpoints for the devtools plugin.
+		// Require Bearer token + HMAC-signed timestamp using the per-site tier_sync_secret.
 		if ( pathname === '/dev/set-tier' || pathname === '/dev/reset-usage' || pathname === '/dev/set-usage' ) {
-			if ( ! env.DEV_MODE ) {
-				return jsonResponse( { error: 'Not found' }, 404 );
-			}
 			if ( request.method !== 'POST' ) {
 				return jsonResponse( { error: 'Method not allowed' }, 405 );
 			}
@@ -361,26 +358,107 @@ async function handleRotateSecret(
 }
 
 // ── Dev override endpoints ────────────────────────────────────────────────────
-// These three handlers are only reachable when DEV_MODE is set on the Worker.
-// The fetch() dispatcher enforces that guard before calling any of these.
+
+interface DevAuthResult {
+	authenticated: boolean;
+	site_token?: string;
+	record?: SiteRecord;
+	error?: string;
+	status?: number;
+}
+
+/**
+ * Verify a dev endpoint request: Bearer token + HMAC-signed timestamp.
+ *
+ * Two-factor check:
+ *   1. Bearer token lookup (site identity, same as /v1/chat).
+ *   2. HMAC-SHA-256 over `${timestamp}.${rawBodyText}` using the site's
+ *      tier_sync_secret. Mirrors the TierUpdateWebhookController.php pattern
+ *      (Worker→WP) in the reverse direction (WP→Worker).
+ *
+ * Required headers: X-Dev-Signature (hex HMAC) and X-Dev-Timestamp (unix sec).
+ * Timestamp must be within ±300 s of the Worker clock to prevent replay.
+ */
+async function authenticateDevRequest(
+	request: Request,
+	bodyText: string,
+	env: Env
+): Promise< DevAuthResult > {
+	const auth = await authenticateRequest( request, env );
+	if ( ! auth.authenticated || ! auth.site_token || ! auth.record ) {
+		return { authenticated: false, error: 'Unauthorised', status: 401 };
+	}
+
+	const secret = auth.record.tier_sync_secret;
+	if ( ! secret ) {
+		return { authenticated: false, error: 'No dev secret — rotate the site secret first via /rotate-secret', status: 401 };
+	}
+
+	const signatureHex = request.headers.get( 'X-Dev-Signature' ) ?? '';
+	const timestampStr = request.headers.get( 'X-Dev-Timestamp' ) ?? '';
+	if ( ! signatureHex || ! timestampStr ) {
+		return { authenticated: false, error: 'Missing X-Dev-Signature or X-Dev-Timestamp header', status: 401 };
+	}
+
+	const timestamp = parseInt( timestampStr, 10 );
+	if ( isNaN( timestamp ) ) {
+		return { authenticated: false, error: 'Invalid timestamp', status: 401 };
+	}
+
+	const skew = Math.floor( Date.now() / 1000 ) - timestamp;
+	if ( skew > 300 || skew < -60 ) {
+		return { authenticated: false, error: 'Timestamp out of window', status: 401 };
+	}
+
+	if ( signatureHex.length % 2 !== 0 || ! /^[0-9a-f]+$/i.test( signatureHex ) ) {
+		return { authenticated: false, error: 'Malformed signature', status: 401 };
+	}
+	const sigBytes = new Uint8Array( signatureHex.length / 2 );
+	for ( let i = 0; i < signatureHex.length; i += 2 ) {
+		sigBytes[ i / 2 ] = parseInt( signatureHex.slice( i, i + 2 ), 16 );
+	}
+
+	const key = await crypto.subtle.importKey(
+		'raw',
+		new TextEncoder().encode( secret ),
+		{ name: 'HMAC', hash: 'SHA-256' },
+		false,
+		[ 'verify' ]
+	);
+	const payload = new TextEncoder().encode( `${ timestamp }.${ bodyText }` );
+	const valid = await crypto.subtle.verify( 'HMAC', key, sigBytes, payload );
+
+	if ( ! valid ) {
+		return { authenticated: false, error: 'Invalid dev signature', status: 401 };
+	}
+
+	return { authenticated: true, site_token: auth.site_token, record: auth.record };
+}
 
 /**
  * Override the tier stored in the site's KV record.
  * Mirrors what a real LemonSqueezy webhook would do, but without payment.
  */
 async function handleDevSetTier( request: Request, env: Env ): Promise< Response > {
-	const auth = await authenticateRequest( request, env );
-	if ( ! auth.authenticated || ! auth.site_token || ! auth.record ) {
-		return jsonResponse( { error: 'Unauthorised' }, 401 );
+	const bodyText = await request.text();
+	const auth = await authenticateDevRequest( request, bodyText, env );
+	if ( ! auth.authenticated ) {
+		return jsonResponse( { error: auth.error ?? 'Unauthorised' }, auth.status ?? 401 );
 	}
 
-	const body = ( await request.json() ) as { tier?: string };
+	let body: { tier?: string };
+	try {
+		body = JSON.parse( bodyText ) as { tier?: string };
+	} catch {
+		return jsonResponse( { error: 'Invalid JSON body' }, 400 );
+	}
+
 	const validTiers: SiteTier[] = [ 'free', 'trial', 'pro_managed', 'pro_byok' ];
 	if ( ! body.tier || ! validTiers.includes( body.tier as SiteTier ) ) {
 		return jsonResponse( { error: 'Invalid tier' }, 400 );
 	}
 
-	const updated: SiteRecord = { ...auth.record, tier: body.tier as SiteTier };
+	const updated: SiteRecord = { ...auth.record!, tier: body.tier as SiteTier };
 	await env.USAGE_KV.put( `site:${ auth.site_token }`, JSON.stringify( updated ) );
 
 	return jsonResponse( { ok: true, tier: body.tier } );
@@ -390,12 +468,13 @@ async function handleDevSetTier( request: Request, env: Env ): Promise< Response
  * Zero out this month's usage counter for the authenticated site.
  */
 async function handleDevResetUsage( request: Request, env: Env ): Promise< Response > {
-	const auth = await authenticateRequest( request, env );
-	if ( ! auth.authenticated || ! auth.site_token ) {
-		return jsonResponse( { error: 'Unauthorised' }, 401 );
+	const bodyText = await request.text();
+	const auth = await authenticateDevRequest( request, bodyText, env );
+	if ( ! auth.authenticated ) {
+		return jsonResponse( { error: auth.error ?? 'Unauthorised' }, auth.status ?? 401 );
 	}
 
-	const key = `usage:${ auth.site_token }:${ getCurrentMonth() }`;
+	const key = `usage:${ auth.site_token! }:${ getCurrentMonth() }`;
 	await env.USAGE_KV.put( key, '0', { expirationTtl: getSecondsUntilNextMonth() } );
 
 	return jsonResponse( { ok: true, usage: 0 } );
@@ -406,17 +485,24 @@ async function handleDevResetUsage( request: Request, env: Env ): Promise< Respo
  * Pass the tier's monthly limit to simulate a fully-exhausted quota.
  */
 async function handleDevSetUsage( request: Request, env: Env ): Promise< Response > {
-	const auth = await authenticateRequest( request, env );
-	if ( ! auth.authenticated || ! auth.site_token ) {
-		return jsonResponse( { error: 'Unauthorised' }, 401 );
+	const bodyText = await request.text();
+	const auth = await authenticateDevRequest( request, bodyText, env );
+	if ( ! auth.authenticated ) {
+		return jsonResponse( { error: auth.error ?? 'Unauthorised' }, auth.status ?? 401 );
 	}
 
-	const body = ( await request.json() ) as { usage?: number };
+	let body: { usage?: number };
+	try {
+		body = JSON.parse( bodyText ) as { usage?: number };
+	} catch {
+		return jsonResponse( { error: 'Invalid JSON body' }, 400 );
+	}
+
 	if ( typeof body.usage !== 'number' || body.usage < 0 ) {
 		return jsonResponse( { error: 'Invalid usage value — must be a non-negative number' }, 400 );
 	}
 
-	const key = `usage:${ auth.site_token }:${ getCurrentMonth() }`;
+	const key = `usage:${ auth.site_token! }:${ getCurrentMonth() }`;
 	await env.USAGE_KV.put( key, String( body.usage ), { expirationTtl: getSecondsUntilNextMonth() } );
 
 	return jsonResponse( { ok: true, usage: body.usage } );
