@@ -203,6 +203,10 @@ class GeneratorModule {
 			);
 
 		} catch ( \Throwable $e ) {
+			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				\error_log( '[WP_AI_Mind][Generator] ' . get_class( $e ) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() );
+			}
 			return new \WP_REST_Response( [ 'error' => $e->getMessage() ], 500 );
 		}
 	}
