@@ -34,11 +34,6 @@ async function seedSite(
 	return record;
 }
 
-/** Returns env with DEV_ENDPOINTS_ENABLED=1. */
-function makeDevEnv( overrides: Parameters< typeof makeEnv >[ 0 ] = {} ) {
-	return makeEnv( { DEV_ENDPOINTS_ENABLED: '1', ...overrides } );
-}
-
 function signDevRequest( timestamp: number, body: string, secret = TEST_SECRET ): string {
 	return createHmac( 'sha256', secret )
 		.update( `${ timestamp }.${ body }` )
@@ -69,36 +64,11 @@ function makeDevRequest(
 	} );
 }
 
-// ── Env-gate ─────────────────────────────────────────────────────────────────
-
-describe( 'dev endpoints env gate', () => {
-	it( 'returns 404 when DEV_ENDPOINTS_ENABLED is not set', async () => {
-		const env = makeEnv(); // no DEV_ENDPOINTS_ENABLED
-		await seedSite( env );
-		const res = await worker.fetch(
-			makeDevRequest( '/dev/set-tier', JSON.stringify( { tier: 'trial' } ) ),
-			env,
-			makeCtx()
-		);
-		expect( res.status ).toBe( 404 );
-	} );
-
-	it( 'returns 405 for non-POST when DEV_ENDPOINTS_ENABLED=1', async () => {
-		const env = makeDevEnv();
-		const res = await worker.fetch(
-			new Request( 'https://worker.example.com/dev/set-tier', { method: 'GET' } ),
-			env,
-			makeCtx()
-		);
-		expect( res.status ).toBe( 405 );
-	} );
-} );
-
 // ── authenticateDevRequest ────────────────────────────────────────────────────
 
 describe( 'authenticateDevRequest', () => {
 	it( 'returns 401 when Authorization header is missing', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { tier: 'trial' } );
 		const ts   = Math.floor( Date.now() / 1000 );
@@ -116,7 +86,7 @@ describe( 'authenticateDevRequest', () => {
 	} );
 
 	it( 'returns 401 when tier_sync_secret is absent from the site record', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env, { tier_sync_secret: undefined } );
 		const body = JSON.stringify( { tier: 'trial' } );
 		const res  = await worker.fetch(
@@ -128,7 +98,7 @@ describe( 'authenticateDevRequest', () => {
 	} );
 
 	it( 'returns 401 when X-Dev-Signature header is missing', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { tier: 'trial' } );
 		const ts   = Math.floor( Date.now() / 1000 );
@@ -146,7 +116,7 @@ describe( 'authenticateDevRequest', () => {
 	} );
 
 	it( 'returns 401 for a malformed (odd-length) hex signature', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { tier: 'trial' } );
 		const res  = await worker.fetch(
@@ -158,7 +128,7 @@ describe( 'authenticateDevRequest', () => {
 	} );
 
 	it( 'returns 401 when the HMAC does not match', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { tier: 'trial' } );
 		const res  = await worker.fetch(
@@ -170,7 +140,7 @@ describe( 'authenticateDevRequest', () => {
 	} );
 
 	it( 'returns 401 when timestamp is too far in the past (>60 s)', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { tier: 'trial' } );
 		const oldTs = Math.floor( Date.now() / 1000 ) - 120;
@@ -183,7 +153,7 @@ describe( 'authenticateDevRequest', () => {
 	} );
 
 	it( 'returns 401 when timestamp is too far in the future (>60 s)', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body   = JSON.stringify( { tier: 'trial' } );
 		const futureTs = Math.floor( Date.now() / 1000 ) + 120;
@@ -200,7 +170,7 @@ describe( 'authenticateDevRequest', () => {
 
 describe( '/dev/set-tier', () => {
 	it( 'returns 200 and updates the tier for a valid request', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env, { tier: 'free' } );
 		const body = JSON.stringify( { tier: 'trial' } );
 		const res  = await worker.fetch(
@@ -218,7 +188,7 @@ describe( '/dev/set-tier', () => {
 	} );
 
 	it( 'returns 400 for an invalid tier string', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { tier: 'super_premium' } );
 		const res  = await worker.fetch(
@@ -230,7 +200,7 @@ describe( '/dev/set-tier', () => {
 	} );
 
 	it( 'returns 400 for invalid JSON body', async () => {
-		const env  = makeDevEnv();
+		const env  = makeEnv();
 		await seedSite( env );
 		const body = 'not-json';
 		const res  = await worker.fetch(
@@ -244,7 +214,7 @@ describe( '/dev/set-tier', () => {
 	it( 'accepts all valid SiteTier values', async () => {
 		const tiers = [ 'free', 'trial', 'pro_managed', 'pro_byok' ] as const;
 		for ( const tier of tiers ) {
-			const env  = makeDevEnv();
+			const env  = makeEnv();
 			await seedSite( env );
 			const body = JSON.stringify( { tier } );
 			const res  = await worker.fetch(
@@ -261,7 +231,7 @@ describe( '/dev/set-tier', () => {
 
 describe( '/dev/reset-usage', () => {
 	it( 'returns 200 and zeroes the usage KV key', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 
 		const now   = new Date();
@@ -288,7 +258,7 @@ describe( '/dev/reset-usage', () => {
 
 describe( '/dev/set-usage', () => {
 	it( 'returns 200 and persists the usage value', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { usage: 42000 } );
 		const res  = await worker.fetch(
@@ -303,7 +273,7 @@ describe( '/dev/set-usage', () => {
 	} );
 
 	it( 'returns 400 for a negative usage value', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { usage: -1 } );
 		const res  = await worker.fetch(
@@ -315,7 +285,7 @@ describe( '/dev/set-usage', () => {
 	} );
 
 	it( 'returns 400 when usage is not a number', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const body = JSON.stringify( { usage: 'lots' } );
 		const res  = await worker.fetch(
@@ -327,7 +297,7 @@ describe( '/dev/set-usage', () => {
 	} );
 
 	it( 'returns 400 for invalid JSON body', async () => {
-		const env = makeDevEnv();
+		const env = makeEnv();
 		await seedSite( env );
 		const res = await worker.fetch(
 			makeDevRequest( '/dev/set-usage', 'bad-json' ),
