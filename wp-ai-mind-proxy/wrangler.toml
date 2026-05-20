@@ -9,6 +9,8 @@ preview_id = "38975852f1bc4c838da456ea9a21e789"
 
 # Secrets (set via CLI — never commit values):
 # wrangler secret put ANTHROPIC_API_KEY
+# wrangler secret put OPENAI_API_KEY
+# wrangler secret put GEMINI_API_KEY
 # wrangler secret put LS_WEBHOOK_SECRET            ← must match LemonSqueezy webhook signing secret
 # wrangler secret put LS_PRO_MONTHLY_VARIANT_ID    ← LemonSqueezy: Products → WP AI Mind Pro → Variants
 # wrangler secret put LS_PRO_ANNUAL_VARIANT_ID     ← LemonSqueezy: Products → WP AI Mind Pro → Variants
