@@ -99,6 +99,30 @@ class NJ_Tier_Config {
 	}
 
 	/**
+	 * Register the wp_ai_mind_proxy_url option with the Settings API.
+	 *
+	 * Registered with autoload disabled because the value is only consumed
+	 * during proxy HTTP requests, not on every page load. The sanitize
+	 * callback mirrors the runtime sanitisation in get_proxy_url() so the
+	 * stored value is always a valid, escaped URL.
+	 *
+	 * @since 1.8.0
+	 * @return void
+	 */
+	public static function register_settings(): void {
+		register_setting(
+			'wp_ai_mind',
+			'wp_ai_mind_proxy_url',
+			[
+				'type'              => 'string',
+				'sanitize_callback' => 'esc_url_raw',
+				'default'           => '',
+				'autoload'          => false,
+			]
+		);
+	}
+
+	/**
 	 * Returns all recognised tier slugs.
 	 *
 	 * @since 1.2.0

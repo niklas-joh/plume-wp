@@ -97,6 +97,7 @@ class Plugin {
 	 */
 	private function init_hooks(): void {
 		add_action( 'init', [ $this, 'load_textdomain' ] );
+		add_action( 'init', [ \WP_AI_Mind\Tiers\NJ_Tier_Config::class, 'register_settings' ] );
 		add_action( 'admin_init', [ NJ_Site_Registration::class, 'maybe_register' ] );
 		add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
