@@ -68,6 +68,7 @@ class NJSiteRegistrationTest extends TestCase {
 	// ── register() — challenge fetch failure ────────────────────────────────────
 
 	public function test_register_returns_wp_error_when_challenge_request_fails(): void {
+		Functions\when( 'get_option' )->justReturn( '' );
 		Functions\when( 'wp_remote_get' )->justReturn(
 			new \WP_Error( 'http_request_failed', 'Connection refused' )
 		);
@@ -79,6 +80,7 @@ class NJSiteRegistrationTest extends TestCase {
 	}
 
 	public function test_register_returns_wp_error_when_challenge_response_is_not_200(): void {
+		Functions\when( 'get_option' )->justReturn( '' );
 		Functions\when( 'wp_remote_get' )->justReturn( [] );
 		Functions\when( 'is_wp_error' )->justReturn( false );
 		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 500 );
@@ -91,6 +93,7 @@ class NJSiteRegistrationTest extends TestCase {
 	}
 
 	public function test_register_returns_wp_error_when_challenge_body_has_no_challenge_key(): void {
+		Functions\when( 'get_option' )->justReturn( '' );
 		Functions\when( 'wp_remote_get' )->justReturn( [] );
 		Functions\when( 'is_wp_error' )->justReturn( false );
 		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
@@ -107,6 +110,7 @@ class NJSiteRegistrationTest extends TestCase {
 	public function test_register_returns_wp_error_when_registration_post_fails(): void {
 		$challenge = str_repeat( 'a', 64 );
 
+		Functions\when( 'get_option' )->justReturn( '' );
 		// Challenge fetch succeeds.
 		Functions\when( 'wp_remote_get' )->justReturn( [] );
 		Functions\when( 'wp_remote_retrieve_body' )->justReturn( '{"challenge":"' . $challenge . '"}' );
@@ -130,6 +134,7 @@ class NJSiteRegistrationTest extends TestCase {
 	public function test_register_returns_wp_error_when_registration_returns_non_2xx(): void {
 		$challenge = str_repeat( 'b', 64 );
 
+		Functions\when( 'get_option' )->justReturn( '' );
 		Functions\when( 'wp_remote_get' )->justReturn( [] );
 		Functions\when( 'wp_remote_post' )->justReturn( [] );
 		Functions\when( 'is_wp_error' )->justReturn( false );
@@ -268,6 +273,7 @@ class NJSiteRegistrationTest extends TestCase {
 		$challenge = str_repeat( 'a', 64 );
 		$token     = str_repeat( 'b', 64 );
 
+		Functions\when( 'get_option' )->justReturn( '' );
 		Functions\when( 'wp_remote_get' )->justReturn( [] );
 		Functions\when( 'is_wp_error' )->justReturn( false );
 		Functions\when( 'wp_remote_post' )->justReturn( [] );
