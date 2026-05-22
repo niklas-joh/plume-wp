@@ -1,4 +1,7 @@
 #!/bin/sh
+# Skip in CI — dev dependencies (phpcs) are not installed there.
+[ -n "$CI" ] && exit 0
+
 # Auto-build JS/CSS assets when src/ files are staged.
 # Adds the compiled assets/ back into the commit automatically.
 
