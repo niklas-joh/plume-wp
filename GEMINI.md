@@ -363,7 +363,7 @@ See `.agents/profiles/wordpress/_shared/block-reference.md` for the full decisio
 
 ## Stilus Plugin
 
-Active plugin. Maintained in a dedicated repository: **[niklas-joh/stilus](https://github.com/niklas-joh/wp-ai-mind)**
+Active plugin. Maintained in a dedicated repository: **[niklas-joh/wp-ai-mind](https://github.com/niklas-joh/wp-ai-mind)** (to be renamed `niklas-joh/stilus` once the GitHub repo is renamed)
 
 The plugin is referenced in this blog repo as a git submodule at `wp-content/plugins/stilus/`.
 
@@ -417,7 +417,7 @@ git commit -m "chore: update stilus submodule"
 ### Plugin Gotchas
 - **OPcache**: Docker serves stale bytecode after PHP edits — restart the container
 - **`json_decode($json, true)` converts `{}` → `[]`**: Cast empty arrays to `new \stdClass()` wherever JSON objects are required (tool `properties`, tool `input` fields)
-- **`wp_ai_mind_is_pro()`**: Global function in `Core/ProGate.php` — use `\wp_ai_mind_is_pro()` (global prefix) inside namespaced classes
+- **`stilus_is_pro()`**: Global function in `Core/ProGate.php` — use `\stilus_is_pro()` (global prefix) inside namespaced classes
 - **Staging deploy**: `git push origin main` in plugin repo, then `ssh siteground-staging "cd .../public_html && git submodule update --remote wp-content/plugins/stilus"`
 
 

@@ -414,7 +414,7 @@ See `.agents/profiles/wordpress/_shared/block-reference.md` for the full decisio
 
 ## Stilus Plugin
 
-Active plugin. Maintained in a dedicated repository: **[niklas-joh/stilus](https://github.com/niklas-joh/wp-ai-mind)**
+Active plugin. Maintained in a dedicated repository: **[niklas-joh/wp-ai-mind](https://github.com/niklas-joh/wp-ai-mind)** (to be renamed `niklas-joh/stilus` once the GitHub repo is renamed)
 
 The plugin is referenced in this blog repo as a git submodule at `wp-content/plugins/stilus/`.
 
