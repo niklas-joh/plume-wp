@@ -322,7 +322,7 @@ If you are in a freshly cloned environment and `.claude/agents/` symlinks are mi
 
 ## WordPress Coding Standards
 
-- Prefix all custom functions: `nj_` (theme/site plugins; WP AI Mind plugin uses `WP_AI_Mind\` namespace instead)
+- Prefix all custom functions: `nj_` (theme/site plugins; Stilus plugin uses `Stilus\` namespace instead)
 - Use British English in content and comments
 - Follow WordPress PHP Coding Standards
 - Escape output: `esc_html()`, `esc_attr()`, `esc_url()`
@@ -361,7 +361,7 @@ See `.agents/profiles/wordpress/_shared/block-reference.md` for the full decisio
 
 ---
 
-## WP AI Mind Plugin
+## Stilus Plugin
 
 Active plugin. Maintained in a dedicated repository: **[niklas-joh/stilus](https://github.com/niklas-joh/wp-ai-mind)**
 
@@ -372,7 +372,7 @@ The plugin is referenced in this blog repo as a git submodule at `wp-content/plu
 | Plugin repo | `https://github.com/niklas-joh/wp-ai-mind` |
 | Submodule path | `wp-content/plugins/stilus/` |
 | Active branches | `main` (stable), `develop` (next release) |
-| Namespace | `WP_AI_Mind\` (not `nj_` prefix) |
+| Namespace | `Stilus\` (not `nj_` prefix) |
 | Release docs | `RELEASING.md` in plugin repo |
 
 ### Plugin Development Workflow

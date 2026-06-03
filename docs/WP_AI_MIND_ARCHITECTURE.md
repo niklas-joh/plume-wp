@@ -1,4 +1,4 @@
-# WP AI Mind — Technical Architecture Spec (Hybrid Approach)
+# Stilus — Technical Architecture Spec (Hybrid Approach)
 ## Three-Tier WordPress Plugin with Minimal API Proxy
 
 > **Purpose:** Reference document for hybrid WordPress-native architecture with minimal external proxy for API key protection only. This design prioritizes WordPress plugin conventions while solving the core API key security requirement.

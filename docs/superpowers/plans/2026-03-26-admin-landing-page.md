@@ -45,13 +45,13 @@ Replace the full contents of `includes/Admin/AdminMenu.php`:
 ```php
 <?php
 declare( strict_types=1 );
-namespace WP_AI_Mind\Admin;
+namespace Stilus\Admin;
 
 class AdminMenu {
 
 	public static function register(): void {
 		add_menu_page(
-			__( 'WP AI Mind', 'stilus' ),
+			__( 'Stilus', 'stilus' ),
 			__( 'AI Mind', 'stilus' ),
 			'edit_posts',
 			'stilus',
@@ -109,9 +109,9 @@ Follows the exact pattern of `ChatPage.php`. Enqueues the same `stilus-admin` bu
 ```php
 <?php
 declare( strict_types=1 );
-namespace WP_AI_Mind\Admin;
+namespace Stilus\Admin;
 
-use WP_AI_Mind\Settings\ProviderSettings;
+use Stilus\Settings\ProviderSettings;
 
 class DashboardPage {
 
@@ -191,13 +191,13 @@ class DashboardPage {
 				'usage'     => admin_url( 'admin.php?page=stilus-usage' ),
 				'settings'  => admin_url( 'admin.php?page=stilus-settings' ),
 				'posts'     => admin_url( 'edit.php' ),
-				'upgrade'   => 'https://wpaimind.com/pricing',
+				'upgrade'   => 'https://[TODO-stilus-domain]/pricing',
 			],
 			'resourceUrls'   => [
-				'gettingStarted' => 'https://wpaimind.com/docs/getting-started',
-				'promptTips'     => 'https://wpaimind.com/docs/prompt-tips',
-				'apiKeySetup'    => 'https://wpaimind.com/docs/api-key-setup',
-				'changelog'      => 'https://wpaimind.com/changelog',
+				'gettingStarted' => 'https://[TODO-stilus-domain]/docs/getting-started',
+				'promptTips'     => 'https://[TODO-stilus-domain]/docs/prompt-tips',
+				'apiKeySetup'    => 'https://[TODO-stilus-domain]/docs/api-key-setup',
+				'changelog'      => 'https://[TODO-stilus-domain]/changelog',
 			],
 		];
 	}
@@ -232,9 +232,9 @@ One endpoint: `POST /stilus/v1/onboarding`. Handles both saving (completes onboa
 ```php
 <?php
 declare( strict_types=1 );
-namespace WP_AI_Mind\Admin;
+namespace Stilus\Admin;
 
-use WP_AI_Mind\Settings\ProviderSettings;
+use Stilus\Settings\ProviderSettings;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -310,7 +310,7 @@ class OnboardingRestController {
 In `includes/Core/Plugin.php`, add one line to `init_hooks()` after the existing `add_action( 'rest_api_init', ... )` line:
 
 ```php
-add_action( 'wp_ai_mind_register_rest_routes', [ \WP_AI_Mind\Admin\OnboardingRestController::class, 'register_routes' ] );
+add_action( 'wp_ai_mind_register_rest_routes', [ \Stilus\Admin\OnboardingRestController::class, 'register_routes' ] );
 ```
 
 The full `init_hooks()` method after the change:
@@ -320,21 +320,21 @@ private function init_hooks(): void {
     add_action( 'init', [ $this, 'load_textdomain' ] );
     add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
     add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
-    add_action( 'wp_ai_mind_register_menu', [ \WP_AI_Mind\Admin\AdminMenu::class, 'register' ] );
-    add_action( 'wp_ai_mind_register_rest_routes', [ \WP_AI_Mind\Admin\OnboardingRestController::class, 'register_routes' ] );
-    \WP_AI_Mind\Admin\ActivationNotice::register();
+    add_action( 'wp_ai_mind_register_menu', [ \Stilus\Admin\AdminMenu::class, 'register' ] );
+    add_action( 'wp_ai_mind_register_rest_routes', [ \Stilus\Admin\OnboardingRestController::class, 'register_routes' ] );
+    \Stilus\Admin\ActivationNotice::register();
     if ( $this->modules->is_enabled( 'chat' ) ) {
-        add_action( 'plugins_loaded', [ \WP_AI_Mind\Modules\Chat\ChatModule::class, 'register' ], 20 );
-        \WP_AI_Mind\Modules\Editor\EditorModule::register();
+        add_action( 'plugins_loaded', [ \Stilus\Modules\Chat\ChatModule::class, 'register' ], 20 );
+        \Stilus\Modules\Editor\EditorModule::register();
     }
     if ( $this->modules->is_enabled( 'generator' ) ) {
-        \WP_AI_Mind\Modules\Generator\GeneratorModule::register();
+        \Stilus\Modules\Generator\GeneratorModule::register();
     }
     if ( $this->modules->is_enabled( 'frontend_widget' ) ) {
-        \WP_AI_Mind\Modules\Frontend\FrontendWidgetModule::register();
+        \Stilus\Modules\Frontend\FrontendWidgetModule::register();
     }
     if ( $this->modules->is_enabled( 'usage' ) ) {
-        \WP_AI_Mind\Modules\Usage\UsageModule::register();
+        \Stilus\Modules\Usage\UsageModule::register();
     }
 }
 ```
@@ -1369,7 +1369,7 @@ export default function PageFooter( { urls, runSetupUrl } ) {
             </a>
             <div className="wpaim-dash-footer__sep" />
             <a
-                href="https://wpaimind.com/docs"
+                href="https://[TODO-stilus-domain]/docs"
                 className="wpaim-dash-footer__link"
                 target="_blank"
                 rel="nofollow noreferrer"
@@ -1378,7 +1378,7 @@ export default function PageFooter( { urls, runSetupUrl } ) {
             </a>
             <div className="wpaim-dash-footer__sep" />
             <a
-                href="https://wpaimind.com/support"
+                href="https://[TODO-stilus-domain]/support"
                 className="wpaim-dash-footer__link"
                 target="_blank"
                 rel="nofollow noreferrer"
@@ -1486,7 +1486,7 @@ function Step1( { selection, onSelect, onContinue, onSkip, upgradeUrl } ) {
                     <div className="wpaim-ob-pip wpaim-ob-pip--active" />
                     { /* Second pip only shown on own-key path — hidden here */ }
                 </div>
-                <div className="wpaim-ob-title">Welcome to WP AI Mind</div>
+                <div className="wpaim-ob-title">Welcome to Stilus</div>
                 <div className="wpaim-ob-sub">
                     How would you like to connect? You can change this anytime in Settings.
                 </div>
@@ -1692,7 +1692,7 @@ function DoneScreen( { apiTierLabel, urls } ) {
                     <div className="wpaim-ob-pip wpaim-ob-pip--done" />
                 </div>
                 <div className="wpaim-ob-title">You're all set</div>
-                <div className="wpaim-ob-sub">WP AI Mind is ready to use.</div>
+                <div className="wpaim-ob-sub">Stilus is ready to use.</div>
             </div>
 
             <div className="wpaim-ob-body">
@@ -1834,7 +1834,7 @@ export default function DashboardApp() {
             { /* Top bar */ }
             <div className="wpaim-dash-topbar">
                 <div>
-                    <div className="wpaim-dash-title">WP AI Mind</div>
+                    <div className="wpaim-dash-title">Stilus</div>
                     <div className="wpaim-dash-subtitle">AI-powered content creation for WordPress</div>
                 </div>
                 <span className="wpaim-dash-version">v{ version }</span>
@@ -1997,7 +1997,7 @@ test.describe( 'Dashboard landing page', () => {
 
     test( 'dashboard page renders with title and Start section', async ( { page } ) => {
         await page.goto( '/wp-admin/admin.php?page=stilus' );
-        await expect( page.locator( '.wpaim-dash-title' ) ).toHaveText( 'WP AI Mind' );
+        await expect( page.locator( '.wpaim-dash-title' ) ).toHaveText( 'Stilus' );
         await expect( page.locator( '.wpaim-dash-tiles' ) ).toBeVisible();
         await expect( page.locator( '.wpaim-dash-resources' ) ).toBeVisible();
         await expect( page.locator( '.wpaim-dash-footer' ) ).toBeVisible();
@@ -2079,7 +2079,7 @@ git commit -m "test(dashboard): add E2E smoke tests for landing page and onboard
 
 | Spec requirement | Task |
 |---|---|
-| WP AI Mind top-level → Dashboard | Task 1 |
+| Stilus top-level → Dashboard | Task 1 |
 | Chat, Generator etc. become sub-pages | Task 1 |
 | Fully static page (no API calls) | Tasks 6–8 (no REST calls on page load) |
 | Status banner — free tier / invalid key / none | Task 6 |

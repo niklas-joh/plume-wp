@@ -325,7 +325,7 @@
 
 # Changelog
 
-All notable changes to WP AI Mind are documented here.
+All notable changes to Stilus are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 

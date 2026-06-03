@@ -1,4 +1,4 @@
-# Design Spec: WP AI Mind — SEO & Images Admin Pages
+# Design Spec: Stilus — SEO & Images Admin Pages
 
 ## Context
 
@@ -158,7 +158,7 @@ After `POST /seo/generate` returns, the four fields populate and highlight (blue
 
 Lock screen with:
 - Lock icon
-- Title: "AI SEO requires WP AI Mind Pro"
+- Title: "AI SEO requires Stilus Pro"
 - Body: "Automatically generate meta titles, OG descriptions, excerpts, and image alt text for every post — in one click."
 - CTA: "Upgrade to Pro →"
 
@@ -218,7 +218,7 @@ Let editors identify posts and pages without a featured image and generate one w
 
 Lock screen with:
 - Lock icon
-- Title: "AI image generation requires WP AI Mind Pro"
+- Title: "AI image generation requires Stilus Pro"
 - Body: "Generate beautiful featured images from a text prompt and set them directly on any post or page."
 - CTA: "Upgrade to Pro →"
 
@@ -257,7 +257,7 @@ Lock screen with:
 ## Verification
 
 1. **SEO page — Pro:**
-   - Navigate to WP AI Mind → SEO. List of posts and pages loads with correct badges.
+   - Navigate to Stilus → SEO. List of posts and pages loads with correct badges.
    - "Missing" tab filters to only posts with no SEO fields.
    - Search filters by title.
    - Click "Generate ▼" on a post → work area expands, other rows stay closed.
@@ -272,7 +272,7 @@ Lock screen with:
    - Lock screen renders. List is not rendered. "Upgrade to Pro →" button present.
 
 3. **Images page — Pro:**
-   - Navigate to WP AI Mind → Images. List loads with Has image / No image badges. Posts with featured images show thumbnails.
+   - Navigate to Stilus → Images. List loads with Has image / No image badges. Posts with featured images show thumbnails.
    - "No image" tab filters correctly.
    - Click "Generate ▼" → work area expands.
    - Enter prompt, select aspect ratio and count, click "✦ Generate" → spinner, then image grid appears.

@@ -84,12 +84,12 @@ grep -rn "get_user_meta\|update_user_meta" includes/ --include="*.php" | head -1
 
 ```php
 <?php
-namespace WP_AI_Mind\Tests\Unit\Tiers;
+namespace Stilus\Tests\Unit\Tiers;
 
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
-use WP_AI_Mind\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\NJ_Tier_Manager;
 
 class NJTierManagerTest extends TestCase {
 
@@ -124,7 +124,7 @@ class NJTierManagerTest extends TestCase {
 
 ```php
 <?php
-namespace WP_AI_Mind\Tiers;
+namespace Stilus\Tiers;
 
 class NJ_Tier_Manager {
 
@@ -190,12 +190,12 @@ git commit -m "feat: add tier management system with WordPress user meta"
 
 ```php
 <?php
-namespace WP_AI_Mind\Tests\Unit\Tiers;
+namespace Stilus\Tests\Unit\Tiers;
 
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
-use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\NJ_Usage_Tracker;
 
 class NJUsageTrackerTest extends TestCase {
 
@@ -227,7 +227,7 @@ class NJUsageTrackerTest extends TestCase {
 
 ```php
 <?php
-namespace WP_AI_Mind\Tiers;
+namespace Stilus\Tiers;
 
 class NJ_Usage_Tracker {
 
@@ -274,12 +274,12 @@ class NJ_Usage_Tracker {
 
 ```php
 <?php
-namespace WP_AI_Mind\Payments;
+namespace Stilus\Payments;
 
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
-use WP_AI_Mind\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\NJ_Tier_Manager;
 
 class NJ_LemonSqueezy {
 
@@ -356,28 +356,28 @@ class NJ_LemonSqueezy {
  * Global helper to get current user's tier
  */
 function nj_get_user_tier( $user_id = null ): string {
-    return \WP_AI_Mind\Tiers\NJ_Tier_Manager::get_user_tier( $user_id );
+    return \Stilus\Tiers\NJ_Tier_Manager::get_user_tier( $user_id );
 }
 
 /**
  * Global helper to check user capabilities
  */
 function nj_can_user( string $feature, $user_id = null ): bool {
-    return \WP_AI_Mind\Tiers\NJ_Tier_Manager::user_can( $feature, $user_id );
+    return \Stilus\Tiers\NJ_Tier_Manager::user_can( $feature, $user_id );
 }
 
 /**
  * Global helper to check usage limits
  */
 function nj_check_usage_limit( $user_id = null ): bool {
-    return \WP_AI_Mind\Tiers\NJ_Usage_Tracker::check_rate_limit( $user_id );
+    return \Stilus\Tiers\NJ_Usage_Tracker::check_rate_limit( $user_id );
 }
 
 /**
  * Global helper to log token usage
  */
 function nj_log_usage( int $tokens, $user_id = null ): void {
-    \WP_AI_Mind\Tiers\NJ_Usage_Tracker::log_usage( $tokens, $user_id );
+    \Stilus\Tiers\NJ_Usage_Tracker::log_usage( $tokens, $user_id );
 }
 ```
 
@@ -421,7 +421,7 @@ Map ProGate features to tier features:
 
 ```php
 <?php
-namespace WP_AI_Mind\Admin;
+namespace Stilus\Admin;
 
 class NJ_Tier_Settings {
 
@@ -432,7 +432,7 @@ class NJ_Tier_Settings {
 
     public static function add_menu_page(): void {
         add_options_page(
-            __( 'WP AI Mind Tiers', 'stilus' ),
+            __( 'Stilus Tiers', 'stilus' ),
             __( 'AI Mind Tiers', 'stilus' ),
             'manage_options',
             'stilus-tiers',
@@ -442,7 +442,7 @@ class NJ_Tier_Settings {
 
     public static function settings_page(): void {
         $current_user_tier = nj_get_user_tier();
-        $usage = \WP_AI_Mind\Tiers\NJ_Usage_Tracker::get_current_usage();
+        $usage = \Stilus\Tiers\NJ_Usage_Tracker::get_current_usage();
 
         ?>
         <div class="wrap">

@@ -426,7 +426,7 @@ export async function verifyLsSignature(
 
 - [x] **Step 6.2: Get your LemonSqueezy variant IDs**
 
-In the LemonSqueezy dashboard go to **Products → WP AI Mind Pro → Variants**. For each variant, open it and copy the numeric **Variant ID** from the URL or the variant settings. You need:
+In the LemonSqueezy dashboard go to **Products → Stilus Pro → Variants**. For each variant, open it and copy the numeric **Variant ID** from the URL or the variant settings. You need:
 - Pro Monthly variant ID
 - Pro Annual variant ID
 
@@ -435,7 +435,7 @@ You will paste these into the `VARIANT_TIER_MAP` in the next step.
 - [x] **Step 6.3: Create webhook.ts**
 
 Replace the variant IDs in the map below. The Pro Monthly variant ID is **988108**.
-The Pro Annual variant ID must be confirmed from the LS dashboard (Products → WP AI Mind Pro → Variants → Annual → copy the numeric ID from the URL).
+The Pro Annual variant ID must be confirmed from the LS dashboard (Products → Stilus Pro → Variants → Annual → copy the numeric ID from the URL).
 Pro BYOK (1550517) is a one-time purchase that bypasses the proxy — it is not in this map; BYOK webhook handling is Phase 3 scope.
 
 ```typescript
@@ -445,7 +445,7 @@ import { Env, SiteRecord, LicenceRecord, ProxyTier } from './types';
 import { verifyLsSignature } from './signature';
 
 // Map LemonSqueezy variant IDs → plugin tier.
-// Pro Monthly: 988108. Pro Annual: confirm ID in LS dashboard (Products → WP AI Mind Pro → Variants).
+// Pro Monthly: 988108. Pro Annual: confirm ID in LS dashboard (Products → Stilus Pro → Variants).
 // Pro BYOK (1550517) is not here — it bypasses the proxy; handled in Phase 3.
 const VARIANT_TIER_MAP: Record<string, ProxyTier> = {
   '988108': 'pro_managed', // Pro Monthly
@@ -843,9 +843,9 @@ Create `tests/Unit/Proxy/NJSiteRegistrationTest.php`:
 <?php
 declare( strict_types=1 );
 
-namespace WP_AI_Mind\Tests\Unit\Proxy;
+namespace Stilus\Tests\Unit\Proxy;
 
-use WP_AI_Mind\Proxy\NJ_Site_Registration;
+use Stilus\Proxy\NJ_Site_Registration;
 use WP_Mock\Tools\TestCase;
 
 class NJSiteRegistrationTest extends TestCase {
@@ -918,10 +918,10 @@ Create `includes/Proxy/NJ_Site_Registration.php`:
 ```php
 <?php
 declare( strict_types=1 );
-namespace WP_AI_Mind\Proxy;
+namespace Stilus\Proxy;
 
 use WP_Error;
-use WP_AI_Mind\Tiers\NJ_Tier_Config;
+use Stilus\Tiers\NJ_Tier_Config;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -950,7 +950,7 @@ class NJ_Site_Registration {
         $result = self::register();
         if ( is_wp_error( $result ) ) {
             // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-            error_log( '[WP AI Mind] Site registration failed: ' . $result->get_error_message() );
+            error_log( '[Stilus] Site registration failed: ' . $result->get_error_message() );
         }
     }
 
@@ -1027,9 +1027,9 @@ Create `tests/Unit/Proxy/NJProxyClientTest.php`:
 <?php
 declare( strict_types=1 );
 
-namespace WP_AI_Mind\Tests\Unit\Proxy;
+namespace Stilus\Tests\Unit\Proxy;
 
-use WP_AI_Mind\Proxy\NJ_Proxy_Client;
+use Stilus\Proxy\NJ_Proxy_Client;
 use WP_Mock\Tools\TestCase;
 
 class NJProxyClientTest extends TestCase {
@@ -1067,12 +1067,12 @@ class NJProxyClientTest extends TestCase {
 ```php
 <?php
 declare( strict_types=1 );
-namespace WP_AI_Mind\Proxy;
+namespace Stilus\Proxy;
 
 use WP_Error;
-use WP_AI_Mind\Tiers\NJ_Tier_Config;
-use WP_AI_Mind\Tiers\NJ_Tier_Manager;
-use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\NJ_Tier_Config;
+use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\NJ_Usage_Tracker;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -1203,8 +1203,8 @@ public function test_complete_routes_free_tier_through_proxy(): void {
         ] )
     );
 
-    $provider = new \WP_AI_Mind\Providers\ClaudeProvider( '' );
-    $request  = new \WP_AI_Mind\Providers\CompletionRequest(
+    $provider = new \Stilus\Providers\ClaudeProvider( '' );
+    $request  = new \Stilus\Providers\CompletionRequest(
         messages: [ [ 'role' => 'user', 'content' => 'Hi' ] ],
         max_tokens: 100,
     );
@@ -1236,7 +1236,7 @@ Add these two methods to `ClaudeProvider`, before `do_complete()`:
 
 ```php
 public function complete( CompletionRequest $request ): CompletionResponse {
-    $tier = \WP_AI_Mind\Tiers\NJ_Tier_Manager::get_user_tier( get_current_user_id() );
+    $tier = \Stilus\Tiers\NJ_Tier_Manager::get_user_tier( get_current_user_id() );
 
     if ( in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true ) ) {
         return $this->complete_via_proxy( $request );
@@ -1246,7 +1246,7 @@ public function complete( CompletionRequest $request ): CompletionResponse {
 }
 
 private function complete_via_proxy( CompletionRequest $request ): CompletionResponse {
-    $result = \WP_AI_Mind\Proxy\NJ_Proxy_Client::chat(
+    $result = \Stilus\Proxy\NJ_Proxy_Client::chat(
         $request->messages,
         array_filter( [
             'model'      => $request->model ?: null,
@@ -1265,7 +1265,7 @@ private function complete_via_proxy( CompletionRequest $request ): CompletionRes
 
 Also add at the top of the class with the existing `use` declarations (if not already present):
 ```php
-use WP_AI_Mind\Proxy\NJ_Proxy_Client;
+use Stilus\Proxy\NJ_Proxy_Client;
 ```
 
 - [x] **Step 11.5: Run — expect pass**
@@ -1300,7 +1300,7 @@ git commit -m "feat(providers): route free/trial/pro_managed through proxy; pro_
 
 In `includes/Core/Plugin.php`:
 
-1. Add `use WP_AI_Mind\Proxy\NJ_Site_Registration;` with the other `use` statements.
+1. Add `use Stilus\Proxy\NJ_Site_Registration;` with the other `use` statements.
 
 2. In the method that registers `init` hooks (wherever other `add_action( 'init', ... )` calls live), add:
 ```php

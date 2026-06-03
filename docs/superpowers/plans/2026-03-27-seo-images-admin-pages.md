@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the React UI for the two Pro-gated WP AI Mind admin pages — SEO and Images — using a shared `PostListTable` component, matching the design spec at `docs/superpowers/specs/2026-03-27-seo-images-admin-pages-design.md`.
+**Goal:** Build the React UI for the two Pro-gated Stilus admin pages — SEO and Images — using a shared `PostListTable` component, matching the design spec at `docs/superpowers/specs/2026-03-27-seo-images-admin-pages-design.md`.
 
 **Architecture:** Two new webpack entries (`seo/index`, `images/index`) each mount a standalone React app. Both apps share a `PostListTable` component that handles the list + inline-expand UX pattern. The SEO page adds a `wpaim_seo_status` field to the WP REST API (registered in PHP) to surface metadata gap status per post.
 
@@ -101,11 +101,11 @@ Create `tests/Unit/Modules/Seo/SeoStatusFieldTest.php`:
 <?php
 declare( strict_types=1 );
 
-namespace WP_AI_Mind\Tests\Unit\Modules\Seo;
+namespace Stilus\Tests\Unit\Modules\Seo;
 
 use Brain\Monkey;
 use Brain\Monkey\Functions;
-use WP_AI_Mind\Modules\Seo\SeoModule;
+use Stilus\Modules\Seo\SeoModule;
 use PHPUnit\Framework\TestCase;
 
 class SeoStatusFieldTest extends TestCase {
@@ -877,7 +877,7 @@ export default function SeoApp() {
         return (
             <div className="wpaim-pro-gate">
                 <Lock size={ 32 } />
-                <h2>AI SEO requires WP AI Mind Pro</h2>
+                <h2>AI SEO requires Stilus Pro</h2>
                 <p>
                     Automatically generate meta titles, OG descriptions, excerpts, and image alt
                     text for every post — in one click.
@@ -1317,7 +1317,7 @@ export default function ImagesApp() {
         return (
             <div className="wpaim-pro-gate">
                 <Lock size={ 32 } />
-                <h2>AI image generation requires WP AI Mind Pro</h2>
+                <h2>AI image generation requires Stilus Pro</h2>
                 <p>
                     Generate beautiful featured images from a text prompt and set them directly
                     on any post or page.

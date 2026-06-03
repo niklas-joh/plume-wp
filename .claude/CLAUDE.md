@@ -1,4 +1,4 @@
-# WP AI Mind — Repo-Specific Agent Instructions
+# Stilus — Repo-Specific Agent Instructions
 
 > This file adds rules specific to the `niklas-joh/stilus` repository.
 > It extends (and does not replace) the shared WordPress profile in `CLAUDE.md` → `.agents/profiles/wordpress/AGENTS.md`.

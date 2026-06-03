@@ -409,11 +409,11 @@ Key design points:
 ```php
 <?php
 declare( strict_types=1 );
-namespace WP_AI_Mind\Proxy;
+namespace Stilus\Proxy;
 
 use WP_Error;
-use WP_AI_Mind\Tiers\NJ_Tier_Manager;
-use WP_AI_Mind\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\NJ_Usage_Tracker;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -489,7 +489,7 @@ class NJ_Proxy_Client {
     private static function sign( string $body ): string {
         if ( ! defined( 'WP_AI_MIND_PROXY_SECRET' ) || '' === WP_AI_MIND_PROXY_SECRET ) {
             // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-            error_log( '[WP AI Mind] WP_AI_MIND_PROXY_SECRET is not defined in wp-config.php' );
+            error_log( '[Stilus] WP_AI_MIND_PROXY_SECRET is not defined in wp-config.php' );
         }
         $secret = defined( 'WP_AI_MIND_PROXY_SECRET' ) ? WP_AI_MIND_PROXY_SECRET : '';
         return hash_hmac( 'sha256', $body, $secret );
