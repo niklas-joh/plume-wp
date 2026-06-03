@@ -5,7 +5,7 @@
 set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLUGIN_SLUG="wp-ai-mind"
+PLUGIN_SLUG="stilus"
 VERSION=""
 SKIP_BUILD=false
 
@@ -19,7 +19,7 @@ done
 
 # Fall back to version from main plugin file
 if [[ -z "$VERSION" ]]; then
-    VERSION=$(grep "Version:" "${PLUGIN_DIR}/wp-ai-mind.php" | head -1 | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
+    VERSION=$(grep "Version:" "${PLUGIN_DIR}/stilus.php" | head -1 | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
 fi
 
 DIST_DIR="${PLUGIN_DIR}/dist"
@@ -46,7 +46,7 @@ rsync -a \
     --include='languages/***' \
     --include='vendor/***' \
     --include='assets/***' \
-    --include='wp-ai-mind.php' \
+    --include='stilus.php' \
     --include='readme.txt' \
     --include='uninstall.php' \
     --include='CHANGELOG.md' \
