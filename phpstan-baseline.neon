@@ -23,4 +23,4 @@ parameters:
 		-
 			message: "#^Action callback returns WP_AI_Mind\\\\Core\\\\Plugin but should not return anything\\.$#"
 			count: 1
-			path: wp-ai-mind.php
+			path: stilus.php
