@@ -128,7 +128,7 @@ jobs:
           tools: composer:v2
 
       - name: Composer security audit
-        run: composer audit
+        run: composer audit --locked
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
