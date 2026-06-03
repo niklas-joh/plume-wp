@@ -476,7 +476,7 @@ class SettingsRestControllerTest extends TestCase {
     public function test_save_settings_skips_masked_api_keys(): void {
         Functions\when( 'update_option' )->justReturn( true );
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
-        // Tier gate: NJ_Tier_Manager::user_can() needs these stubs.
+        // Tier gate: TierManager::user_can() needs these stubs.
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'get_option' )->alias(
             fn( $key, $default = false ) =>

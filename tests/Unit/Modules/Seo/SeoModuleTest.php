@@ -406,7 +406,7 @@ class SeoModuleTest extends TestCase {
 	 * Verify that handle_generate returns 200 and does not double-count token usage.
 	 *
 	 * Usage is logged exactly once by the provider layer (AbstractProvider::maybe_log()).
-	 * handle_generate must NOT call NJ_Usage_Tracker::log_usage() itself; doing so
+	 * handle_generate must NOT call UsageTracker::log_usage() itself; doing so
 	 * would count tokens twice for every successful SEO generation request.
 	 *
 	 * @since 1.5.0

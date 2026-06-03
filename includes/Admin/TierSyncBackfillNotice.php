@@ -9,8 +9,8 @@ declare( strict_types=1 );
 
 namespace Stilus\Admin;
 
-use Stilus\Proxy\NJ_Site_Registration;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Proxy\SiteRegistration;
+use Stilus\Tiers\TierManager;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Such installs hold a valid `stilus_site_token` but no
  * `stilus_tier_sync_secret`, so the Worker cannot push tier updates to
  * them. The notice exposes a one-click "Re-register" action that calls
- * NJ_Site_Registration::rotate_secret() to populate the missing secret.
+ * SiteRegistration::rotate_secret() to populate the missing secret.
  *
  * Hooks are intentionally limited to users with `manage_options` so the
  * action and its nonce never leak to lower-privileged roles.
@@ -95,7 +95,7 @@ class TierSyncBackfillNotice {
 		if ( ! \current_user_can( 'manage_options' ) ) {
 			return false;
 		}
-		return NJ_Site_Registration::is_registered();
+		return SiteRegistration::is_registered();
 	}
 
 	/**
@@ -112,7 +112,7 @@ class TierSyncBackfillNotice {
 		if ( ! self::can_show_tier_notice() ) {
 			return;
 		}
-		if ( '' !== (string) \get_option( NJ_Site_Registration::OPTION_SECRET, '' ) ) {
+		if ( '' !== (string) \get_option( SiteRegistration::OPTION_SECRET, '' ) ) {
 			return;
 		}
 
@@ -160,10 +160,10 @@ class TierSyncBackfillNotice {
 			return;
 		}
 		// The no-secret notice (maybe_display) handles this case; don't show both.
-		if ( '' === (string) \get_option( NJ_Site_Registration::OPTION_SECRET, '' ) ) {
+		if ( '' === (string) \get_option( SiteRegistration::OPTION_SECRET, '' ) ) {
 			return;
 		}
-		if ( ! NJ_Tier_Manager::needs_tier_verification_resync() ) {
+		if ( ! TierManager::needs_tier_verification_resync() ) {
 			return;
 		}
 
@@ -271,7 +271,7 @@ class TierSyncBackfillNotice {
 
 		\check_admin_referer( self::NONCE );
 
-		$result = NJ_Site_Registration::rotate_secret();
+		$result = SiteRegistration::rotate_secret();
 		$status = \is_wp_error( $result ) ? 'fail' : 'success';
 
 		if ( \is_wp_error( $result ) ) {

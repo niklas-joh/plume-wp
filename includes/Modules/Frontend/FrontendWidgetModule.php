@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierManager;
 
 /**
  * Registers the front-end chat widget as a shortcode and enqueues its assets.
@@ -62,7 +62,7 @@ class FrontendWidgetModule {
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'stilus/v1' ) ),
 				'currentPostId' => \get_the_ID() ? \get_the_ID() : 0,
-				'isPro'         => NJ_Tier_Manager::user_can( 'generator' ),
+				'isPro'         => TierManager::user_can( 'generator' ),
 				'siteTitle'     => \get_bloginfo( 'name' ),
 			]
 		);

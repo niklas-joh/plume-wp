@@ -17,8 +17,8 @@ use Stilus\Providers\ProviderFactory;
 use Stilus\Providers\CompletionRequest;
 use Stilus\Providers\ProviderException;
 use Stilus\Settings\ProviderSettings;
-use Stilus\Tiers\NJ_Tier_Manager;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\TierManager;
+use Stilus\Tiers\UsageTracker;
 
 /**
  * Registers the SEO module admin assets, REST routes, and the wpaim_seo_status REST field.
@@ -76,7 +76,7 @@ class SeoModule {
 			[
 				'nonce'    => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'  => \esc_url_raw( \rest_url( 'stilus/v1' ) ),
-				'isPro'    => NJ_Tier_Manager::user_can( 'seo' ),
+				'isPro'    => TierManager::user_can( 'seo' ),
 				'adminUrl' => \esc_url_raw( \admin_url() ),
 			]
 		);
@@ -104,7 +104,7 @@ class SeoModule {
 				'callback'            => [ self::class, 'handle_generate' ],
 				'permission_callback' => function () {
 						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && NJ_Tier_Manager::user_can( 'seo', $user_id ) && NJ_Usage_Tracker::check_limit( $user_id );
+						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'seo', $user_id ) && UsageTracker::check_limit( $user_id );
 				},
 				'args'                => [
 					'post_id' => [
@@ -124,7 +124,7 @@ class SeoModule {
 				'callback'            => [ self::class, 'handle_apply' ],
 				'permission_callback' => function () {
 						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && NJ_Tier_Manager::user_can( 'seo', $user_id ) && NJ_Usage_Tracker::check_limit( $user_id );
+						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'seo', $user_id ) && UsageTracker::check_limit( $user_id );
 				},
 				'args'                => [
 					'post_id'        => [
@@ -162,7 +162,7 @@ class SeoModule {
 	 *
 	 * Returns an associative array with keys meta_title, og_description, excerpt,
 	 * alt_text, and tokens_used. Returns WP_Error on provider or parsing failure.
-	 * Token usage is NOT logged here — callers must call NJ_Usage_Tracker::log_usage() after a successful return.
+	 * Token usage is NOT logged here — callers must call UsageTracker::log_usage() after a successful return.
 	 *
 	 * **Authorization:** This method performs a post-level capability check.
 	 * It verifies that $user_id holds 'edit_post' for $post_id and returns a
@@ -173,7 +173,7 @@ class SeoModule {
 	 * **Side effects:** On success this method fires a live AI provider request.
 	 * Token usage is logged by the provider layer — the proxy for trial/pro_managed
 	 * tiers and AbstractProvider::maybe_log() for pro_byok. Callers MUST NOT call
-	 * NJ_Usage_Tracker::log_usage() after this method; doing so double-counts tokens.
+	 * UsageTracker::log_usage() after this method; doing so double-counts tokens.
 	 * Callers are responsible for checking usage limits before invoking this method;
 	 * the token spend is not reversible if the result is discarded.
 	 *

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\UsageTracker;
 
 /**
  * Provides retry logic, usage logging, and media-library image saving for concrete providers.
@@ -155,6 +155,6 @@ abstract class AbstractProvider implements ProviderInterface {
 	 * @return void
 	 */
 	protected function maybe_log( CompletionRequest $request, CompletionResponse $response ): void {
-		NJ_Usage_Tracker::log_usage( $response->total_tokens );
+		UsageTracker::log_usage( $response->total_tokens );
 	}
 }

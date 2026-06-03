@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use Stilus\Providers\ProviderFactory;
 use Stilus\Settings\ProviderSettings;
-use Stilus\Tiers\NJ_Tier_Manager;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\TierManager;
+use Stilus\Tiers\UsageTracker;
 
 /**
  * Registers the post-generator admin assets and REST route.
@@ -69,7 +69,7 @@ class GeneratorModule {
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'stilus/v1' ) ),
 				'currentPostId' => 0,
-				'isPro'         => NJ_Tier_Manager::user_can( 'generator' ),
+				'isPro'         => TierManager::user_can( 'generator' ),
 				'siteTitle'     => \get_bloginfo( 'name' ),
 			]
 		);
@@ -90,7 +90,7 @@ class GeneratorModule {
 				'callback'            => [ self::class, 'handle_generate' ],
 				'permission_callback' => function () {
 						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && NJ_Tier_Manager::user_can( 'generator', $user_id ) && NJ_Usage_Tracker::check_limit( $user_id );
+						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'generator', $user_id ) && UsageTracker::check_limit( $user_id );
 				},
 				'args'                => [
 					'title'    => [

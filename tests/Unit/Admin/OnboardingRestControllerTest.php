@@ -101,7 +101,7 @@ class OnboardingRestControllerTest extends TestCase {
 
 	public function test_save_stores_api_keys_per_provider(): void {
 		Functions\when( 'sanitize_text_field' )->alias( fn( $s ) => $s );
-		// Tier gate: NJ_Tier_Manager::user_can() needs these stubs.
+		// Tier gate: TierManager::user_can() needs these stubs.
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_option' )->alias(
 			fn( $key, $default = false ) =>
@@ -129,7 +129,7 @@ class OnboardingRestControllerTest extends TestCase {
 	}
 
 	public function test_save_ignores_invalid_provider_in_api_keys(): void {
-		// Tier gate: NJ_Tier_Manager::user_can() needs these stubs.
+		// Tier gate: TierManager::user_can() needs these stubs.
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		// pro_byok is a site-level entitlement now, so stub the site option.
 		Functions\when( 'get_option' )->alias(

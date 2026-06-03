@@ -8,10 +8,10 @@
 declare( strict_types=1 );
 namespace Stilus\Admin;
 
-use Stilus\Proxy\NJ_Site_Registration;
-use Stilus\Tiers\NJ_Tier_Config;
-use Stilus\Tiers\NJ_Tier_Manager;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Proxy\SiteRegistration;
+use Stilus\Tiers\TierConfig;
+use Stilus\Tiers\TierManager;
+use Stilus\Tiers\UsageTracker;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -70,12 +70,12 @@ class TierStatusPage {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$tier  = NJ_Tier_Manager::get_user_tier();
-		$usage = NJ_Usage_Tracker::get_usage();
+		$tier  = TierManager::get_user_tier();
+		$usage = UsageTracker::get_usage();
 
-		$tier_labels = NJ_Tier_Config::get_tier_labels();
+		$tier_labels = TierConfig::get_tier_labels();
 		$tier_label  = $tier_labels[ $tier ] ?? ucwords( str_replace( '_', ' ', $tier ) );
-		$registered  = NJ_Site_Registration::is_registered();
+		$registered  = SiteRegistration::is_registered();
 		?>
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
@@ -129,13 +129,13 @@ class TierStatusPage {
 				<h2><?php esc_html_e( 'Upgrade your plan', 'stilus' ); ?></h2>
 				<p><?php esc_html_e( 'Pro Managed gives you 2M tokens/month with model selection. Pro BYOK gives you unlimited usage with your own API key.', 'stilus' ); ?></p>
 				<div class="wpaim-upgrade-actions">
-					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url_pro_managed_monthly() ); ?>" class="button button-primary">
+					<a href="<?php echo esc_url( SiteRegistration::checkout_url_pro_managed_monthly() ); ?>" class="button button-primary">
 						<?php esc_html_e( 'Pro Managed — Monthly', 'stilus' ); ?>
 					</a>
-					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url_pro_managed_annual() ); ?>" class="button button-primary">
+					<a href="<?php echo esc_url( SiteRegistration::checkout_url_pro_managed_annual() ); ?>" class="button button-primary">
 						<?php esc_html_e( 'Pro Managed — Annual', 'stilus' ); ?>
 					</a>
-					<a href="<?php echo esc_url( NJ_Site_Registration::checkout_url_pro_byok_onetime() ); ?>" class="button">
+					<a href="<?php echo esc_url( SiteRegistration::checkout_url_pro_byok_onetime() ); ?>" class="button">
 						<?php esc_html_e( 'Pro BYOK — One-time', 'stilus' ); ?>
 					</a>
 				</div>

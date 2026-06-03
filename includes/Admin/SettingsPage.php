@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierManager;
 
 /**
  * Renders the Stilus settings admin page.
@@ -66,12 +66,12 @@ class SettingsPage {
 				'restUrl'       => esc_url_raw( rest_url( 'stilus/v1' ) ),
 				'upgradeUrl'    => esc_url( admin_url( 'admin.php?page=stilus-upgrade' ) ),
 				'currentPostId' => 0,
-				'isPro'         => NJ_Tier_Manager::user_can( 'generator' ),
+				'isPro'         => TierManager::user_can( 'generator' ),
 				'siteTitle'     => get_bloginfo( 'name' ),
-				'tier'          => NJ_Tier_Manager::get_user_tier(),
+				'tier'          => TierManager::get_user_tier(),
 				'features'      => [
-					'model_selection' => NJ_Tier_Manager::user_can( 'model_selection' ),
-					'own_api_key'     => NJ_Tier_Manager::user_can( 'own_api_key' ),
+					'model_selection' => TierManager::user_can( 'model_selection' ),
+					'own_api_key'     => TierManager::user_can( 'own_api_key' ),
 				],
 			]
 		);

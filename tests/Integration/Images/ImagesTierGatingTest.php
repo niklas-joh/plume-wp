@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Tier-gating integration tests for the Images module REST route.
  *
- * Exercises the permission_callback chain — NJ_Tier_Manager::user_can('images')
+ * Exercises the permission_callback chain — TierManager::user_can('images')
  * returns false for the free tier and true for trial+.
  */
 class ImagesTierGatingTest extends TestCase {
@@ -63,7 +63,7 @@ class ImagesTierGatingTest extends TestCase {
 			}
 		);
 
-		// permission_callback returns false because NJ_Tier_Config::FEATURES['free']['images'] = false.
+		// permission_callback returns false because TierConfig::FEATURES['free']['images'] = false.
 		$this->assertFalse( (bool) $permission_callback() );
 	}
 
@@ -88,7 +88,7 @@ class ImagesTierGatingTest extends TestCase {
 			}
 		);
 
-		// permission_callback returns true because NJ_Tier_Config::FEATURES['trial']['images'] = true.
+		// permission_callback returns true because TierConfig::FEATURES['trial']['images'] = true.
 		$this->assertTrue( (bool) $permission_callback() );
 	}
 }

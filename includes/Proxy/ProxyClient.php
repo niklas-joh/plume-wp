@@ -10,8 +10,8 @@ declare( strict_types=1 );
 namespace Stilus\Proxy;
 
 use WP_Error;
-use Stilus\Tiers\NJ_Tier_Config;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\TierConfig;
+use Stilus\Tiers\UsageTracker;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.2.0
  */
-class NJ_Proxy_Client {
+class ProxyClient {
 
 	/**
 	 * Send a chat request through the Cloudflare proxy.
@@ -38,13 +38,13 @@ class NJ_Proxy_Client {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public static function chat( array $messages, array $options = [], string $provider = 'claude' ): array|WP_Error {
-		$token = NJ_Site_Registration::get_site_token();
+		$token = SiteRegistration::get_site_token();
 		if ( empty( $token ) ) {
 			// Inline registration risks a loopback deadlock on single-worker setups because
 			// the Worker's challenge callback is a fresh HTTP request that would queue behind
 			// the in-flight request.
-			if ( ! has_action( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] ) ) {
-				add_action( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] );
+			if ( ! has_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] ) ) {
+				add_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] );
 			}
 			return new WP_Error( 'not_registered', __( 'Site not registered with AI proxy.', 'stilus' ) );
 		}
@@ -52,7 +52,7 @@ class NJ_Proxy_Client {
 		$user_id = get_current_user_id();
 
 		// Fail-fast pre-check (WordPress meta). Cloudflare KV is authoritative for enforcement.
-		if ( ! NJ_Usage_Tracker::check_limit( $user_id ) ) {
+		if ( ! UsageTracker::check_limit( $user_id ) ) {
 			return new WP_Error( 'rate_limit_exceeded', __( 'Monthly usage limit reached.', 'stilus' ) );
 		}
 
@@ -80,7 +80,7 @@ class NJ_Proxy_Client {
 		}
 
 		$response = wp_remote_post(
-			NJ_Tier_Config::get_proxy_url() . '/v1/chat',
+			TierConfig::get_proxy_url() . '/v1/chat',
 			[
 				'headers' => [
 					'Content-Type'  => 'application/json',
@@ -106,9 +106,9 @@ class NJ_Proxy_Client {
 			// Token may be stale — clear it so maybe_register() re-issues on next admin_init.
 			// Re-registration is async; the current request cannot be retried transparently.
 			// TODO #326: inline register() + retry once to avoid user-visible auth errors.
-			delete_option( NJ_Site_Registration::OPTION_TOKEN );
-			if ( ! has_action( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] ) ) {
-				add_action( 'shutdown', [ NJ_Site_Registration::class, 'maybe_register' ] );
+			delete_option( SiteRegistration::OPTION_TOKEN );
+			if ( ! has_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] ) ) {
+				add_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] );
 			}
 			return new WP_Error( 'proxy_auth_failed', __( 'Proxy authentication failed. Please reload the page and try again.', 'stilus' ) );
 		}
@@ -124,7 +124,7 @@ class NJ_Proxy_Client {
 		// weighted tokens in KV to keep billing proportional across providers and models.
 		if ( isset( $body['usage']['input_tokens'], $body['usage']['output_tokens'] ) ) {
 			$tokens = (int) $body['usage']['input_tokens'] + (int) $body['usage']['output_tokens'];
-			NJ_Usage_Tracker::log_usage( $tokens, $user_id );
+			UsageTracker::log_usage( $tokens, $user_id );
 		}
 
 		return $body;

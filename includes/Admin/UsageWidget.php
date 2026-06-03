@@ -8,8 +8,8 @@
 declare( strict_types=1 );
 namespace Stilus\Admin;
 
-use Stilus\Tiers\NJ_Tier_Config;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\TierConfig;
+use Stilus\Tiers\UsageTracker;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.2.0
  */
-class NJ_Usage_Widget {
+class UsageWidget {
 
 	/**
 	 * Register WordPress hooks for this widget.
@@ -77,10 +77,10 @@ class NJ_Usage_Widget {
 	 */
 	public static function render(): void {
 		$user_id = get_current_user_id();
-		$usage   = NJ_Usage_Tracker::get_usage( $user_id );
+		$usage   = UsageTracker::get_usage( $user_id );
 		$tier    = $usage['tier'];
 
-		$tier_labels = NJ_Tier_Config::get_tier_labels();
+		$tier_labels = TierConfig::get_tier_labels();
 		$tier_label  = $tier_labels[ $tier ] ?? ucwords( str_replace( '_', ' ', $tier ) );
 
 		echo '<div class="stilus-usage-widget">';

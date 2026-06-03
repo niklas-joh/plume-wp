@@ -72,7 +72,7 @@ class ImagesModuleTest extends TestCase {
 		$permission_callback = $captured_args['/images/generate']['permission_callback'];
 
 		// User has permission and has tokens remaining.
-		// trial tier is required — free tier has images: false in NJ_Tier_Config.
+		// trial tier is required — free tier has images: false in TierConfig.
 		$month_key = 'stilus_usage_' . gmdate( 'Y_m' );
 		Functions\when( 'current_user_can' )->justReturn( true );
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );

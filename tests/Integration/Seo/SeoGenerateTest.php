@@ -44,7 +44,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 	/**
 	 * Verify that an editor on the free tier cannot access the generate endpoint.
 	 *
-	 * The free tier has seo=false in NJ_Tier_Config::FEATURES, so the
+	 * The free tier has seo=false in TierConfig::FEATURES, so the
 	 * permission_callback must reject with 403 even though the user has edit_posts.
 	 *
 	 * @since 1.0.0

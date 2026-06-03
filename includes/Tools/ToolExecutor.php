@@ -391,7 +391,7 @@ class ToolExecutor {
 			return [ 'error' => __( 'Insufficient permissions.', 'stilus' ) ];
 		}
 
-		if ( ! \Stilus\Tiers\NJ_Tier_Manager::user_can( 'seo', $user_id ) ) {
+		if ( ! \Stilus\Tiers\TierManager::user_can( 'seo', $user_id ) ) {
 			return [
 				'seo_access'           => false,
 				'post_title'           => \html_entity_decode( $post->post_title, ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
@@ -400,7 +400,7 @@ class ToolExecutor {
 			];
 		}
 
-		if ( ! \Stilus\Tiers\NJ_Usage_Tracker::check_limit( $user_id ) ) {
+		if ( ! \Stilus\Tiers\UsageTracker::check_limit( $user_id ) ) {
 			return [ 'error' => __( 'Monthly usage limit reached. Please upgrade your plan to continue.', 'stilus' ) ];
 		}
 
@@ -409,7 +409,7 @@ class ToolExecutor {
 			return [ 'error' => $seo_data->get_error_message() ];
 		}
 
-		\Stilus\Tiers\NJ_Usage_Tracker::log_usage( $seo_data['tokens_used'], $user_id );
+		\Stilus\Tiers\UsageTracker::log_usage( $seo_data['tokens_used'], $user_id );
 		$applied = \Stilus\Modules\Seo\SeoModule::apply_for_post( $post_id, $seo_data );
 
 		return [

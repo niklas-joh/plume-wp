@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.2.0
  */
-class NJ_Tier_Config {
+class TierConfig {
 
 	const TIERS = [ 'free', 'trial', 'pro_managed', 'pro_byok' ];
 

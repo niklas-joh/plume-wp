@@ -6,9 +6,9 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Stilus\Tests\Helpers\WpdbStubFactory;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\UsageTracker;
 
-class NJUsageTrackerTest extends TestCase {
+class UsageTrackerTest extends TestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -35,7 +35,7 @@ class NJUsageTrackerTest extends TestCase {
 		Functions\expect( 'get_user_meta' )
 			->once()->with( 1, $month_key, true )->andReturn( '25000' );
 
-		$usage = NJ_Usage_Tracker::get_usage();
+		$usage = UsageTracker::get_usage();
 
 		$this->assertSame( 'free', $usage['tier'] );
 		$this->assertSame( 25000, $usage['used'] );
@@ -53,7 +53,7 @@ class NJUsageTrackerTest extends TestCase {
 		Functions\expect( 'get_user_meta' )
 			->once()->with( 2, $month_key, true )->andReturn( '55000' );
 
-		$usage = NJ_Usage_Tracker::get_usage( 2 );
+		$usage = UsageTracker::get_usage( 2 );
 		$this->assertFalse( $usage['can_use'] );
 		$this->assertSame( 0, $usage['remaining'] );
 	}
@@ -78,7 +78,7 @@ class NJUsageTrackerTest extends TestCase {
 			}
 		);
 
-		$usage = NJ_Usage_Tracker::get_usage( 5 );
+		$usage = UsageTracker::get_usage( 5 );
 		$this->assertSame( 'trial', $usage['tier'] );
 		$this->assertSame( 300000, $usage['limit'] );
 		$this->assertSame( 200000, $usage['remaining'] );
@@ -96,7 +96,7 @@ class NJUsageTrackerTest extends TestCase {
 		Functions\expect( 'get_user_meta' )
 			->once()->with( 3, $month_key, true )->andReturn( '999999' );
 
-		$usage = NJ_Usage_Tracker::get_usage( 3 );
+		$usage = UsageTracker::get_usage( 3 );
 		$this->assertTrue( $usage['can_use'] );
 		$this->assertNull( $usage['limit'] );
 		$this->assertNull( $usage['remaining'] );
@@ -116,7 +116,7 @@ class NJUsageTrackerTest extends TestCase {
 
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 
-		NJ_Usage_Tracker::log_usage( 500 );
+		UsageTracker::log_usage( 500 );
 		$this->addToAssertionCount( 1 );
 	}
 
@@ -138,7 +138,7 @@ class NJUsageTrackerTest extends TestCase {
 			->with( 1, $month_key, 500, true )
 			->andReturn( true );
 
-		NJ_Usage_Tracker::log_usage( 500 );
+		UsageTracker::log_usage( 500 );
 		$this->addToAssertionCount( 1 );
 	}
 
@@ -151,6 +151,6 @@ class NJUsageTrackerTest extends TestCase {
 		Functions\expect( 'get_user_meta' )
 			->once()->with( 1, $month_key, true )->andReturn( '60000' );
 
-		$this->assertFalse( NJ_Usage_Tracker::check_limit() );
+		$this->assertFalse( UsageTracker::check_limit() );
 	}
 }

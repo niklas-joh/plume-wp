@@ -12,8 +12,8 @@ namespace Stilus\Proxy;
 use WP_Error;
 use Stilus\Admin\ActivationVerifyRestController;
 use Stilus\Payments\TierUpdateWebhookController;
-use Stilus\Tiers\NJ_Tier_Config;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierConfig;
+use Stilus\Tiers\TierManager;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.2.0
  */
-class NJ_Site_Registration {
+class SiteRegistration {
 
 	public const OPTION_TOKEN = 'stilus_site_token';
 
@@ -130,7 +130,7 @@ class NJ_Site_Registration {
 	 * @return string|WP_Error The stored site token on success, or a WP_Error on failure.
 	 */
 	public static function register(): string|WP_Error {
-		$proxy_url = NJ_Tier_Config::get_proxy_url();
+		$proxy_url = TierConfig::get_proxy_url();
 
 		// Step 1 — fetch a single-use challenge from the Worker.
 		$challenge_response = wp_remote_get(
@@ -206,7 +206,7 @@ class NJ_Site_Registration {
 		}
 
 		$response = wp_remote_post(
-			NJ_Tier_Config::get_proxy_url() . '/rotate-secret',
+			TierConfig::get_proxy_url() . '/rotate-secret',
 			[
 				'headers' => [
 					'Authorization' => 'Bearer ' . $token,
@@ -232,7 +232,7 @@ class NJ_Site_Registration {
 		update_option( self::OPTION_SECRET, $secret, false );
 
 		if ( isset( $body['tier'] ) && is_string( $body['tier'] ) ) {
-			NJ_Tier_Manager::set_site_tier( sanitize_text_field( $body['tier'] ) );
+			TierManager::set_site_tier( sanitize_text_field( $body['tier'] ) );
 		}
 
 		return $secret;
@@ -256,7 +256,7 @@ class NJ_Site_Registration {
 			update_option( self::OPTION_SECRET, $secret, false );
 		}
 		if ( isset( $body['tier'] ) && is_string( $body['tier'] ) ) {
-			NJ_Tier_Manager::set_site_tier( sanitize_text_field( $body['tier'] ) );
+			TierManager::set_site_tier( sanitize_text_field( $body['tier'] ) );
 		}
 	}
 

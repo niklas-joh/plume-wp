@@ -13,8 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use Stilus\DB\Schema;
-use Stilus\Proxy\NJ_Site_Registration;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Proxy\SiteRegistration;
+use Stilus\Tiers\TierManager;
 
 /**
  * Plugin bootstrap singleton — wires hooks and owns the module registry.
@@ -97,17 +97,17 @@ class Plugin {
 	 */
 	private function init_hooks(): void {
 		add_action( 'init', [ $this, 'load_textdomain' ] );
-		add_action( 'admin_init', [ NJ_Site_Registration::class, 'maybe_register' ] );
+		add_action( 'admin_init', [ SiteRegistration::class, 'maybe_register' ] );
 		add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
-		add_action( 'stilus_trial_check', [ \Stilus\Tiers\NJ_Tier_Manager::class, 'maybe_demote_expired_trials' ] );
+		add_action( 'stilus_trial_check', [ \Stilus\Tiers\TierManager::class, 'maybe_demote_expired_trials' ] );
 		add_action( 'stilus_register_menu', [ \Stilus\Admin\AdminMenu::class, 'register' ] );
 		add_action( 'stilus_register_rest_routes', [ \Stilus\Admin\OnboardingRestController::class, 'register_routes' ] );
 		add_action( 'stilus_register_rest_routes', [ \Stilus\Admin\TestKeyRestController::class, 'register_routes' ] );
 		add_action( 'stilus_register_rest_routes', [ \Stilus\Admin\ActivationVerifyRestController::class, 'register_routes' ] );
 		add_action( 'rest_api_init', [ \Stilus\Payments\TierUpdateWebhookController::class, 'register' ] );
 		\Stilus\Admin\TierStatusPage::register_hooks();
-		\Stilus\Admin\NJ_Usage_Widget::register_hooks();
+		\Stilus\Admin\UsageWidget::register_hooks();
 		\Stilus\Admin\ActivationNotice::register();
 		\Stilus\Admin\TierSyncBackfillNotice::register();
 		if ( $this->modules->is_enabled( 'chat' ) ) {
@@ -202,14 +202,14 @@ class Plugin {
 			return;
 		}
 
-		if ( false !== get_option( NJ_Tier_Manager::SITE_OPTION, false ) ) {
+		if ( false !== get_option( TierManager::SITE_OPTION, false ) ) {
 			update_option( 'stilus_backfill_done', true, false );
 			return;
 		}
 
 		$users = get_users(
 			[
-				'meta_key'   => NJ_Tier_Manager::META_KEY,
+				'meta_key'   => TierManager::META_KEY,
 				'meta_value' => [ 'pro_managed', 'pro_byok' ],
 				'fields'     => 'ID',
 				'number'     => 1,
@@ -220,8 +220,8 @@ class Plugin {
 			return;
 		}
 
-		$tier = (string) get_user_meta( (int) $users[0], NJ_Tier_Manager::META_KEY, true );
-		NJ_Tier_Manager::set_site_tier( $tier );
+		$tier = (string) get_user_meta( (int) $users[0], TierManager::META_KEY, true );
+		TierManager::set_site_tier( $tier );
 		update_option( 'stilus_backfill_done', true, false );
 	}
 

@@ -88,7 +88,7 @@ class ActivationVerifyRestController {
 	/**
 	 * Store a challenge token as a transient so the Worker callback can verify it.
 	 *
-	 * Called by NJ_Site_Registration immediately after fetching the challenge
+	 * Called by SiteRegistration immediately after fetching the challenge
 	 * from the Worker, before sending it back in the /register request body.
 	 *
 	 * @since 1.3.0

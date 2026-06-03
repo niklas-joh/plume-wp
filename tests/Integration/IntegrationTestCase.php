@@ -13,8 +13,8 @@ declare( strict_types=1 );
 
 namespace Stilus\Tests\Integration;
 
-use Stilus\Tiers\NJ_Tier_Manager;
-use Stilus\Proxy\NJ_Site_Registration;
+use Stilus\Tiers\TierManager;
+use Stilus\Proxy\SiteRegistration;
 
 /**
  * Base integration test case.
@@ -87,7 +87,7 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 	/**
 	 * Reset the REST server and set a fake site token before each test.
 	 *
-	 * The site token prevents NJ_Site_Registration::maybe_register() from
+	 * The site token prevents SiteRegistration::maybe_register() from
 	 * firing a real outbound HTTP call during the test run.
 	 *
 	 * @since 1.0.0
@@ -97,7 +97,7 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 		parent::setUp();
 
 		// Prevent the proxy registration flow from making real network calls.
-		update_option( NJ_Site_Registration::OPTION_TOKEN, 'test-site-token' );
+		update_option( SiteRegistration::OPTION_TOKEN, 'test-site-token' );
 
 		// Force a fresh REST server so routes registered by the plugin are
 		// available without carrying state between tests.
@@ -127,7 +127,7 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 	// ── Helpers ────────────────────────────────────────────────────────────────
 
 	/**
-	 * Assign a tier to a user via the canonical NJ_Tier_Manager meta key.
+	 * Assign a tier to a user via the canonical TierManager meta key.
 	 *
 	 * For the 'trial' tier this also writes a fresh trial-started timestamp so
 	 * is_trial_active() considers the trial valid for the duration of the test.
@@ -138,17 +138,17 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 	 * @return void
 	 */
 	protected function set_user_tier( int $user_id, string $tier ): void {
-		update_user_meta( $user_id, NJ_Tier_Manager::META_KEY, $tier );
+		update_user_meta( $user_id, TierManager::META_KEY, $tier );
 
 		if ( 'trial' === $tier ) {
 			// Record the trial start as now so is_trial_active() returns true.
-			update_user_meta( $user_id, NJ_Tier_Manager::TRIAL_STARTED_META, time() );
+			update_user_meta( $user_id, TierManager::TRIAL_STARTED_META, time() );
 		}
 
 		// Ensure the site-level option does not shadow the user meta for the
 		// tiers under test — reset it to 'free' so paid-tier short-circuit in
 		// get_user_tier() does not override the per-user meta we just set.
-		update_option( NJ_Tier_Manager::SITE_OPTION, 'free', false );
+		update_option( TierManager::SITE_OPTION, 'free', false );
 	}
 
 	/**

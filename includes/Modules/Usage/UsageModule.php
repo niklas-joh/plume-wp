@@ -13,8 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Stilus\Tiers\NJ_Tier_Manager;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\TierManager;
+use Stilus\Tiers\UsageTracker;
 
 /**
  * Registers the Usage admin page assets and REST endpoint.
@@ -67,7 +67,7 @@ class UsageModule {
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'stilus/v1' ) ),
 				'currentPostId' => 0,
-				'isPro'         => NJ_Tier_Manager::user_can( 'generator' ),
+				'isPro'         => TierManager::user_can( 'generator' ),
 				'siteTitle'     => \get_bloginfo( 'name' ),
 			]
 		);
@@ -106,7 +106,7 @@ class UsageModule {
 	 * @return \WP_REST_Response
 	 */
 	public static function get_usage( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by WP_REST_Server callback signature.
-		$usage = NJ_Usage_Tracker::get_usage();
+		$usage = UsageTracker::get_usage();
 
 		return new \WP_REST_Response(
 			[

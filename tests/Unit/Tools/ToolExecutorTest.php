@@ -188,7 +188,7 @@ class ToolExecutorTest extends TestCase {
 
 		Functions\when( 'get_post' )->justReturn( $post );
 		Functions\when( 'user_can' )->justReturn( true );
-		// Return 'free' tier → NJ_Tier_Manager::user_can('seo') = false.
+		// Return 'free' tier → TierManager::user_can('seo') = false.
 		Functions\when( 'get_user_meta' )->justReturn( 'free' );
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'wp_strip_all_tags' )->alias( fn( $s ) => $s );

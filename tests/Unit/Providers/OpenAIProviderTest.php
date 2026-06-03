@@ -265,7 +265,7 @@ class OpenAIProviderTest extends TestCase {
 		$provider = new OpenAIProvider( '' );
 		$provider->complete( new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ] ) );
 
-		// NJ_Proxy_Client::chat() logs usage once (one wpdb->query call).
+		// ProxyClient::chat() logs usage once (one wpdb->query call).
 		// proxy_logged flag must prevent parent::maybe_log() from logging a second time.
 		$this->assertSame( 1, $wpdb->query_calls );
 	}

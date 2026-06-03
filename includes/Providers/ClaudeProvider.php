@@ -12,9 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Stilus\Proxy\NJ_Proxy_Client;
-use Stilus\Proxy\NJ_Site_Registration;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Proxy\ProxyClient;
+use Stilus\Proxy\SiteRegistration;
+use Stilus\Tiers\TierManager;
 
 /**
  * Handles completions, streaming, and tier-aware routing for Anthropic Claude.
@@ -111,14 +111,14 @@ class ClaudeProvider extends AbstractProvider {
 		if ( '' !== $this->api_key ) {
 			return true;
 		}
-		$tier = NJ_Tier_Manager::get_user_tier( get_current_user_id() );
+		$tier = TierManager::get_user_tier( get_current_user_id() );
 		return in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true )
-			&& NJ_Site_Registration::is_registered();
+			&& SiteRegistration::is_registered();
 	}
 
 	/**
 	 * Route completion by tier:
-	 *   - free / trial / pro_managed → proxy (NJ_Proxy_Client handles usage logging)
+	 *   - free / trial / pro_managed → proxy (ProxyClient handles usage logging)
 	 *   - pro_byok                   → direct Anthropic API call (AbstractProvider logs usage)
 	 *
 	 * @since 1.0.0
@@ -127,7 +127,7 @@ class ClaudeProvider extends AbstractProvider {
 	 * @throws ProviderException On API or proxy failure.
 	 */
 	protected function do_complete( CompletionRequest $request ): CompletionResponse {
-		$tier = NJ_Tier_Manager::get_user_tier( get_current_user_id() );
+		$tier = TierManager::get_user_tier( get_current_user_id() );
 
 		if ( in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true ) ) {
 			return $this->complete_via_proxy( $request );
@@ -182,13 +182,13 @@ class ClaudeProvider extends AbstractProvider {
 				$request->tools
 			);
 		}
-		$result = NJ_Proxy_Client::chat( $request->messages, $options, 'claude' );
+		$result = ProxyClient::chat( $request->messages, $options, 'claude' );
 
 		if ( is_wp_error( $result ) ) {
 			throw new ProviderException( $result->get_error_message(), 'claude' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		}
 
-		// NJ_Proxy_Client::chat() already called NJ_Usage_Tracker::log_usage() — flag to suppress parent logging.
+		// ProxyClient::chat() already called UsageTracker::log_usage() — flag to suppress parent logging.
 		$this->proxy_logged = true;
 
 		// Build CompletionResponse directly from the proxy's normalised shape { content, usage, tool_call? }.

@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Tier-gating integration tests for the Generator module REST route.
  *
- * Exercises the permission_callback chain — NJ_Tier_Manager::user_can('generator')
+ * Exercises the permission_callback chain — TierManager::user_can('generator')
  * returns false for the free tier and true for trial+.
  */
 class GeneratorTierGatingTest extends TestCase {
@@ -63,7 +63,7 @@ class GeneratorTierGatingTest extends TestCase {
 			}
 		);
 
-		// permission_callback returns false because NJ_Tier_Config::FEATURES['free']['generator'] = false.
+		// permission_callback returns false because TierConfig::FEATURES['free']['generator'] = false.
 		$this->assertFalse( (bool) $permission_callback() );
 	}
 
@@ -88,7 +88,7 @@ class GeneratorTierGatingTest extends TestCase {
 			}
 		);
 
-		// permission_callback returns true because NJ_Tier_Config::FEATURES['trial']['generator'] = true.
+		// permission_callback returns true because TierConfig::FEATURES['trial']['generator'] = true.
 		$this->assertTrue( (bool) $permission_callback() );
 	}
 }

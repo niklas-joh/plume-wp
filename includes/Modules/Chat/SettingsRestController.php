@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use Stilus\Settings\ProviderSettings;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierManager;
 
 /**
  * REST controller for plugin settings.
@@ -84,7 +84,7 @@ class SettingsRestController {
 			'available_post_types' => $this->get_public_post_types(),
 			'enable_write_tools'   => (bool) \get_option( 'stilus_enable_write_tools', false ),
 			// Note: intentionally snake_case to match WP REST convention; JS reads this as `settings.is_pro` (see FeaturesTab.jsx).
-			'is_pro'               => NJ_Tier_Manager::user_can( 'generator' ),
+			'is_pro'               => TierManager::user_can( 'generator' ),
 		];
 
 		return rest_ensure_response( $data );
@@ -106,7 +106,7 @@ class SettingsRestController {
 		// Scalar options.
 		$default_provider = $request->get_param( 'default_provider' );
 		if ( null !== $default_provider ) {
-			if ( ! NJ_Tier_Manager::user_can( 'model_selection' ) ) {
+			if ( ! TierManager::user_can( 'model_selection' ) ) {
 				return new \WP_Error(
 					'rest_plan_required',
 					__( 'Model selection requires the Pro Managed or Pro BYOK plan.', 'stilus' ),
@@ -118,7 +118,7 @@ class SettingsRestController {
 
 		$image_provider = $request->get_param( 'image_provider' );
 		if ( null !== $image_provider ) {
-			if ( ! NJ_Tier_Manager::user_can( 'model_selection' ) ) {
+			if ( ! TierManager::user_can( 'model_selection' ) ) {
 				return new \WP_Error(
 					'rest_plan_required',
 					__( 'Model selection requires the Pro Managed or Pro BYOK plan.', 'stilus' ),
@@ -148,7 +148,7 @@ class SettingsRestController {
 		// API keys — skip any that are the mask placeholder (i.e. unchanged).
 		$api_keys = $request->get_param( 'api_keys' );
 		if ( is_array( $api_keys ) ) {
-			if ( ! NJ_Tier_Manager::user_can( 'own_api_key' ) ) {
+			if ( ! TierManager::user_can( 'own_api_key' ) ) {
 				return new \WP_Error(
 					'rest_plan_required',
 					__( 'API key management requires the Pro BYOK plan.', 'stilus' ),

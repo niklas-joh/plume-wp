@@ -13,8 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use Stilus\Settings\ProviderSettings;
-use Stilus\Tiers\NJ_Tier_Manager;
-use Stilus\Tiers\NJ_Usage_Tracker;
+use Stilus\Tiers\TierManager;
+use Stilus\Tiers\UsageTracker;
 
 /**
  * Renders the Stilus dashboard admin page.
@@ -96,7 +96,7 @@ class DashboardPage {
 		$provider_settings = new ProviderSettings();
 		$provider          = (string) get_option( 'stilus_default_provider', '' );
 		$has_own_key       = $provider && $provider_settings->has_key( $provider );
-		$is_pro            = NJ_Tier_Manager::user_can( 'generator' );
+		$is_pro            = TierManager::user_can( 'generator' );
 
 		// Suppress the upgrade banner when the user has generator access (pro_managed, pro_byok, or
 		// trial tiers all have generator = true) or when they supply their own API key. Trial users
@@ -112,7 +112,7 @@ class DashboardPage {
 			'bannerState'    => $banner_state,
 			'onboardingSeen' => (bool) get_option( 'stilus_onboarding_seen', false ),
 			'isPro'          => $is_pro,
-			'usage'          => current_user_can( 'manage_options' ) ? NJ_Usage_Tracker::get_usage() : null,
+			'usage'          => current_user_can( 'manage_options' ) ? UsageTracker::get_usage() : null,
 			'version'        => STILUS_VERSION,
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'restUrl'        => esc_url_raw( rest_url( 'stilus/v1' ) ),

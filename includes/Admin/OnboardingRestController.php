@@ -9,7 +9,7 @@ declare( strict_types=1 );
 namespace Stilus\Admin;
 
 use Stilus\Settings\ProviderSettings;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierManager;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -100,7 +100,7 @@ class OnboardingRestController {
 			update_option( 'stilus_default_provider', sanitize_text_field( $provider ) );
 		}
 		if ( $api_keys && is_array( $api_keys ) ) {
-			if ( ! NJ_Tier_Manager::user_can( 'own_api_key' ) ) {
+			if ( ! TierManager::user_can( 'own_api_key' ) ) {
 				return new \WP_Error(
 					'rest_plan_required',
 					__( 'API key management requires the Pro BYOK plan.', 'stilus' ),

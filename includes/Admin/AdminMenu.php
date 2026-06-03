@@ -46,7 +46,7 @@ class AdminMenu {
 		add_submenu_page( 'stilus', __( 'Images', 'stilus' ), __( 'Images', 'stilus' ), 'edit_posts', 'stilus-images', [ ImagesPage::class, 'render' ] );
 		add_submenu_page( 'stilus', __( 'Settings', 'stilus' ), __( 'Settings', 'stilus' ), 'manage_options', 'stilus-settings', [ SettingsPage::class, 'render' ] );
 
-		$tier = \Stilus\Tiers\NJ_Tier_Manager::get_user_tier();
+		$tier = \Stilus\Tiers\TierManager::get_user_tier();
 		if ( in_array( $tier, [ 'free', 'trial' ], true ) ) {
 			add_submenu_page(
 				'stilus',

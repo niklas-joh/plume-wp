@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use Stilus\Providers\ProviderFactory;
 use Stilus\Settings\ProviderSettings;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierManager;
 
 /**
  * Renders the Stilus chat admin page.
@@ -80,7 +80,7 @@ class ChatPage {
 				'nonce'             => wp_create_nonce( 'wp_rest' ),
 				'restUrl'           => esc_url_raw( rest_url( 'stilus/v1' ) ),
 				'currentPostId'     => 0,
-				'isPro'             => NJ_Tier_Manager::user_can( 'chat' ),
+				'isPro'             => TierManager::user_can( 'chat' ),
 				'siteTitle'         => get_bloginfo( 'name' ),
 				'defaultModelLabel' => esc_html( $default_model_label ),
 				'defaultProvider'   => $default_slug,

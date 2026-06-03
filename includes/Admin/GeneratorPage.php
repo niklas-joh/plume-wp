@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierManager;
 
 /**
  * Renders the Stilus post-generator admin page.
@@ -63,7 +63,7 @@ class GeneratorPage {
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'stilus/v1' ) ),
 				'currentPostId' => 0,
-				'isPro'         => NJ_Tier_Manager::user_can( 'generator' ),
+				'isPro'         => TierManager::user_can( 'generator' ),
 				'siteTitle'     => \get_bloginfo( 'name' ),
 			]
 		);

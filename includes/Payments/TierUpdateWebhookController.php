@@ -12,8 +12,8 @@ namespace Stilus\Payments;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
-use Stilus\Tiers\NJ_Tier_Config;
-use Stilus\Tiers\NJ_Tier_Manager;
+use Stilus\Tiers\TierConfig;
+use Stilus\Tiers\TierManager;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -165,11 +165,11 @@ class TierUpdateWebhookController {
 		}
 
 		$tier = $decoded['tier'];
-		if ( ! in_array( $tier, NJ_Tier_Config::get_valid_tiers(), true ) ) {
+		if ( ! in_array( $tier, TierConfig::get_valid_tiers(), true ) ) {
 			return new WP_REST_Response( [ 'error' => 'bad_request' ], 400 );
 		}
 
-		$ok = NJ_Tier_Manager::set_site_tier( $tier );
+		$ok = TierManager::set_site_tier( $tier );
 		if ( ! $ok ) {
 			return new WP_REST_Response( [ 'error' => 'internal_error' ], 500 );
 		}

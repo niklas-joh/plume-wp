@@ -111,7 +111,7 @@ if ( ! function_exists( 'rest_ensure_response' ) ) {
 	function rest_ensure_response( $data ) { return new \WP_REST_Response( $data ); }
 }
 
-// Minimal $wpdb stub so NJ_Usage_Tracker::log_usage() doesn't throw in tests
+// Minimal $wpdb stub so UsageTracker::log_usage() doesn't throw in tests
 // that don't set up their own $wpdb mock (e.g. provider tests).
 global $wpdb;
 if ( null === $wpdb ) {

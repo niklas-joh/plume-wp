@@ -3,7 +3,7 @@
  * Integration-layer tier × feature matrix tests.
  *
  * Makes real REST requests and asserts on HTTP status codes to verify that
- * tier gates allow or block access exactly as defined in NJ_Tier_Config::FEATURES.
+ * tier gates allow or block access exactly as defined in TierConfig::FEATURES.
  *
  * @package Stilus\Tests\Integration
  */

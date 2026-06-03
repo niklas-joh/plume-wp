@@ -6,9 +6,9 @@ namespace Stilus\Tests\Unit\Admin;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
-use Stilus\Admin\NJ_Usage_Widget;
+use Stilus\Admin\UsageWidget;
 
-class NJ_Usage_Widget_Test extends TestCase {
+class UsageWidgetTest extends TestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -36,7 +36,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 			}
 		);
 
-		NJ_Usage_Widget::register_hooks();
+		UsageWidget::register_hooks();
 
 		$this->assertTrue( $action_added, 'add_action was not called with wp_dashboard_setup' );
 	}
@@ -52,7 +52,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 			}
 		);
 
-		NJ_Usage_Widget::add_dashboard_widget();
+		UsageWidget::add_dashboard_widget();
 
 		$this->assertSame( 'stilus_usage', $registered_id );
 	}
@@ -67,7 +67,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 			}
 		);
 
-		NJ_Usage_Widget::add_dashboard_widget();
+		UsageWidget::add_dashboard_widget();
 
 		$this->assertFalse( $widget_registered, 'Widget must not be registered for users without manage_options' );
 	}
@@ -97,7 +97,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 		Functions\when( 'esc_html__' )->returnArg();
 
 		ob_start();
-		NJ_Usage_Widget::render();
+		UsageWidget::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Free', $output );
@@ -128,7 +128,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 		Functions\when( 'esc_html__' )->returnArg();
 
 		ob_start();
-		NJ_Usage_Widget::render();
+		UsageWidget::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Over 80%', $output );
@@ -161,7 +161,7 @@ class NJ_Usage_Widget_Test extends TestCase {
 		Functions\when( 'esc_html__' )->returnArg();
 
 		ob_start();
-		NJ_Usage_Widget::render();
+		UsageWidget::render();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Unlimited', $output );
