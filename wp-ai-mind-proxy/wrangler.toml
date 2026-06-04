@@ -1,4 +1,4 @@
-name = "wp-ai-mind-proxy"
+name = "stilus-proxy"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
@@ -36,7 +36,7 @@ preview_id = "38975852f1bc4c838da456ea9a21e789"
 #      → Cloudflare will print the dev Worker URL (e.g. wp-ai-mind-proxy-dev.<account>.workers.dev)
 #   4. Set that URL as the proxy endpoint in your localhost + staging WP installs
 [env.dev]
-name = "wp-ai-mind-proxy-dev"
+name = "stilus-proxy-dev"
 
 [env.dev.vars]
 DEV_ENDPOINTS_ENABLED = "1"
