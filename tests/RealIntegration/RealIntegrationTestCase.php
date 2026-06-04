@@ -48,15 +48,16 @@ abstract class RealIntegrationTestCase extends IntegrationTestCase {
 	}
 
 	/**
-	 * Configure the site for the Pro-BYOK tier with a real Anthropic API key.
+	 * Configure the site and user for the Pro-BYOK tier with a real Anthropic API key.
 	 *
 	 * Sets the site-level tier option to pro_byok, removes the HMAC secret so
-	 * is_site_tier_verified() passes for this unregistered test install, and
-	 * stores the CLAUDE_API_KEY env var via ProviderSettings so the Claude
-	 * provider can make live API calls.
+	 * is_site_tier_verified() passes for this unregistered test install, stores
+	 * the CLAUDE_API_KEY env var via ProviderSettings so the Claude provider can
+	 * make live API calls, and applies the matching user-level tier meta so the
+	 * per-user tier resolution is consistent with activate_trial_tier / activate_free_tier.
 	 *
 	 * @since 1.8.0
-	 * @param int $user_id WordPress user ID (currently active user).
+	 * @param int $user_id WordPress user ID.
 	 */
 	protected function activate_byok_tier( int $user_id ): void {
 		// Site-level paid tier takes priority over user meta for pro_byok.
@@ -65,6 +66,8 @@ abstract class RealIntegrationTestCase extends IntegrationTestCase {
 		delete_option( SiteRegistration::OPTION_SECRET );
 		// Inject the real API key so the Claude provider can call the Anthropic API.
 		( new ProviderSettings() )->set_api_key( 'claude', getenv( 'CLAUDE_API_KEY' ) ?: '' );
+		// Mirror user-level tier meta to stay consistent with activate_trial/free_tier.
+		$this->set_user_tier( $user_id, 'pro_byok' );
 	}
 
 	/**
