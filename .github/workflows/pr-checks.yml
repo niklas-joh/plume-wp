@@ -573,25 +573,25 @@ jobs:
           echo "::error::WordPress test instance did not start within 60s"; exit 1
 
       - name: Run real integration tests
-        # env: block sets vars on the host; the 'env' command inside the
-        # container picks them up from host-shell expansion of ${VAR} before
-        # the string is passed to Docker, so secrets never appear in logs.
-        # wp-env sets the working directory to the plugin dir automatically
-        # when not using bash -c, which is why vendor/bin/phpunit resolves.
+        # Secrets are expanded on the host by the GitHub Actions runner before
+        # the string is passed to Docker — they never appear in CI logs.
+        # 'wp-env run -- bash -c' bypasses wp-env's automatic CWD-setting, so
+        # we cd to the plugin directory explicitly before running phpunit.
         env:
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
           STILUS_CI_SITE_TOKEN: ${{ secrets.STILUS_CI_SITE_TOKEN }}
           STILUS_PROXY_URL: ${{ secrets.STILUS_PROXY_URL }}
         run: |
-          npx wp-env run tests-wordpress \
-            -- env \
-            "CLAUDE_API_KEY=${CLAUDE_API_KEY}" \
-            "STILUS_CI_SITE_TOKEN=${STILUS_CI_SITE_TOKEN}" \
-            "STILUS_PROXY_URL=${STILUS_PROXY_URL}" \
+          npx wp-env run tests-wordpress -- bash -c "
+            cd /var/www/html/wp-content/plugins/wp-ai-mind
+            CLAUDE_API_KEY='${CLAUDE_API_KEY}' \
+            STILUS_CI_SITE_TOKEN='${STILUS_CI_SITE_TOKEN}' \
+            STILUS_PROXY_URL='${STILUS_PROXY_URL}' \
             vendor/bin/phpunit \
               -c phpunit-real-integration.xml.dist \
               --colors=always \
               --verbose
+          "
 
       - name: Stop wp-env
         if: always()
