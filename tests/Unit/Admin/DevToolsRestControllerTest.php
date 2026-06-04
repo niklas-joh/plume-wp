@@ -25,6 +25,27 @@ class DevToolsRestControllerTest extends TestCase {
 		parent::tearDown();
 	}
 
+	// ── register_routes() — namespace and path prefix ────────────────────────
+
+	public function test_register_routes_uses_stilus_v1_dev_prefix(): void {
+		$registered = [];
+		Functions\expect( 'register_rest_route' )
+			->times( 4 )
+			->andReturnUsing(
+				function ( string $namespace, string $route ) use ( &$registered ): bool {
+					$registered[] = [ 'namespace' => $namespace, 'route' => $route ];
+					return true;
+				}
+			);
+
+		DevToolsRestController::register_routes();
+
+		foreach ( $registered as $entry ) {
+			$this->assertSame( 'stilus/v1', $entry['namespace'] );
+			$this->assertStringStartsWith( '/dev/', $entry['route'] );
+		}
+	}
+
 	// ── check_permission() ────────────────────────────────────────────────────
 
 	public function test_check_permission_returns_wp_error_when_dev_tools_inactive(): void {

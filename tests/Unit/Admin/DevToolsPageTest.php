@@ -25,6 +25,12 @@ class DevToolsPageTest extends TestCase {
 		parent::tearDown();
 	}
 
+	// ── PAGE_SLUG constant ───────────────────────────────────────────────────
+
+	public function test_page_slug_constant_has_expected_stilus_value(): void {
+		$this->assertSame( 'stilus-dev-tools', DevToolsPage::PAGE_SLUG );
+	}
+
 	// ── is_active() — capability guard ───────────────────────────────────────
 
 	public function test_is_active_returns_false_when_user_lacks_manage_options(): void {
