@@ -23,7 +23,7 @@ preview_id = "38975852f1bc4c838da456ea9a21e789"
 # Production Worker does NOT have DEV_ENDPOINTS_ENABLED, so /dev/* routes
 # return 404 there regardless of auth.
 #
-# One-time setup (run from wp-ai-mind-proxy/):
+# One-time setup (run from stilus-proxy/):
 #   1. wrangler kv namespace create "USAGE_KV" --env dev
 #      → copy the returned id into [[env.dev.kv_namespaces]] below
 #   2. wrangler secret put ANTHROPIC_API_KEY --env dev

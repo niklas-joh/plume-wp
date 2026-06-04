@@ -1,4 +1,4 @@
-# wp-ai-mind-proxy
+# stilus-proxy
 
 Minimal Cloudflare Worker that protects the Anthropic API key for Free/Trial/Pro Managed users.
 WordPress signs requests with HMAC-SHA256; the Worker validates the signature, enforces per-tier
@@ -7,11 +7,8 @@ token limits via KV, and forwards to Anthropic.
 ## wp-config.php constants
 
 ```php
-// Must match PROXY_SIGNATURE_SECRET set via `wrangler secret put`
-define( 'WP_AI_MIND_PROXY_SECRET', 'your-64-char-random-string' );
-
-// URL of the deployed Worker (or set via WP Admin → Settings → AI Mind)
-define( 'WP_AI_MIND_PROXY_URL', 'https://wp-ai-mind-proxy.YOUR-ACCOUNT.workers.dev' );
+// URL of the deployed Worker (or set via WP Admin → Stilus Settings)
+define( 'STILUS_PROXY_URL', 'https://stilus-proxy.stilus.workers.dev' );
 ```
 
 ## First-time setup
@@ -29,7 +26,6 @@ npx wrangler kv:namespace create USAGE_KV --preview
 
 # 4. Set secrets (never commit these values)
 npx wrangler secret put ANTHROPIC_API_KEY
-npx wrangler secret put PROXY_SIGNATURE_SECRET   # same value as WP_AI_MIND_PROXY_SECRET
 
 # 5. Type-check
 npm run typecheck
@@ -55,7 +51,7 @@ curl -s http://localhost:8787/v1/chat | jq .
 # {"error":"Method not allowed"}
 ```
 
-## Tier limits (mirrors NJ_Tier_Config::MONTHLY_LIMITS)
+## Tier limits (mirrors TierConfig::MONTHLY_LIMITS)
 
 | Tier | Tokens/month | Models |
 |------|-------------|--------|

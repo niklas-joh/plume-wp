@@ -41,7 +41,7 @@ class DevToolsPage {
 	 *
 	 * @since 1.11.0
 	 */
-	public const PAGE_SLUG = 'wp-ai-mind-dev-tools';
+	public const PAGE_SLUG = 'stilus-dev-tools';
 
 	/**
 	 * Register the admin_menu hook that adds the hidden page.
@@ -62,7 +62,7 @@ class DevToolsPage {
 	public static function add_page(): void {
 		add_submenu_page(
 			null,
-			__( 'Developer Tools — WP AI Mind', 'stilus' ),
+			__( 'Developer Tools — Stilus', 'stilus' ),
 			__( 'Dev Tools', 'stilus' ),
 			'manage_options',
 			self::PAGE_SLUG,
@@ -116,7 +116,7 @@ class DevToolsPage {
 			];
 
 		wp_enqueue_script(
-			'wp-ai-mind-dev-tools',
+			'stilus-dev-tools',
 			STILUS_URL . 'assets/admin/dev-tools.js',
 			$asset['dependencies'],
 			$asset['version'],
@@ -124,10 +124,10 @@ class DevToolsPage {
 		);
 
 		wp_localize_script(
-			'wp-ai-mind-dev-tools',
+			'stilus-dev-tools',
 			'njDevTools',
 			[
-				'restUrl' => esc_url_raw( rest_url( 'wp-ai-mind/v1/dev/' ) ),
+				'restUrl' => esc_url_raw( rest_url( 'stilus/v1/dev/' ) ),
 				'nonce'   => wp_create_nonce( 'wp_rest' ),
 			]
 		);
