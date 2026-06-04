@@ -21,6 +21,7 @@ use Stilus\Settings\ProviderSettings;
 use Stilus\Tools\ToolRegistry;
 use Stilus\Tools\ToolExecutor;
 use Stilus\Voice\VoiceInjector;
+use Stilus\Proxy\SiteRegistration;
 use Stilus\Tiers\TierManager;
 use Stilus\Tiers\UsageTracker;
 
@@ -302,10 +303,26 @@ class ChatRestController {
 			$provider = $factory->make( $provider_slug );
 
 			if ( ! $provider->is_available() ) {
+				$tier        = TierManager::get_user_tier( get_current_user_id() );
+				$proxy_tiers = [ 'free', 'trial', 'pro_managed' ];
+
+				if ( in_array( $tier, $proxy_tiers, true ) ) {
+					// Site token absent — schedule re-registration so the next page load succeeds.
+					if ( ! has_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] ) ) {
+						add_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] );
+					}
+					return new \WP_REST_Response(
+						[
+							'message' => __( 'Could not connect to Stilus — Write and Design. Please reload the page and try again.', 'stilus' ),
+						],
+						503
+					);
+				}
+
 				return new \WP_REST_Response(
 					[
 						'message' => sprintf(
-												/* translators: %s: provider slug */
+							/* translators: %s: provider slug */
 							__( 'No API key configured for "%s". Please add one in Stilus → Settings.', 'stilus' ),
 							$provider_slug
 						),
