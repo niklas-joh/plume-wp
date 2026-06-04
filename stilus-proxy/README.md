@@ -21,8 +21,8 @@ npm install
 npx wrangler login
 
 # 3. Create KV namespaces and update wrangler.toml
-npx wrangler kv:namespace create USAGE_KV
-npx wrangler kv:namespace create USAGE_KV --preview
+npx wrangler kv namespace create USAGE_KV
+npx wrangler kv namespace create USAGE_KV --preview
 
 # 4. Set secrets (never commit these values)
 npx wrangler secret put ANTHROPIC_API_KEY
