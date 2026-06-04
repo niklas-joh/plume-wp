@@ -69,6 +69,11 @@ async function globalSetup() {
 	// Silently skipped in local dev when the key is absent.
 	const claudeApiKey = process.env.CLAUDE_API_KEY;
 	if ( claudeApiKey ) {
+		// Validate format before injecting — prevents shell/PHP injection if the
+		// env value is ever unexpected. Anthropic keys are always sk-ant-api03-…
+		if ( ! /^sk-ant-[A-Za-z0-9_-]+$/.test( claudeApiKey ) ) {
+			throw new Error( '[E2E setup] CLAUDE_API_KEY does not match expected format (sk-ant-…). Aborting.' );
+		}
 		console.log( '[E2E setup] Storing Claude API key for real-API tests.' );
 		wpCli(
 			`eval "( new \\\\Stilus\\\\Settings\\\\ProviderSettings() )->set_api_key( 'claude', '${ claudeApiKey }' );"`,
