@@ -589,8 +589,7 @@ jobs:
             STILUS_PROXY_URL='${STILUS_PROXY_URL}' \
             vendor/bin/phpunit \
               -c phpunit-real-integration.xml.dist \
-              --colors=always \
-              --verbose
+              --colors=always
           "
 
       - name: Stop wp-env
