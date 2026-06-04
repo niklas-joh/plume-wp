@@ -21,6 +21,8 @@ use Stilus\Settings\ProviderSettings;
 use Stilus\Tools\ToolRegistry;
 use Stilus\Tools\ToolExecutor;
 use Stilus\Voice\VoiceInjector;
+use Stilus\Proxy\SiteRegistration;
+use Stilus\Tiers\TierConfig;
 use Stilus\Tiers\TierManager;
 use Stilus\Tiers\UsageTracker;
 
@@ -265,11 +267,12 @@ class ChatRestController {
 		$provider_slug  = ! empty( $provider_param ) ? $provider_param : \get_option( 'stilus_default_provider', 'claude' );
 		$model          = $request->get_param( 'model' );
 
-		$store = $this->make_store();
+		$user_id = \get_current_user_id();
+		$store   = $this->make_store();
 
 		// Ownership guard.
 		$conv = $store->get_conversation( $conv_id );
-		if ( ! $conv || \get_current_user_id() !== (int) $conv['user_id'] ) {
+		if ( ! $conv || $user_id !== (int) $conv['user_id'] ) {
 			return new \WP_REST_Response( [ 'message' => 'Forbidden.' ], 403 );
 		}
 
@@ -285,7 +288,7 @@ class ChatRestController {
 		);
 
 		$injector = $this->make_voice_injector();
-		$system   = $injector->build_system_prompt( '', \get_current_user_id() );
+		$system   = $injector->build_system_prompt( '', $user_id );
 
 		$context_post_id = absint( $request->get_param( 'context_post_id' ) );
 		if ( $context_post_id > 0 ) {
@@ -302,10 +305,27 @@ class ChatRestController {
 			$provider = $factory->make( $provider_slug );
 
 			if ( ! $provider->is_available() ) {
+				$tier          = $this->get_user_tier( $user_id );
+				$is_proxy_tier = ! TierConfig::get_feature( $tier, 'own_api_key' );
+
+				if ( $is_proxy_tier ) {
+					// Site token absent — schedule re-registration so the next page load succeeds.
+					// Guard against double-scheduling: add_action does not deduplicate identical callbacks on the same hook.
+					if ( ! has_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] ) ) {
+						add_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] );
+					}
+					return new \WP_REST_Response(
+						[
+							'message' => __( 'Could not connect to Stilus — Write and Design. Please reload the page and try again.', 'stilus' ),
+						],
+						503
+					);
+				}
+
 				return new \WP_REST_Response(
 					[
 						'message' => sprintf(
-												/* translators: %s: provider slug */
+							/* translators: %s: provider slug */
 							__( 'No API key configured for "%s". Please add one in Stilus → Settings.', 'stilus' ),
 							$provider_slug
 						),
@@ -375,7 +395,7 @@ class ChatRestController {
 					$tool_results[ $tu['id'] ] = $this->tool_executor->execute(
 						$tu['name'],
 						$arguments,
-						\get_current_user_id()
+						$user_id
 					);
 				}
 
@@ -596,6 +616,20 @@ class ChatRestController {
 	 */
 	protected function user_within_quota( int $user_id ): bool {
 		return UsageTracker::check_limit( $user_id );
+	}
+
+	/**
+	 * Returns the tier slug for a user.
+	 *
+	 * Isolated as a protected method so tests can override without stubbing
+	 * static calls on TierManager.
+	 *
+	 * @since 1.8.0
+	 * @param int $user_id WordPress user ID.
+	 * @return string Tier slug.
+	 */
+	protected function get_user_tier( int $user_id ): string {
+		return TierManager::get_user_tier( $user_id );
 	}
 
 	// ── Overridable factory methods (for testing) ─────────────────────────────
