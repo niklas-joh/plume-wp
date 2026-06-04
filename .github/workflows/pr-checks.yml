@@ -572,6 +572,14 @@ jobs:
           done
           echo "::error::WordPress test instance did not start within 60s"; exit 1
 
+      - name: Patch WordPress test utils for PHPUnit 10 compatibility
+        # @wordpress/env bundles /wordpress-phpunit/ which still calls
+        # PHPUnit\Util\Test::parseTestMethodAnnotations() — removed in PHPUnit 10.
+        # The script replaces the call with a safe empty-array no-op.
+        run: |
+          npx wp-env run tests-wordpress -- php \
+            /var/www/html/wp-content/plugins/wp-ai-mind/tests/phpunit10-compat.php
+
       - name: Run real integration tests
         # Secrets are expanded on the host by the GitHub Actions runner before
         # the string is passed to Docker — they never appear in CI logs.
