@@ -129,17 +129,30 @@ class RealChatTest extends RealIntegrationTestCase {
 		$history = $this->rest_do( 'GET', "/stilus/v1/conversations/{$conv_id}/messages" );
 		$this->assertGreaterThanOrEqual( 2, count( $history->get_data() ), 'History must contain user + assistant before second turn.' );
 
-		// Second turn: ask Claude to recall it.
+		// Second turn: ask Claude to repeat from the in-context messages above.
+		// Phrasing avoids "secret"/"recall" language that triggers Haiku's
+		// "I don't have persistent memory" reflex; instead anchors the question
+		// explicitly to the current conversation's message history.
 		$recall = $this->rest_do(
 			'POST',
 			"/stilus/v1/conversations/{$conv_id}/messages",
 			[
-				'content'  => 'What was my secret number? Reply with just the number.',
+				'content'  => 'Looking at the messages above in this conversation, what number did I give you at the start? Reply with just the number.',
 				'provider' => 'claude',
 				'model'    => 'claude-haiku-4-5-20251001',
 			]
 		);
 
-		$this->assertStringContainsString( '77', (string) ( $recall->get_data()['content'] ?? '' ) );
+		$recall_data = $recall->get_data();
+		$this->assertSame(
+			200,
+			$recall->get_status(),
+			sprintf( 'Second turn must return 200. Got %d. Body: %s', $recall->get_status(), wp_json_encode( $recall_data ) )
+		);
+		$this->assertStringContainsString(
+			'77',
+			(string) ( $recall_data['content'] ?? '' ),
+			sprintf( 'Context not preserved. Claude replied: %s', $recall_data['content'] ?? '(empty)' )
+		);
 	}
 }
