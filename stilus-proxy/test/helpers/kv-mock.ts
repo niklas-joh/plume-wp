@@ -1,5 +1,10 @@
 import type { Env } from '../../src/types';
 
+/**
+ * Create an in-memory KVNamespace stub for unit tests.
+ *
+ * @return {KVNamespace} Minimal KV implementation backed by a Map.
+ */
 export function makeKV(): KVNamespace {
 	const store = new Map< string, string >();
 	return {
@@ -38,6 +43,12 @@ export function makeKV(): KVNamespace {
 	} as unknown as KVNamespace;
 }
 
+/**
+ * Build a test Env object with default stub values.
+ *
+ * @param {Partial<Env>} overrides Optional overrides for specific bindings.
+ * @return {Env} Complete Env fixture.
+ */
 export function makeEnv( overrides: Partial< Env > = {} ): Env {
 	return {
 		USAGE_KV: makeKV(),

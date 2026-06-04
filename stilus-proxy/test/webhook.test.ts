@@ -255,11 +255,16 @@ describe( 'handleWebhook', () => {
 			created_at: Date.now(),
 			tier_sync_secret: 'a'.repeat( 64 ),
 		};
-		await env.USAGE_KV.put( `site:${ TEST_TOKEN }`, JSON.stringify( record ) );
+		await env.USAGE_KV.put(
+			`site:${ TEST_TOKEN }`,
+			JSON.stringify( record )
+		);
 
 		const fetchSpy = vi
 			.fn()
-			.mockResolvedValue( new Response( '{"ok":true}', { status: 200 } ) );
+			.mockResolvedValue(
+				new Response( '{"ok":true}', { status: 200 } )
+			);
 		vi.stubGlobal( 'fetch', fetchSpy );
 
 		const payload = subscriptionCreatedPayload( '1550505', TEST_TOKEN );
@@ -296,7 +301,10 @@ describe( 'handleWebhook', () => {
 			tier: 'free',
 			created_at: Date.now(),
 		};
-		await env.USAGE_KV.put( `site:${ TEST_TOKEN }`, JSON.stringify( record ) );
+		await env.USAGE_KV.put(
+			`site:${ TEST_TOKEN }`,
+			JSON.stringify( record )
+		);
 
 		const fetchSpy = vi
 			.fn()

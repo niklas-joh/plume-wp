@@ -10,6 +10,13 @@ export interface AuthResult {
 	record?: SiteRecord;
 }
 
+/**
+ * Verify the Bearer token in the request against the USAGE_KV store.
+ *
+ * @param {Request} request Incoming Worker request.
+ * @param {Env}     env     Worker environment bindings.
+ * @return {Promise<AuthResult>} Authentication result with site record if valid.
+ */
 export async function authenticateRequest(
 	request: Request,
 	env: Env
@@ -41,6 +48,11 @@ export async function authenticateRequest(
 	};
 }
 
+/**
+ * Generate a cryptographically random 32-byte hex token.
+ *
+ * @return {string} 64-character hex string.
+ */
 export function generateToken(): string {
 	const bytes = new Uint8Array( 32 );
 	crypto.getRandomValues( bytes );

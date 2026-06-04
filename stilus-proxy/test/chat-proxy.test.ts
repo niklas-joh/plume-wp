@@ -80,10 +80,10 @@ describe( 'handleChatProxy', () => {
 		await worker.fetch( makeChatRequest(), env );
 
 		// Record in KV must now show tier=free.
-		const updated = await env.USAGE_KV.get< SiteRecord >(
+		const updated = ( await env.USAGE_KV.get< SiteRecord >(
 			`site:${ TEST_TOKEN }`,
 			'json'
-		) as SiteRecord;
+		) ) as SiteRecord;
 		expect( updated.tier ).toBe( 'free' );
 	} );
 
@@ -97,10 +97,10 @@ describe( 'handleChatProxy', () => {
 
 		await worker.fetch( makeChatRequest(), env );
 
-		const record = await env.USAGE_KV.get< SiteRecord >(
+		const record = ( await env.USAGE_KV.get< SiteRecord >(
 			`site:${ TEST_TOKEN }`,
 			'json'
-		) as SiteRecord;
+		) ) as SiteRecord;
 		expect( record.tier ).toBe( 'trial' );
 	} );
 
@@ -110,16 +110,20 @@ describe( 'handleChatProxy', () => {
 		let capturedBody: Record< string, unknown > | null = null;
 		vi.stubGlobal(
 			'fetch',
-			vi.fn().mockImplementation( async ( _url: string, init: RequestInit ) => {
-				capturedBody = JSON.parse( init.body as string );
-				return new Response(
-					JSON.stringify( {
-						content: [ { type: 'text', text: 'Summary' } ],
-						usage: { input_tokens: 10, output_tokens: 5 },
-					} ),
-					{ status: 200 }
-				);
-			} )
+			vi
+				.fn()
+				.mockImplementation(
+					async ( _url: string, init: RequestInit ) => {
+						capturedBody = JSON.parse( init.body as string );
+						return new Response(
+							JSON.stringify( {
+								content: [ { type: 'text', text: 'Summary' } ],
+								usage: { input_tokens: 10, output_tokens: 5 },
+							} ),
+							{ status: 200 }
+						);
+					}
+				)
 		);
 
 		const body = JSON.stringify( {
@@ -132,7 +136,8 @@ describe( 'handleChatProxy', () => {
 		expect( response.status ).toBe( 200 );
 		expect( capturedBody ).not.toBeNull();
 
-		const sentTools = ( capturedBody as Record< string, unknown > ).tools as Array< Record< string, unknown > >;
+		const sentTools = ( capturedBody as Record< string, unknown > )
+			.tools as Array< Record< string, unknown > >;
 		expect( sentTools ).toHaveLength( 1 );
 		expect( sentTools[ 0 ] ).toEqual( {
 			name: 'get_post_content',
@@ -154,8 +159,16 @@ describe( 'handleChatProxy', () => {
 				return new Response(
 					JSON.stringify( {
 						content: [
-							{ type: 'text', text: "I'll fetch that post for you." },
-							{ type: 'tool_use', id: 'toolu_01', name: 'get_post_content', input: { post_id: 42 } },
+							{
+								type: 'text',
+								text: "I'll fetch that post for you.",
+							},
+							{
+								type: 'tool_use',
+								id: 'toolu_01',
+								name: 'get_post_content',
+								input: { post_id: 42 },
+							},
 						],
 						usage: { input_tokens: 20, output_tokens: 10 },
 					} ),
@@ -176,10 +189,18 @@ describe( 'handleChatProxy', () => {
 		const json = ( await response.json() ) as {
 			content: string;
 			usage: { input_tokens: number; output_tokens: number };
-			tool_call?: { id: string; name: string; arguments: Record< string, unknown > };
+			tool_call?: {
+				id: string;
+				name: string;
+				arguments: Record< string, unknown >;
+			};
 		};
 		expect( json.content ).toBe( "I'll fetch that post for you." );
-		expect( json.tool_call ).toEqual( { id: 'toolu_01', name: 'get_post_content', arguments: { post_id: 42 } } );
+		expect( json.tool_call ).toEqual( {
+			id: 'toolu_01',
+			name: 'get_post_content',
+			arguments: { post_id: 42 },
+		} );
 		expect( json.usage ).toEqual( { input_tokens: 20, output_tokens: 10 } );
 	} );
 
@@ -191,7 +212,9 @@ describe( 'handleChatProxy', () => {
 			vi.fn().mockImplementation( async () => {
 				return new Response(
 					JSON.stringify( {
-						content: [ { type: 'text', text: 'Here is the summary.' } ],
+						content: [
+							{ type: 'text', text: 'Here is the summary.' },
+						],
 						usage: { input_tokens: 15, output_tokens: 8 },
 					} ),
 					{ status: 200 }
@@ -202,7 +225,10 @@ describe( 'handleChatProxy', () => {
 		const response = await worker.fetch( makeChatRequest(), env );
 		expect( response.status ).toBe( 200 );
 
-		const json = ( await response.json() ) as { content: string; tool_call?: unknown };
+		const json = ( await response.json() ) as {
+			content: string;
+			tool_call?: unknown;
+		};
 		expect( json.content ).toBe( 'Here is the summary.' );
 		expect( json.tool_call ).toBeUndefined();
 	} );
@@ -214,17 +240,26 @@ describe( 'handleChatProxy', () => {
 		let capturedBody: Record< string, unknown > | null = null;
 		vi.stubGlobal(
 			'fetch',
-			vi.fn().mockImplementation( async ( url: string, init: RequestInit ) => {
-				capturedUrl = url;
-				capturedBody = JSON.parse( init.body as string );
-				return new Response(
-					JSON.stringify( {
-						choices: [ { message: { content: 'OpenAI reply' } } ],
-						usage: { prompt_tokens: 8, completion_tokens: 4 },
-					} ),
-					{ status: 200 }
-				);
-			} )
+			vi
+				.fn()
+				.mockImplementation(
+					async ( url: string, init: RequestInit ) => {
+						capturedUrl = url;
+						capturedBody = JSON.parse( init.body as string );
+						return new Response(
+							JSON.stringify( {
+								choices: [
+									{ message: { content: 'OpenAI reply' } },
+								],
+								usage: {
+									prompt_tokens: 8,
+									completion_tokens: 4,
+								},
+							} ),
+							{ status: 200 }
+						);
+					}
+				)
 		);
 
 		const body = JSON.stringify( {
@@ -236,9 +271,12 @@ describe( 'handleChatProxy', () => {
 		const response = await worker.fetch( makeChatRequest( body ), env );
 		expect( response.status ).toBe( 200 );
 
-		expect( capturedUrl ).toBe( 'https://api.openai.com/v1/chat/completions' );
+		expect( capturedUrl ).toBe(
+			'https://api.openai.com/v1/chat/completions'
+		);
 
-		const sentTools = ( capturedBody as Record< string, unknown > ).tools as Array< Record< string, unknown > >;
+		const sentTools = ( capturedBody as Record< string, unknown > )
+			.tools as Array< Record< string, unknown > >;
 		expect( sentTools ).toHaveLength( 1 );
 		expect( sentTools[ 0 ] ).toEqual( {
 			type: 'function',
@@ -253,7 +291,10 @@ describe( 'handleChatProxy', () => {
 			},
 		} );
 
-		const json = ( await response.json() ) as { content: string; usage: { input_tokens: number; output_tokens: number } };
+		const json = ( await response.json() ) as {
+			content: string;
+			usage: { input_tokens: number; output_tokens: number };
+		};
 		expect( json.content ).toBe( 'OpenAI reply' );
 		expect( json.usage ).toEqual( { input_tokens: 8, output_tokens: 4 } );
 	} );
@@ -265,17 +306,30 @@ describe( 'handleChatProxy', () => {
 		let capturedBody: Record< string, unknown > | null = null;
 		vi.stubGlobal(
 			'fetch',
-			vi.fn().mockImplementation( async ( url: string, init: RequestInit ) => {
-				capturedUrl = url as string;
-				capturedBody = JSON.parse( init.body as string );
-				return new Response(
-					JSON.stringify( {
-						candidates: [ { content: { parts: [ { text: 'Gemini reply' } ] } } ],
-						usageMetadata: { promptTokenCount: 6, candidatesTokenCount: 3 },
-					} ),
-					{ status: 200 }
-				);
-			} )
+			vi
+				.fn()
+				.mockImplementation(
+					async ( url: string, init: RequestInit ) => {
+						capturedUrl = url as string;
+						capturedBody = JSON.parse( init.body as string );
+						return new Response(
+							JSON.stringify( {
+								candidates: [
+									{
+										content: {
+											parts: [ { text: 'Gemini reply' } ],
+										},
+									},
+								],
+								usageMetadata: {
+									promptTokenCount: 6,
+									candidatesTokenCount: 3,
+								},
+							} ),
+							{ status: 200 }
+						);
+					}
+				)
 		);
 
 		const body = JSON.stringify( {
@@ -289,16 +343,32 @@ describe( 'handleChatProxy', () => {
 
 		expect( capturedUrl ).toMatch( /generativelanguage\.googleapis\.com/ );
 
-		const contents = ( capturedBody as Record< string, unknown > ).contents as Array< { role: string; parts: Array< { text: string } > } >;
-		expect( contents ).toEqual( [ { role: 'user', parts: [ { text: 'Hello Gemini' } ] } ] );
+		const contents = ( capturedBody as Record< string, unknown > )
+			.contents as Array< {
+			role: string;
+			parts: Array< { text: string } >;
+		} >;
+		expect( contents ).toEqual( [
+			{ role: 'user', parts: [ { text: 'Hello Gemini' } ] },
+		] );
 
-		const sentTools = ( capturedBody as Record< string, unknown > ).tools as Array< Record< string, unknown > >;
+		const sentTools = ( capturedBody as Record< string, unknown > )
+			.tools as Array< Record< string, unknown > >;
 		expect( sentTools ).toHaveLength( 1 );
-		const decls = ( sentTools[ 0 ] as { functionDeclarations: Array< Record< string, unknown > > } ).functionDeclarations;
+		const decls = (
+			sentTools[ 0 ] as {
+				functionDeclarations: Array< Record< string, unknown > >;
+			}
+		 ).functionDeclarations;
 		expect( decls[ 0 ].name ).toBe( 'get_post_content' );
-		expect( ( decls[ 0 ].parameters as Record< string, unknown > ).type ).toBe( 'OBJECT' );
+		expect(
+			( decls[ 0 ].parameters as Record< string, unknown > ).type
+		).toBe( 'OBJECT' );
 
-		const json = ( await response.json() ) as { content: string; usage: { input_tokens: number; output_tokens: number } };
+		const json = ( await response.json() ) as {
+			content: string;
+			usage: { input_tokens: number; output_tokens: number };
+		};
 		expect( json.content ).toBe( 'Gemini reply' );
 		expect( json.usage ).toEqual( { input_tokens: 6, output_tokens: 3 } );
 	} );
@@ -347,7 +417,10 @@ describe( 'handleChatProxy', () => {
 
 		// Verify it fell back to the allowed model, not gpt-4o
 		const sentBody = JSON.parse(
-			( vi.mocked( globalThis.fetch ).mock.calls[ 0 ][ 1 ] as RequestInit ).body as string
+			(
+				vi.mocked( globalThis.fetch ).mock
+					.calls[ 0 ][ 1 ] as RequestInit
+			 ).body as string
 		) as Record< string, unknown >;
 		expect( sentBody.model ).toBe( 'gpt-4o-mini' );
 	} );
@@ -360,8 +433,13 @@ describe( 'handleChatProxy', () => {
 			vi.fn().mockImplementation( async () => {
 				return new Response(
 					JSON.stringify( {
-						candidates: [ { content: { parts: [ { text: 'ok' } ] } } ],
-						usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2 },
+						candidates: [
+							{ content: { parts: [ { text: 'ok' } ] } },
+						],
+						usageMetadata: {
+							promptTokenCount: 5,
+							candidatesTokenCount: 2,
+						},
 					} ),
 					{ status: 200 }
 				);
@@ -378,7 +456,8 @@ describe( 'handleChatProxy', () => {
 		const response = await worker.fetch( makeChatRequest( body ), env );
 		expect( response.status ).toBe( 200 );
 
-		const calledUrl = vi.mocked( globalThis.fetch ).mock.calls[ 0 ][ 0 ] as string;
+		const calledUrl = vi.mocked( globalThis.fetch ).mock
+			.calls[ 0 ][ 0 ] as string;
 		expect( calledUrl ).toContain( 'gemini-2.5-flash' );
 	} );
 
@@ -391,9 +470,12 @@ describe( 'handleChatProxy', () => {
 			JSON.stringify( {
 				tier_models: {
 					claude: {
-						free:        [ 'claude-haiku-4-5-20251001' ],
-						trial:       [ 'claude-haiku-4-5-20251001' ],
-						pro_managed: [ 'claude-haiku-4-5-20251001', 'claude-opus-4-7' ],
+						free: [ 'claude-haiku-4-5-20251001' ],
+						trial: [ 'claude-haiku-4-5-20251001' ],
+						pro_managed: [
+							'claude-haiku-4-5-20251001',
+							'claude-opus-4-7',
+						],
 					},
 				},
 				model_token_weight: { 'claude-opus-4-7': 20 },
@@ -424,13 +506,21 @@ describe( 'handleChatProxy', () => {
 
 		// Verify the KV-specified model was used
 		const sentBody = JSON.parse(
-			( vi.mocked( globalThis.fetch ).mock.calls[ 0 ][ 1 ] as RequestInit ).body as string
+			(
+				vi.mocked( globalThis.fetch ).mock
+					.calls[ 0 ][ 1 ] as RequestInit
+			 ).body as string
 		) as Record< string, unknown >;
 		expect( sentBody.model ).toBe( 'claude-opus-4-7' );
 
 		// Verify the KV-specified token weight (10+5=15 raw, ×20 = 300 effective)
-		const month = new Date().getFullYear() + '-' + String( new Date().getMonth() + 1 ).padStart( 2, '0' );
-		const stored = await env.USAGE_KV.get( `usage:${ TEST_TOKEN }:${ month }` );
+		const month =
+			new Date().getFullYear() +
+			'-' +
+			String( new Date().getMonth() + 1 ).padStart( 2, '0' );
+		const stored = await env.USAGE_KV.get(
+			`usage:${ TEST_TOKEN }:${ month }`
+		);
 		expect( Number( stored ) ).toBe( 300 );
 	} );
 
@@ -459,8 +549,13 @@ describe( 'handleChatProxy', () => {
 
 		await worker.fetch( makeChatRequest( body ), env );
 
-		const month = new Date().getFullYear() + '-' + String( new Date().getMonth() + 1 ).padStart( 2, '0' );
-		const stored = await env.USAGE_KV.get( `usage:${ TEST_TOKEN }:${ month }` );
+		const month =
+			new Date().getFullYear() +
+			'-' +
+			String( new Date().getMonth() + 1 ).padStart( 2, '0' );
+		const stored = await env.USAGE_KV.get(
+			`usage:${ TEST_TOKEN }:${ month }`
+		);
 		// raw = 150, weight = 15, effective = 2250
 		expect( Number( stored ) ).toBe( 2250 );
 	} );

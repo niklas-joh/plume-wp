@@ -59,11 +59,7 @@ describe( '/rotate-secret', () => {
 		const env = makeEnv();
 		await seedSite( env );
 
-		const res = await worker.fetch(
-			makeRotateRequest(),
-			env,
-			makeCtx()
-		);
+		const res = await worker.fetch( makeRotateRequest(), env, makeCtx() );
 		expect( res.status ).toBe( 401 );
 	} );
 
@@ -115,7 +111,9 @@ describe( '/rotate-secret', () => {
 			'json'
 		);
 		expect( stored?.tier_sync_secret ).toBe( data.tier_sync_secret );
-		expect( stored?.tier_sync_secret ).not.toBe( original.tier_sync_secret );
+		expect( stored?.tier_sync_secret ).not.toBe(
+			original.tier_sync_secret
+		);
 		// Other fields preserved.
 		expect( stored?.site_url ).toBe( original.site_url );
 		expect( stored?.tier ).toBe( original.tier );

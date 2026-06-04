@@ -1,6 +1,15 @@
 // src/index.ts
 
-import { Env, ModelConfig, NormalizedResponse, ProxyRequest, ProxyTier, SiteRecord, SiteTier, ToolParam } from './types';
+import {
+	Env,
+	ModelConfig,
+	NormalizedResponse,
+	ProxyRequest,
+	ProxyTier,
+	SiteRecord,
+	SiteTier,
+	ToolParam,
+} from './types';
 import { authenticateRequest, generateToken } from './auth';
 import { handleActivationChallenge, handleRegistration } from './registration';
 import { handleWebhook } from './webhook';
@@ -14,18 +23,22 @@ type Provider = 'claude' | 'openai' | 'gemini';
 // Fallback model lists used when no config:models entry exists in USAGE_KV.
 const DEFAULT_TIER_MODELS: Record< Provider, Record< ProxyTier, string[] > > = {
 	claude: {
-		free:        [ 'claude-haiku-4-5-20251001' ],
-		trial:       [ 'claude-haiku-4-5-20251001' ],
-		pro_managed: [ 'claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6' ],
+		free: [ 'claude-haiku-4-5-20251001' ],
+		trial: [ 'claude-haiku-4-5-20251001' ],
+		pro_managed: [
+			'claude-haiku-4-5-20251001',
+			'claude-sonnet-4-6',
+			'claude-opus-4-6',
+		],
 	},
 	openai: {
-		free:        [ 'gpt-4o-mini' ],
-		trial:       [ 'gpt-4o-mini' ],
+		free: [ 'gpt-4o-mini' ],
+		trial: [ 'gpt-4o-mini' ],
 		pro_managed: [ 'gpt-4o-mini', 'gpt-4o' ],
 	},
 	gemini: {
-		free:        [ 'gemini-2.5-flash' ],
-		trial:       [ 'gemini-2.5-flash' ],
+		free: [ 'gemini-2.5-flash' ],
+		trial: [ 'gemini-2.5-flash' ],
 		pro_managed: [ 'gemini-2.5-flash', 'gemini-2.5-pro' ],
 	},
 };
@@ -34,18 +47,21 @@ const DEFAULT_TIER_MODELS: Record< Provider, Record< ProxyTier, string[] > > = {
 // before storing in the usage KV, so quota enforcement is provider/model-agnostic.
 const DEFAULT_MODEL_TOKEN_WEIGHT: Record< string, number > = {
 	'claude-haiku-4-5-20251001': 1,
-	'claude-sonnet-4-6':          3,
-	'claude-opus-4-6':            15,
-	'gpt-4o-mini':                1,
-	'gpt-4o':                     10,
-	'gemini-2.5-flash':           1,
-	'gemini-2.5-pro':             5,
+	'claude-sonnet-4-6': 3,
+	'claude-opus-4-6': 15,
+	'gpt-4o-mini': 1,
+	'gpt-4o': 10,
+	'gemini-2.5-flash': 1,
+	'gemini-2.5-pro': 5,
 };
 
 /**
  * Load model config from USAGE_KV (`config:models`).
  * Falls back to compiled defaults if the key is absent or unparseable.
  * Both `tier_models` and `model_token_weight` can be overridden independently.
+ *
+ * @param {Env} env Worker environment bindings.
+ * @return {Promise<{tierModels: Record<string, Record<string, string[]>>, tokenWeights: Record<string, number>}>} Resolved model config.
  */
 async function getModelConfig( env: Env ): Promise< {
 	tierModels: Record< string, Record< string, string[] > >;
@@ -58,38 +74,57 @@ async function getModelConfig( env: Env ): Promise< {
 			return {
 				// Deep-merge so a partial KV config (e.g. only claude block) does not
 				// discard the defaults for unmentioned providers or model weights.
-				tierModels:   { ...DEFAULT_TIER_MODELS,        ...parsed.tier_models },
-				tokenWeights: { ...DEFAULT_MODEL_TOKEN_WEIGHT, ...parsed.model_token_weight },
+				tierModels: { ...DEFAULT_TIER_MODELS, ...parsed.tier_models },
+				tokenWeights: {
+					...DEFAULT_MODEL_TOKEN_WEIGHT,
+					...parsed.model_token_weight,
+				},
 			};
 		}
 	} catch {
 		// Corrupt KV entry — fall through to defaults.
 	}
-	return { tierModels: DEFAULT_TIER_MODELS, tokenWeights: DEFAULT_MODEL_TOKEN_WEIGHT };
+	return {
+		tierModels: DEFAULT_TIER_MODELS,
+		tokenWeights: DEFAULT_MODEL_TOKEN_WEIGHT,
+	};
 }
 
 function toClaudeTools( tools: ToolParam[] ) {
-	return tools.map( t => ( { name: t.name, description: t.description, input_schema: t.parameters } ) );
+	return tools.map( ( t ) => ( {
+		name: t.name,
+		description: t.description,
+		input_schema: t.parameters,
+	} ) );
 }
 
 function toOpenAITools( tools: ToolParam[] ) {
-	return tools.map( t => ( { type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } } ) );
+	return tools.map( ( t ) => ( {
+		type: 'function',
+		function: {
+			name: t.name,
+			description: t.description,
+			parameters: t.parameters,
+		},
+	} ) );
 }
 
 function toGeminiTools( tools: ToolParam[] ) {
-	return [ {
-		functionDeclarations: tools.map( t => ( {
-			name: t.name,
-			description: t.description,
-			// Gemini requires uppercase 'OBJECT'; list each field explicitly so future
-			// additions to ToolParam.parameters do not accidentally bleed into the output.
-			parameters: {
-				type: 'OBJECT',
-				properties: t.parameters.properties,
-				required: t.parameters.required,
-			},
-		} ) ),
-	} ];
+	return [
+		{
+			functionDeclarations: tools.map( ( t ) => ( {
+				name: t.name,
+				description: t.description,
+				// Gemini requires uppercase 'OBJECT'; list each field explicitly so future
+				// additions to ToolParam.parameters do not accidentally bleed into the output.
+				parameters: {
+					type: 'OBJECT',
+					properties: t.parameters.properties,
+					required: t.parameters.required,
+				},
+			} ) ),
+		},
+	];
 }
 
 async function callClaude(
@@ -123,34 +158,53 @@ async function callClaude(
 	const result = ( await response.json() ) as Record< string, unknown >;
 
 	if ( ! response.ok ) {
-		throw Object.assign( new Error( 'Claude API error' ), { status: response.status, body: result } );
+		throw Object.assign( new Error( 'Claude API error' ), {
+			status: response.status,
+			body: result,
+		} );
 	}
 
 	const blocks = Array.isArray( result.content )
-		? ( result.content as Array< { type: string; text?: string; id?: string; name?: string; input?: Record< string, unknown > } > )
+		? ( result.content as Array< {
+				type: string;
+				text?: string;
+				id?: string;
+				name?: string;
+				input?: Record< string, unknown >;
+		  } > )
 		: [];
-	const usage = ( result.usage as { input_tokens: number; output_tokens: number } | undefined )
-		?? { input_tokens: 0, output_tokens: 0 };
+	const usage = ( result.usage as
+		| { input_tokens: number; output_tokens: number }
+		| undefined ) ?? { input_tokens: 0, output_tokens: 0 };
 
-	const textBlock  = blocks.find( b => b.type === 'text' && b.text );
-	const toolBlock  = blocks.find( b => b.type === 'tool_use' && b.id && b.name );
+	const textBlock = blocks.find( ( b ) => b.type === 'text' && b.text );
+	const toolBlock = blocks.find(
+		( b ) => b.type === 'tool_use' && b.id && b.name
+	);
 	const textContent = textBlock?.text ?? '';
 
 	if ( toolBlock?.id && toolBlock?.name ) {
 		return {
 			content: textContent,
-			usage: { input_tokens: usage.input_tokens, output_tokens: usage.output_tokens },
+			usage: {
+				input_tokens: usage.input_tokens,
+				output_tokens: usage.output_tokens,
+			},
 			tool_call: {
 				id: toolBlock.id,
 				name: toolBlock.name,
-				arguments: ( toolBlock.input as Record< string, unknown > ) ?? {},
+				arguments:
+					( toolBlock.input as Record< string, unknown > ) ?? {},
 			},
 		};
 	}
 
 	return {
 		content: textContent,
-		usage: { input_tokens: usage.input_tokens, output_tokens: usage.output_tokens },
+		usage: {
+			input_tokens: usage.input_tokens,
+			output_tokens: usage.output_tokens,
+		},
 	};
 }
 
@@ -172,27 +226,45 @@ async function callOpenAI(
 		openaiBody.tools = toOpenAITools( body.tools );
 	}
 
-	const response = await fetch( 'https://api.openai.com/v1/chat/completions', {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${ env.OPENAI_API_KEY }`,
-			'content-type': 'application/json',
-		},
-		body: JSON.stringify( openaiBody ),
-	} );
+	const response = await fetch(
+		'https://api.openai.com/v1/chat/completions',
+		{
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${ env.OPENAI_API_KEY }`,
+				'content-type': 'application/json',
+			},
+			body: JSON.stringify( openaiBody ),
+		}
+	);
 
 	const result = ( await response.json() ) as Record< string, unknown >;
 
 	if ( ! response.ok ) {
-		throw Object.assign( new Error( 'OpenAI API error' ), { status: response.status, body: result } );
+		throw Object.assign( new Error( 'OpenAI API error' ), {
+			status: response.status,
+			body: result,
+		} );
 	}
 
 	const choices = result.choices as Array< {
-		message: { content: string; tool_calls?: Array< { id: string; function: { name: string; arguments: string } } > };
+		message: {
+			content: string;
+			tool_calls?: Array< {
+				id: string;
+				function: { name: string; arguments: string };
+			} >;
+		};
 		finish_reason: string;
 	} >;
-	const usage = result.usage as { prompt_tokens: number; completion_tokens: number };
-	const normalizedUsage = { input_tokens: usage.prompt_tokens, output_tokens: usage.completion_tokens };
+	const usage = result.usage as {
+		prompt_tokens: number;
+		completion_tokens: number;
+	};
+	const normalizedUsage = {
+		input_tokens: usage.prompt_tokens,
+		output_tokens: usage.completion_tokens,
+	};
 
 	if ( choices[ 0 ]?.finish_reason === 'tool_calls' ) {
 		const tc = choices[ 0 ].message.tool_calls?.[ 0 ];
@@ -203,7 +275,9 @@ async function callOpenAI(
 				tool_call: {
 					id: tc.id,
 					name: tc.function.name,
-					arguments: JSON.parse( tc.function.arguments ?? '{}' ) as Record< string, unknown >,
+					arguments: JSON.parse(
+						tc.function.arguments ?? '{}'
+					) as Record< string, unknown >,
 				},
 			};
 		}
@@ -221,7 +295,10 @@ async function callGemini(
 	clampedMaxTokens: number,
 	env: Env
 ): Promise< NormalizedResponse > {
-	const contents = body.messages.map( m => ( { role: m.role, parts: [ { text: m.content } ] } ) );
+	const contents = body.messages.map( ( m ) => ( {
+		role: m.role,
+		parts: [ { text: m.content } ],
+	} ) );
 	const geminiBody: Record< string, unknown > = {
 		contents,
 		generationConfig: { maxOutputTokens: clampedMaxTokens },
@@ -245,16 +322,33 @@ async function callGemini(
 	const result = ( await response.json() ) as Record< string, unknown >;
 
 	if ( ! response.ok ) {
-		throw Object.assign( new Error( 'Gemini API error' ), { status: response.status, body: result } );
+		throw Object.assign( new Error( 'Gemini API error' ), {
+			status: response.status,
+			body: result,
+		} );
 	}
 
 	const candidates = result.candidates as Array< {
-		content: { parts: Array< { text?: string; functionCall?: { name: string; args?: Record< string, unknown > } } > };
+		content: {
+			parts: Array< {
+				text?: string;
+				functionCall?: {
+					name: string;
+					args?: Record< string, unknown >;
+				};
+			} >;
+		};
 	} >;
-	const usageMeta = result.usageMetadata as { promptTokenCount: number; candidatesTokenCount: number };
-	const normalizedUsage = { input_tokens: usageMeta.promptTokenCount, output_tokens: usageMeta.candidatesTokenCount };
+	const usageMeta = result.usageMetadata as {
+		promptTokenCount: number;
+		candidatesTokenCount: number;
+	};
+	const normalizedUsage = {
+		input_tokens: usageMeta.promptTokenCount,
+		output_tokens: usageMeta.candidatesTokenCount,
+	};
 
-	for ( const part of ( candidates[ 0 ]?.content?.parts ?? [] ) ) {
+	for ( const part of candidates[ 0 ]?.content?.parts ?? [] ) {
 		if ( part.functionCall ) {
 			return {
 				content: '',
@@ -306,7 +400,11 @@ export default {
 
 		// Dev endpoints for the devtools plugin.
 		// Require Bearer token + HMAC-signed timestamp using the per-site tier_sync_secret.
-		if ( pathname === '/dev/set-tier' || pathname === '/dev/reset-usage' || pathname === '/dev/set-usage' ) {
+		if (
+			pathname === '/dev/set-tier' ||
+			pathname === '/dev/reset-usage' ||
+			pathname === '/dev/set-usage'
+		) {
 			// Return 404 in any environment where DEV_ENDPOINTS_ENABLED is absent (e.g. production).
 			if ( ! env.DEV_ENDPOINTS_ENABLED ) {
 				return jsonResponse( { error: 'Not found' }, 404 );
@@ -314,8 +412,12 @@ export default {
 			if ( request.method !== 'POST' ) {
 				return jsonResponse( { error: 'Method not allowed' }, 405 );
 			}
-			if ( pathname === '/dev/set-tier' ) return handleDevSetTier( request, env );
-			if ( pathname === '/dev/reset-usage' ) return handleDevResetUsage( request, env );
+			if ( pathname === '/dev/set-tier' ) {
+				return handleDevSetTier( request, env );
+			}
+			if ( pathname === '/dev/reset-usage' ) {
+				return handleDevResetUsage( request, env );
+			}
 			return handleDevSetUsage( request, env );
 		}
 
@@ -336,6 +438,10 @@ export default {
  * Idempotent on the WP side — each call hands back a new secret and the WP
  * plugin simply overwrites its stored value. Used by sites registered before
  * the tier-sync handshake existed (backfill) and as a manual rotation path.
+ *
+ * @param {Request} request Incoming Worker request.
+ * @param {Env}     env     Worker environment bindings.
+ * @return {Promise<Response>} JSON response with new secret or error.
  */
 async function handleRotateSecret(
 	request: Request,
@@ -371,8 +477,8 @@ const DEV_TIMESTAMP_WINDOW_S = 60;
 const VALID_TIERS: SiteTier[] = [ 'free', 'trial', 'pro_managed', 'pro_byok' ];
 
 type DevAuthResult =
-	| { authenticated: true;  site_token: string; record: SiteRecord }
-	| { authenticated: false; error: string;       status: number };
+	| { authenticated: true; site_token: string; record: SiteRecord }
+	| { authenticated: false; error: string; status: number };
 
 /**
  * Verify a dev endpoint request: Bearer token + HMAC-signed timestamp.
@@ -385,6 +491,11 @@ type DevAuthResult =
  *
  * Required headers: X-Dev-Signature (hex HMAC) and X-Dev-Timestamp (unix sec).
  * Timestamp must be within ±60 s of the Worker clock to prevent replay.
+ *
+ * @param {Request} request  Incoming Worker request.
+ * @param {string}  bodyText Raw request body (already read by caller).
+ * @param {Env}     env      Worker environment bindings.
+ * @return {Promise<DevAuthResult>} Auth result or error detail.
  */
 async function authenticateDevRequest(
 	request: Request,
@@ -398,39 +509,74 @@ async function authenticateDevRequest(
 
 	const secret = auth.record.tier_sync_secret;
 	if ( ! secret ) {
-		return { authenticated: false, error: 'No dev secret — rotate the site secret first via /rotate-secret', status: 401 };
+		return {
+			authenticated: false,
+			error: 'No dev secret — rotate the site secret first via /rotate-secret',
+			status: 401,
+		};
 	}
 
 	const signatureHex = request.headers.get( 'X-Dev-Signature' ) ?? '';
 	const timestampStr = request.headers.get( 'X-Dev-Timestamp' ) ?? '';
 	if ( ! signatureHex || ! timestampStr ) {
-		return { authenticated: false, error: 'Missing X-Dev-Signature or X-Dev-Timestamp header', status: 401 };
+		return {
+			authenticated: false,
+			error: 'Missing X-Dev-Signature or X-Dev-Timestamp header',
+			status: 401,
+		};
 	}
 
 	const timestamp = parseInt( timestampStr, 10 );
 	if ( isNaN( timestamp ) ) {
-		return { authenticated: false, error: 'Invalid timestamp', status: 401 };
+		return {
+			authenticated: false,
+			error: 'Invalid timestamp',
+			status: 401,
+		};
 	}
 
 	const skew = Math.floor( Date.now() / 1000 ) - timestamp;
 	if ( skew > DEV_TIMESTAMP_WINDOW_S || skew < -DEV_TIMESTAMP_WINDOW_S ) {
-		return { authenticated: false, error: 'Timestamp out of window', status: 401 };
+		return {
+			authenticated: false,
+			error: 'Timestamp out of window',
+			status: 401,
+		};
 	}
 
 	// Payload mirrors TierUpdateWebhookController.php: `${timestamp}.${body}`.
-	const valid = await verifyHmac( `${ timestamp }.${ bodyText }`, signatureHex, secret );
+	const valid = await verifyHmac(
+		`${ timestamp }.${ bodyText }`,
+		signatureHex,
+		secret
+	);
 	if ( ! valid ) {
-		return { authenticated: false, error: 'Invalid dev signature', status: 401 };
+		return {
+			authenticated: false,
+			error: 'Invalid dev signature',
+			status: 401,
+		};
 	}
 
-	return { authenticated: true, site_token: auth.site_token, record: auth.record };
+	return {
+		authenticated: true,
+		site_token: auth.site_token,
+		record: auth.record,
+	};
 }
 
 /**
  * Override the tier stored in the site's KV record.
  * Mirrors what a real LemonSqueezy webhook would do, but without payment.
+ *
+ * @param {Request} request Incoming Worker request.
+ * @param {Env}     env     Worker environment bindings.
+ * @return {Promise<Response>} JSON response confirming the tier change or error.
  */
-async function handleDevSetTier( request: Request, env: Env ): Promise< Response > {
+async function handleDevSetTier(
+	request: Request,
+	env: Env
+): Promise< Response > {
 	const bodyText = await request.text();
 	const auth = await authenticateDevRequest( request, bodyText, env );
 	if ( ! auth.authenticated ) {
@@ -449,15 +595,25 @@ async function handleDevSetTier( request: Request, env: Env ): Promise< Response
 	}
 
 	const updated: SiteRecord = { ...auth.record, tier: body.tier as SiteTier };
-	await env.USAGE_KV.put( `site:${ auth.site_token }`, JSON.stringify( updated ) );
+	await env.USAGE_KV.put(
+		`site:${ auth.site_token }`,
+		JSON.stringify( updated )
+	);
 
 	return jsonResponse( { ok: true, tier: body.tier } );
 }
 
 /**
  * Zero out this month's usage counter for the authenticated site.
+ *
+ * @param {Request} request Incoming Worker request.
+ * @param {Env}     env     Worker environment bindings.
+ * @return {Promise<Response>} JSON response confirming the reset or error.
  */
-async function handleDevResetUsage( request: Request, env: Env ): Promise< Response > {
+async function handleDevResetUsage(
+	request: Request,
+	env: Env
+): Promise< Response > {
 	const bodyText = await request.text();
 	const auth = await authenticateDevRequest( request, bodyText, env );
 	if ( ! auth.authenticated ) {
@@ -465,7 +621,9 @@ async function handleDevResetUsage( request: Request, env: Env ): Promise< Respo
 	}
 
 	const key = `usage:${ auth.site_token }:${ getCurrentMonth() }`;
-	await env.USAGE_KV.put( key, '0', { expirationTtl: getSecondsUntilNextMonth() } );
+	await env.USAGE_KV.put( key, '0', {
+		expirationTtl: getSecondsUntilNextMonth(),
+	} );
 
 	return jsonResponse( { ok: true, usage: 0 } );
 }
@@ -473,8 +631,15 @@ async function handleDevResetUsage( request: Request, env: Env ): Promise< Respo
 /**
  * Set this month's usage counter to an explicit value for the authenticated site.
  * Pass the tier's monthly limit to simulate a fully-exhausted quota.
+ *
+ * @param {Request} request Incoming Worker request.
+ * @param {Env}     env     Worker environment bindings.
+ * @return {Promise<Response>} JSON response confirming the new usage value or error.
  */
-async function handleDevSetUsage( request: Request, env: Env ): Promise< Response > {
+async function handleDevSetUsage(
+	request: Request,
+	env: Env
+): Promise< Response > {
 	const bodyText = await request.text();
 	const auth = await authenticateDevRequest( request, bodyText, env );
 	if ( ! auth.authenticated ) {
@@ -489,11 +654,16 @@ async function handleDevSetUsage( request: Request, env: Env ): Promise< Respons
 	}
 
 	if ( typeof body.usage !== 'number' || body.usage < 0 ) {
-		return jsonResponse( { error: 'Invalid usage value — must be a non-negative number' }, 400 );
+		return jsonResponse(
+			{ error: 'Invalid usage value — must be a non-negative number' },
+			400
+		);
 	}
 
 	const key = `usage:${ auth.site_token }:${ getCurrentMonth() }`;
-	await env.USAGE_KV.put( key, String( body.usage ), { expirationTtl: getSecondsUntilNextMonth() } );
+	await env.USAGE_KV.put( key, String( body.usage ), {
+		expirationTtl: getSecondsUntilNextMonth(),
+	} );
 
 	return jsonResponse( { ok: true, usage: body.usage } );
 }
@@ -527,7 +697,11 @@ async function handleChatProxy(
 		const { site_token: siteToken, tier } = auth;
 
 		const provider: Provider = body.provider ?? 'claude';
-		if ( provider !== 'claude' && provider !== 'openai' && provider !== 'gemini' ) {
+		if (
+			provider !== 'claude' &&
+			provider !== 'openai' &&
+			provider !== 'gemini'
+		) {
 			return jsonResponse( { error: 'Unknown provider' }, 400 );
 		}
 
@@ -554,7 +728,11 @@ async function handleChatProxy(
 			}
 		}
 
-		const rateLimitCheck = await checkRateLimit( siteToken, effectiveTier, env );
+		const rateLimitCheck = await checkRateLimit(
+			siteToken,
+			effectiveTier,
+			env
+		);
 		if ( ! rateLimitCheck.allowed ) {
 			return jsonResponse(
 				{
@@ -567,7 +745,12 @@ async function handleChatProxy(
 		}
 
 		const { tierModels, tokenWeights } = await getModelConfig( env );
-		const selectedModel = getModelForTier( provider, effectiveTier, tierModels, model );
+		const selectedModel = getModelForTier(
+			provider,
+			effectiveTier,
+			tierModels,
+			model
+		);
 		const clampedMaxTokens = Math.min(
 			maxTokens ?? ( effectiveTier === 'free' ? 1000 : 4000 ),
 			MAX_TOKENS[ effectiveTier ]
@@ -575,18 +758,37 @@ async function handleChatProxy(
 
 		let normalized: NormalizedResponse;
 		if ( provider === 'claude' ) {
-			normalized = await callClaude( body, selectedModel, clampedMaxTokens, env );
+			normalized = await callClaude(
+				body,
+				selectedModel,
+				clampedMaxTokens,
+				env
+			);
 		} else if ( provider === 'openai' ) {
-			normalized = await callOpenAI( body, selectedModel, clampedMaxTokens, env );
+			normalized = await callOpenAI(
+				body,
+				selectedModel,
+				clampedMaxTokens,
+				env
+			);
 		} else {
-			normalized = await callGemini( body, selectedModel, clampedMaxTokens, env );
+			normalized = await callGemini(
+				body,
+				selectedModel,
+				clampedMaxTokens,
+				env
+			);
 		}
 
 		const weight = tokenWeights[ selectedModel ] ?? 1;
-		const rawTokens = normalized.usage.input_tokens + normalized.usage.output_tokens;
+		const rawTokens =
+			normalized.usage.input_tokens + normalized.usage.output_tokens;
 		await updateUsage( siteToken, rawTokens * weight, env );
 
-		const responseData: Record< string, unknown > = { content: normalized.content, usage: normalized.usage };
+		const responseData: Record< string, unknown > = {
+			content: normalized.content,
+			usage: normalized.usage,
+		};
 		if ( normalized.tool_call ) {
 			responseData.tool_call = normalized.tool_call;
 		}
@@ -645,7 +847,9 @@ function getModelForTier(
 	tierModels: Record< string, Record< string, string[] > >,
 	requestedModel?: string
 ): string {
-	const allowed = tierModels[ provider ]?.[ tier ] ?? DEFAULT_TIER_MODELS[ provider ][ tier ];
+	const allowed =
+		tierModels[ provider ]?.[ tier ] ??
+		DEFAULT_TIER_MODELS[ provider ][ tier ];
 	if ( requestedModel && allowed.includes( requestedModel ) ) {
 		return requestedModel;
 	}
