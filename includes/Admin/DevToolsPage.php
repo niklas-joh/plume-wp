@@ -37,7 +37,7 @@ class DevToolsPage {
 	private const OPTION_KEY_HASH = 'stilus_dev_key_hash';
 
 	/**
-	 * Admin page slug used in the URL: wp-admin/admin.php?page=wp-ai-mind-dev-tools
+	 * Admin page slug used in the URL: wp-admin/admin.php?page=stilus-dev-tools
 	 *
 	 * @since 1.11.0
 	 */
