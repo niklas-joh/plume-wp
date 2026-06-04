@@ -3,7 +3,7 @@ import PostListTable from '../shared/PostListTable';
 import SeoBadge, { getSeoStatus } from './SeoBadge';
 import SeoWorkArea from './SeoWorkArea';
 
-const { isPro } = window.wpAiMindData ?? {};
+const { isPro } = window.stilusData ?? {};
 
 const SEO_TABS = [
 	{ id: 'all', label: 'All', filter: () => true },

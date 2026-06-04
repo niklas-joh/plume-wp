@@ -37,7 +37,7 @@ export default function ModelSelector( {
 	onModelChange,
 	isPro = false,
 } ) {
-	const { defaultModelLabel = 'AI' } = window.wpAiMindData || {};
+	const { defaultModelLabel = 'AI' } = window.stilusData || {};
 
 	const [ isAdvanced, setIsAdvanced ] = useState(
 		() => isPro && storageGet( STORAGE_KEY ) === '1'

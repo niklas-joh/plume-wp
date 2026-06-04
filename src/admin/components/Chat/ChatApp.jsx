@@ -33,7 +33,7 @@ const LAUNCH_SUGGESTIONS = [
  * @return {ReactElement}
  */
 export default function ChatApp() {
-	const { isPro } = window.wpAiMindData || {};
+	const { isPro } = window.stilusData || {};
 
 	const [ conversations, setConversations ] = useState( [] );
 	const [ activeConvId, setActiveConvId ] = useState( null );
@@ -86,7 +86,7 @@ export default function ChatApp() {
 			const data = await apiFetch( { path: '/stilus/v1/providers' } );
 			setProviders( data );
 			if ( data.length > 0 ) {
-				const storedDefault = window.wpAiMindData?.defaultProvider;
+				const storedDefault = window.stilusData?.defaultProvider;
 				const match = data.find( ( p ) => p.slug === storedDefault );
 				setSelectedProvider( ( match ?? data[ 0 ] ).slug );
 			}

@@ -51,7 +51,7 @@ export default function SettingsApp() {
 	}
 
 	const handleRunSetup = async () => {
-		const data = window.wpAiMindData ?? {};
+		const data = window.stilusData ?? {};
 		await window.fetch( `${ data.restUrl ?? '' }/onboarding`, {
 			method: 'POST',
 			headers: {

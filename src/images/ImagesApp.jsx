@@ -3,7 +3,7 @@ import PostListTable from '../shared/PostListTable';
 import ImagesBadge from './ImagesBadge';
 import ImagesWorkArea from './ImagesWorkArea';
 
-const { isPro } = window.wpAiMindData ?? {};
+const { isPro } = window.stilusData ?? {};
 
 const IMAGES_TABS = [
 	{ id: 'all', label: 'All', filter: () => true },
