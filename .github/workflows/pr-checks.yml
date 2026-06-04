@@ -507,6 +507,8 @@ jobs:
           # These credentials are already hardcoded in global-setup.js and p1-activation.spec.js.
           WP_TEST_USER: nj_agent
           WP_TEST_PASS: C8IcqAWJu8F3dOw6E4ndWhIe
+          # Enables real-api-chat.spec.js — test is skipped when absent.
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: CI=true npx playwright test
 
       - name: Upload Playwright report on failure
@@ -516,6 +518,75 @@ jobs:
           name: playwright-report
           path: .artifacts/playwright-report/
           retention-days: 7
+
+      - name: Stop wp-env
+        if: always()
+        run: npx wp-env stop || true
+
+  # ── Cloud: Real Integration Tests (live API calls) ─────────────────────────
+  # Makes live Anthropic API calls and real proxy requests.
+  # Each test class skips (not fails) when the required secret is absent.
+  # Tier-gating tests need no secrets — they run unconditionally.
+  real-integration:
+    name: Real Integration — live Anthropic API
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.php == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache Composer deps
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Start wp-env
+        run: npx wp-env start
+
+      - name: Wait for WordPress test instance
+        run: |
+          for i in {1..30}; do
+            if curl -fs http://localhost:8889 > /dev/null; then echo "Ready"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::WordPress test instance did not start within 60s"; exit 1
+
+      - name: Run real integration tests
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          STILUS_CI_SITE_TOKEN: ${{ secrets.STILUS_CI_SITE_TOKEN }}
+          STILUS_PROXY_URL: ${{ secrets.STILUS_PROXY_URL }}
+        run: |
+          npx wp-env run tests-wordpress -- bash -c "
+            export CLAUDE_API_KEY='${CLAUDE_API_KEY}'
+            export STILUS_CI_SITE_TOKEN='${STILUS_CI_SITE_TOKEN}'
+            export STILUS_PROXY_URL='${STILUS_PROXY_URL}'
+            vendor/bin/phpunit \
+              -c phpunit-real-integration.xml.dist \
+              --colors=always \
+              --verbose
+          "
 
       - name: Stop wp-env
         if: always()

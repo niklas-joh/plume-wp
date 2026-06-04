@@ -17,6 +17,7 @@
     "env:clean": "wp-env clean all",
     "env:run": "wp-env run",
     "test:integration": "wp-env run tests-wordpress vendor/bin/phpunit -c phpunit-integration.xml.dist",
+    "test:real-integration": "wp-env run tests-wordpress vendor/bin/phpunit -c phpunit-real-integration.xml.dist",
     "test:unit-js": "wp-scripts test-unit-js"
   },
   "dependencies": {
