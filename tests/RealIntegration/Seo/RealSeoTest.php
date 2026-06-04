@@ -21,7 +21,11 @@ use Stilus\Tests\RealIntegration\RealIntegrationTestCase;
  */
 class RealSeoTest extends RealIntegrationTestCase {
 
-	/** Post used as context for SEO generation. @var int */
+	/**
+	 * Post used as context for SEO generation.
+	 *
+	 * @var int
+	 */
 	private int $test_post_id;
 
 	/** @since 1.8.0 */

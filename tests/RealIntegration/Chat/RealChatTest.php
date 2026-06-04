@@ -38,7 +38,7 @@ class RealChatTest extends RealIntegrationTestCase {
 	 *
 	 * @since 1.8.0
 	 */
-	public function test_send_message_returns_real_ai_response(): void {
+	public function test_send_message_returns_ai_response(): void {
 		wp_set_current_user( self::$editor_user_id );
 
 		$create = $this->rest_do( 'POST', '/stilus/v1/conversations', [ 'title' => 'Real Chat Test' ] );

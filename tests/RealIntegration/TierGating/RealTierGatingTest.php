@@ -20,7 +20,7 @@ use Stilus\Tests\RealIntegration\RealIntegrationTestCase;
  */
 class RealTierGatingTest extends RealIntegrationTestCase {
 
-	// ── Free tier — only chat is accessible ───────────────────────────────────
+	// ── Free tier — only chat is accessible
 
 	/**
 	 * Free tier: conversation creation (chat gateway) is permitted.
@@ -102,7 +102,7 @@ class RealTierGatingTest extends RealIntegrationTestCase {
 		);
 	}
 
-	// ── Trial tier — all features accessible ────────────────────────────────
+	// ── Trial tier — all features accessible
 
 	/**
 	 * Trial tier: generator endpoint is accessible (permission check passes).
@@ -159,7 +159,7 @@ class RealTierGatingTest extends RealIntegrationTestCase {
 		);
 	}
 
-	// ── Conversation ownership ───────────────────────────────────────────────
+	// ── Conversation ownership
 
 	/**
 	 * A user cannot send messages to another user's conversation.
