@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * Permanent URL-contract guard: Worker source ↔ WordPress REST namespace.
  *
@@ -6,13 +7,14 @@
  * references. Run with: npm test -- namespace-contract
  */
 import { describe, it, expect } from 'vitest';
-import * as fs from 'fs';
-import * as path from 'path';
+import { readFileSync, readdirSync } from 'fs';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 
-const SRC_DIR = path.resolve( __dirname, '../src' );
+const SRC_DIR = resolve( fileURLToPath( new URL( '../src', import.meta.url ) ) );
 
 function readSrc( filename: string ): string {
-	return fs.readFileSync( path.join( SRC_DIR, filename ), 'utf-8' );
+	return readFileSync( resolve( SRC_DIR, filename ), 'utf-8' );
 }
 
 describe( 'Worker → WordPress REST namespace contract', () => {
@@ -22,11 +24,11 @@ describe( 'Worker → WordPress REST namespace contract', () => {
 	} );
 
 	it( 'all Worker source files are free of legacy wp-ai-mind namespace', () => {
-		const files = fs.readdirSync( SRC_DIR ).filter( f => f.endsWith( '.ts' ) );
+		const files = readdirSync( SRC_DIR ).filter( f => f.endsWith( '.ts' ) );
 		expect( files.length ).toBeGreaterThan( 0 );
 		for ( const file of files ) {
 			expect(
-				fs.readFileSync( path.join( SRC_DIR, file ), 'utf-8' ),
+				readFileSync( resolve( SRC_DIR, file ), 'utf-8' ),
 				`${ file } must not contain /wp-json/wp-ai-mind/`
 			).not.toContain( '/wp-json/wp-ai-mind/' );
 		}

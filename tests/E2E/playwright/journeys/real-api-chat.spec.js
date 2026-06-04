@@ -54,6 +54,8 @@ test.describe( 'Real-API chat (no mocking)', () => {
 
 		const bubbles = page.locator( '.wpaim-bubble--ai .wpaim-bubble__content' );
 		await expect( bubbles ).toHaveCount( 2, { timeout: 60_000 } );
+		// Wait for the second bubble to have content before asserting on it.
+		await expect( bubbles.last() ).not.toBeEmpty( { timeout: 60_000 } );
 		expect( await bubbles.last().innerText() ).toContain( '42' );
 	} );
 } );
