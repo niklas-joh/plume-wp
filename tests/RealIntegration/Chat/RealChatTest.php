@@ -106,8 +106,10 @@ class RealChatTest extends RealIntegrationTestCase {
 		$create  = $this->rest_do( 'POST', '/stilus/v1/conversations', [ 'title' => 'Context Test' ] );
 		$conv_id = $create->get_data()['id'];
 
-		// First turn: tell Claude a number.
-		$this->rest_do(
+		// First turn: tell Claude a number. Assert it succeeds so a failure here
+		// produces a clear diagnostic rather than a confusing "no context" message
+		// on the second turn caused by a missing assistant message in history.
+		$first = $this->rest_do(
 			'POST',
 			"/stilus/v1/conversations/{$conv_id}/messages",
 			[
@@ -116,6 +118,16 @@ class RealChatTest extends RealIntegrationTestCase {
 				'model'    => 'claude-haiku-4-5-20251001',
 			]
 		);
+		$first_data = $first->get_data();
+		$this->assertSame(
+			200,
+			$first->get_status(),
+			sprintf( 'First turn must succeed (200) before testing context. Got %d. Body: %s', $first->get_status(), wp_json_encode( $first_data ) )
+		);
+
+		// Verify both user and assistant messages are in the DB before the second turn.
+		$history = $this->rest_do( 'GET', "/stilus/v1/conversations/{$conv_id}/messages" );
+		$this->assertGreaterThanOrEqual( 2, count( $history->get_data() ), 'History must contain user + assistant before second turn.' );
 
 		// Second turn: ask Claude to recall it.
 		$recall = $this->rest_do(
