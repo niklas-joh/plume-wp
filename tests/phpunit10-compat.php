@@ -4,10 +4,11 @@
  *
  * @wordpress/env bundles WordPress test utilities that call
  * PHPUnit\Util\Test::parseTestMethodAnnotations(), removed in PHPUnit 10.
- * This script replaces that call with a safe no-op so our WP_UnitTestCase-
- * based tests run without errors.  The patch is idempotent and safe: the
- * method was only used to read @backupGlobals / @ticket docblock annotations,
- * none of which our test classes use.
+ * This script replaces that entire assignment statement with a safe no-op so
+ * WP_UnitTestCase-based tests run without errors.
+ *
+ * The method was only used to read @backupGlobals/@ticket docblock annotations,
+ * none of which our test classes use, so an empty-array stub is safe.
  */
 
 $abstract = '/wordpress-phpunit/includes/abstract-testcase.php';
@@ -24,12 +25,15 @@ if ( ! str_contains( $content, 'parseTestMethodAnnotations' ) ) {
 	exit( 0 );
 }
 
-// Replace every occurrence of Test::parseTestMethodAnnotations(...) with an
-// empty-result array that matches the expected ['class'=>…, 'method'=>…] shape.
-// The 's' flag makes '.' match newlines so multi-line calls are also caught.
+// Replace the entire assignment statement:
+//   $var = [\Namespace\]Test::parseTestMethodAnnotations( nested( args ), ... );
+//
+// [^)]+  fails on nested parens (e.g. get_class($this)) so we match the
+// full assignment up to the statement-closing semicolon instead, using a
+// non-greedy .*? with the /s flag so multi-line calls are also covered.
 $patched = preg_replace(
-	'/\bTest::parseTestMethodAnnotations\s*\([^)]+\)/s',
-	"[ 'class' => [], 'method' => [] ]",
+	'/(\$\w+)\s*=\s*(?:\\\\?(?:\w+\\\\)*)?Test::parseTestMethodAnnotations\s*\(.*?\)\s*;/s',
+	"$1 = [ 'class' => [], 'method' => [] ];",
 	$content
 );
 
