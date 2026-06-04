@@ -310,6 +310,7 @@ class ChatRestController {
 
 				if ( $is_proxy_tier ) {
 					// Site token absent — schedule re-registration so the next page load succeeds.
+					// Guard against double-scheduling: add_action does not deduplicate identical callbacks on the same hook.
 					if ( ! has_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] ) ) {
 						add_action( 'shutdown', [ SiteRegistration::class, 'maybe_register' ] );
 					}
