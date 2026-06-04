@@ -266,11 +266,12 @@ class ChatRestController {
 		$provider_slug  = ! empty( $provider_param ) ? $provider_param : \get_option( 'stilus_default_provider', 'claude' );
 		$model          = $request->get_param( 'model' );
 
-		$store = $this->make_store();
+		$user_id = \get_current_user_id();
+		$store   = $this->make_store();
 
 		// Ownership guard.
 		$conv = $store->get_conversation( $conv_id );
-		if ( ! $conv || \get_current_user_id() !== (int) $conv['user_id'] ) {
+		if ( ! $conv || $user_id !== (int) $conv['user_id'] ) {
 			return new \WP_REST_Response( [ 'message' => 'Forbidden.' ], 403 );
 		}
 
@@ -286,7 +287,7 @@ class ChatRestController {
 		);
 
 		$injector = $this->make_voice_injector();
-		$system   = $injector->build_system_prompt( '', \get_current_user_id() );
+		$system   = $injector->build_system_prompt( '', $user_id );
 
 		$context_post_id = absint( $request->get_param( 'context_post_id' ) );
 		if ( $context_post_id > 0 ) {
@@ -303,7 +304,7 @@ class ChatRestController {
 			$provider = $factory->make( $provider_slug );
 
 			if ( ! $provider->is_available() ) {
-				$tier        = TierManager::get_user_tier( get_current_user_id() );
+				$tier        = TierManager::get_user_tier( $user_id );
 				$proxy_tiers = [ 'free', 'trial', 'pro_managed' ];
 
 				if ( in_array( $tier, $proxy_tiers, true ) ) {
@@ -392,7 +393,7 @@ class ChatRestController {
 					$tool_results[ $tu['id'] ] = $this->tool_executor->execute(
 						$tu['name'],
 						$arguments,
-						\get_current_user_id()
+						$user_id
 					);
 				}
 
