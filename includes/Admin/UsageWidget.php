@@ -45,8 +45,8 @@ class UsageWidget {
 			return;
 		}
 		wp_enqueue_style(
-			'wpaim-admin-widgets',
-			STILUS_URL . 'assets/admin/wpaim-admin-widgets.css',
+			'stilus-admin-widgets',
+			STILUS_URL . 'assets/admin/stilus-admin-widgets.css',
 			[],
 			STILUS_VERSION
 		);
@@ -98,12 +98,12 @@ class UsageWidget {
 			}
 
 			printf(
-				'<div class="wpaim-progress-track"><div class="wpaim-progress-bar wpaim-progress-bar--%s" style="width:%d%%"></div></div>',
+				'<div class="stilus-progress-track"><div class="stilus-progress-bar stilus-progress-bar--%s" style="width:%d%%"></div></div>',
 				esc_attr( $bar_modifier ),
 				absint( $pct )
 			);
 			printf(
-				'<p class="wpaim-meta-text">%s / %s %s (%s %s)</p>',
+				'<p class="stilus-meta-text">%s / %s %s (%s %s)</p>',
 				esc_html( number_format_i18n( (int) $usage['used'] ) ),
 				esc_html( number_format_i18n( (int) $usage['limit'] ) ),
 				esc_html__( 'tokens', 'stilus' ),

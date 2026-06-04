@@ -13,6 +13,10 @@ const CHALLENGE_TTL = 300; // seconds
  * Generate a single-use registration challenge token and store it in KV.
  * The PHP plugin fetches this first, stores it as a transient, then sends it
  * back during /register so the worker can verify the site is live.
+ *
+ * @param {Request} request Incoming Worker request.
+ * @param {Env}     env     Worker environment bindings.
+ * @return {Promise<Response>} JSON response with challenge token or error.
  */
 export async function handleActivationChallenge(
 	request: Request,
@@ -35,9 +39,13 @@ export async function handleActivationChallenge(
 			429
 		);
 	}
-	await env.USAGE_KV.put( challengeRateLimitKey, String( challengeAttempts + 1 ), {
-		expirationTtl: REGISTRATION_WINDOW_TTL,
-	} );
+	await env.USAGE_KV.put(
+		challengeRateLimitKey,
+		String( challengeAttempts + 1 ),
+		{
+			expirationTtl: REGISTRATION_WINDOW_TTL,
+		}
+	);
 
 	const bytes = new Uint8Array( 32 );
 	crypto.getRandomValues( bytes );
@@ -52,6 +60,13 @@ export async function handleActivationChallenge(
 	return jsonResponse( { challenge } );
 }
 
+/**
+ * Register a new site or return its existing token if already registered.
+ *
+ * @param {Request} request Incoming Worker request.
+ * @param {Env}     env     Worker environment bindings.
+ * @return {Promise<Response>} JSON response with token and tier or error.
+ */
 export async function handleRegistration(
 	request: Request,
 	env: Env

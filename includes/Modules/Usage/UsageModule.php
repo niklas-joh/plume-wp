@@ -62,7 +62,7 @@ class UsageModule {
 
 		\wp_localize_script(
 			'stilus-usage',
-			'wpAiMindData',
+			'stilusData',
 			[
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'stilus/v1' ) ),

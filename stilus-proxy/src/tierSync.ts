@@ -14,6 +14,11 @@ const REQUEST_TIMEOUT_MS = 5_000;
  * Co-located here (rather than reused from signature.ts) because that helper is shaped
  * for raw-bytes verification of LemonSqueezy signatures, not for our timestamp-prefixed
  * push format.
+ *
+ * @param {number} timestamp Unix timestamp in seconds.
+ * @param {string} body      JSON-serialised payload string.
+ * @param {string} secret    Shared HMAC secret.
+ * @return {Promise<string>} Hex-encoded HMAC-SHA256 digest.
  */
 async function signTierPayload(
 	timestamp: number,
@@ -46,6 +51,11 @@ async function signTierPayload(
  * non-2xx responses. Silently gives up after the final attempt — the WP site is
  * never the source of truth for tier state, so a failed push degrades to "WP is
  * temporarily stale" rather than data loss.
+ *
+ * @param {string}   siteUrl WordPress site URL (trailing slash stripped internally).
+ * @param {string}   secret  Per-site tier_sync_secret from the KV record.
+ * @param {SiteTier} tier    New tier to push to the site.
+ * @return {Promise<void>}
  */
 export async function pushTierUpdate(
 	siteUrl: string,

@@ -20,7 +20,7 @@ into your WordPress dashboard, giving you AI assistance without leaving the edit
 * **Chat assistant** — Conversational AI with tool support (read posts, search content)
 * **Content generator** — Generate full blog posts with customisable tone and length
 * **Usage tracker** — Monitor API usage and token consumption across providers
-* **Frontend widget** — Embeddable chat widget via `[wp_ai_mind_chat]` shortcode
+* **Frontend widget** — Embeddable chat widget via `[stilus_chat]` shortcode
 * **Gutenberg integration** — Direct editor sidebar tools
 
 **Free vs Pro:**
@@ -40,10 +40,10 @@ chosen provider. Review each provider's privacy policy and terms of service befo
 * OpenAI: https://openai.com/policies/privacy-policy
 * Google Gemini: https://policies.google.com/privacy
 * Ollama is self-hosted; no external transmission occurs when using Ollama.
-* **Stilus - Write and Design** (`https://wp-ai-mind-proxy.wp-ai-mind.workers.dev`): Free and managed-pro
+* **Stilus - Write and Design** (`https://stilus-proxy.stilus.workers.dev`): Free and managed-pro
   tiers route chat requests through this service. The service receives your
   site URL (for registration) and the chat messages you send. No messages are stored
-  beyond the in-flight API call. See: https://wpaimind.com/privacy-policy (legacy domain)
+  beyond the in-flight API call. See: https://wpaimind.com/privacy-policy
 
 == Installation ==
 

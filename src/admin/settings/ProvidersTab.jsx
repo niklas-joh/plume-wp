@@ -25,7 +25,7 @@ const IMAGE_PROVIDER_OPTIONS = [
  *
  * API keys are stored per-provider in a dirty-state map and only persisted
  * when the user explicitly clicks Save, preventing accidental overwrites.
- * Pro feature gates (model_selection, own_api_key) are read from wpAiMindData.
+ * Pro feature gates (model_selection, own_api_key) are read from stilusData.
  *
  * @param {Object}   props
  * @param {Object}   props.settings      Full settings object from the REST API.
@@ -34,9 +34,9 @@ const IMAGE_PROVIDER_OPTIONS = [
  * @return {ReactElement}
  */
 export default function ProvidersTab( { settings, saveSettings, isSaving } ) {
-	const features = window.wpAiMindData?.features ?? {};
+	const features = window.stilusData?.features ?? {};
 	const upgradeUrl =
-		window.wpAiMindData?.upgradeUrl ?? 'admin.php?page=stilus-upgrade';
+		window.stilusData?.upgradeUrl ?? 'admin.php?page=stilus-upgrade';
 	const apiKeys = settings?.api_keys ?? {};
 	const [ dirty, setDirty ] = useState( {} ); // { [provider]: string }
 

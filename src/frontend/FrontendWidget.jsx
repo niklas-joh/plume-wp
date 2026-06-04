@@ -3,7 +3,7 @@ import { MessageSquare, X, Send, Loader2 } from 'lucide-react';
 import apiFetch from '@wordpress/api-fetch';
 import MarkdownContent from '../shared/MarkdownContent';
 
-const { currentPostId, siteTitle } = window.wpAiMindData || {};
+const { currentPostId, siteTitle } = window.stilusData || {};
 
 /**
  * Floating chat widget rendered on the public-facing site via a shortcode.

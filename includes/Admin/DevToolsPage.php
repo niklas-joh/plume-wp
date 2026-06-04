@@ -37,11 +37,11 @@ class DevToolsPage {
 	private const OPTION_KEY_HASH = 'stilus_dev_key_hash';
 
 	/**
-	 * Admin page slug used in the URL: wp-admin/admin.php?page=wp-ai-mind-dev-tools
+	 * Admin page slug used in the URL: wp-admin/admin.php?page=stilus-dev-tools
 	 *
 	 * @since 1.11.0
 	 */
-	public const PAGE_SLUG = 'wp-ai-mind-dev-tools';
+	public const PAGE_SLUG = 'stilus-dev-tools';
 
 	/**
 	 * Register the admin_menu hook that adds the hidden page.
@@ -62,7 +62,7 @@ class DevToolsPage {
 	public static function add_page(): void {
 		add_submenu_page(
 			null,
-			__( 'Developer Tools — WP AI Mind', 'stilus' ),
+			__( 'Developer Tools — Stilus', 'stilus' ),
 			__( 'Dev Tools', 'stilus' ),
 			'manage_options',
 			self::PAGE_SLUG,
@@ -116,7 +116,7 @@ class DevToolsPage {
 			];
 
 		wp_enqueue_script(
-			'wp-ai-mind-dev-tools',
+			'stilus-dev-tools',
 			STILUS_URL . 'assets/admin/dev-tools.js',
 			$asset['dependencies'],
 			$asset['version'],
@@ -124,7 +124,7 @@ class DevToolsPage {
 		);
 
 		wp_localize_script(
-			'wp-ai-mind-dev-tools',
+			'stilus-dev-tools',
 			'njDevTools',
 			[
 				'restUrl' => esc_url_raw( rest_url( 'stilus/v1/dev/' ) ),
@@ -175,17 +175,17 @@ class DevToolsPage {
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Tier', 'stilus' ); ?></th>
-					<td id="wpaim-dev-tier-label">
+					<td id="stilus-dev-tier-label">
 						<strong><?php echo esc_html( $tier_labels[ $current_tier ] ?? $current_tier ); ?></strong>
 					</td>
 				</tr>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Usage this month', 'stilus' ); ?></th>
-					<td id="wpaim-dev-usage"><?php echo esc_html( $usage_display ); ?></td>
+					<td id="stilus-dev-usage"><?php echo esc_html( $usage_display ); ?></td>
 				</tr>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Can use', 'stilus' ); ?></th>
-					<td id="wpaim-dev-can-use"><?php echo $usage['can_use'] ? '&#10003; ' . esc_html__( 'Yes', 'stilus' ) : '&#10007; ' . esc_html__( 'No (limit reached)', 'stilus' ); ?></td>
+					<td id="stilus-dev-can-use"><?php echo $usage['can_use'] ? '&#10003; ' . esc_html__( 'Yes', 'stilus' ) : '&#10007; ' . esc_html__( 'No (limit reached)', 'stilus' ); ?></td>
 				</tr>
 			</table>
 
@@ -193,17 +193,17 @@ class DevToolsPage {
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row">
-						<label for="wpaim-tier-select"><?php esc_html_e( 'Tier', 'stilus' ); ?></label>
+						<label for="stilus-tier-select"><?php esc_html_e( 'Tier', 'stilus' ); ?></label>
 					</th>
 					<td>
-						<select id="wpaim-tier-select">
+						<select id="stilus-tier-select">
 							<?php foreach ( $all_tiers as $slug ) : ?>
 								<option value="<?php echo esc_attr( $slug ); ?>"<?php selected( $slug, $current_tier ); ?>>
 									<?php echo esc_html( $tier_labels[ $slug ] ?? $slug ); ?>
 								</option>
 							<?php endforeach; ?>
 						</select>
-						<button class="button button-primary" id="wpaim-apply-tier">
+						<button class="button button-primary" id="stilus-apply-tier">
 							<?php esc_html_e( 'Apply', 'stilus' ); ?>
 						</button>
 					</td>
@@ -215,7 +215,7 @@ class DevToolsPage {
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Reset', 'stilus' ); ?></th>
 					<td>
-						<button class="button" id="wpaim-reset-usage">
+						<button class="button" id="stilus-reset-usage">
 							<?php esc_html_e( 'Reset to zero', 'stilus' ); ?>
 						</button>
 						<p class="description">
@@ -226,7 +226,7 @@ class DevToolsPage {
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Exhaust', 'stilus' ); ?></th>
 					<td>
-						<button class="button" id="wpaim-set-ceiling">
+						<button class="button" id="stilus-set-ceiling">
 							<?php esc_html_e( 'Set to ceiling', 'stilus' ); ?>
 						</button>
 						<p class="description">
@@ -236,7 +236,7 @@ class DevToolsPage {
 				</tr>
 			</table>
 
-			<div id="wpaim-dev-notice" style="display:none;" class="notice inline" aria-live="polite"></div>
+			<div id="stilus-dev-notice" style="display:none;" class="notice inline" aria-live="polite"></div>
 		</div>
 		<?php
 	}

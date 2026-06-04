@@ -17,6 +17,15 @@ function buildVariantTierMap( env: Env ): Record< string, ProxyTier > {
 	return map;
 }
 
+/**
+ * Handle an incoming LemonSqueezy webhook, verifying the signature and dispatching
+ * to the appropriate activation/deactivation/licence handler.
+ *
+ * @param {Request}          request Incoming Worker request.
+ * @param {Env}              env     Worker environment bindings.
+ * @param {ExecutionContext} ctx     Worker execution context (for waitUntil).
+ * @return {Promise<Response>} HTTP 200 OK or an error response.
+ */
 export async function handleWebhook(
 	request: Request,
 	env: Env,
@@ -27,7 +36,9 @@ export async function handleWebhook(
 	}
 
 	const MAX_WEBHOOK_BYTES = 524_288; // 512 KB — LemonSqueezy payloads are small
-	const contentLength = Number( request.headers.get( 'Content-Length' ) ?? 0 );
+	const contentLength = Number(
+		request.headers.get( 'Content-Length' ) ?? 0
+	);
 	if ( contentLength > MAX_WEBHOOK_BYTES ) {
 		return new Response( 'Payload too large', { status: 413 } );
 	}
@@ -238,7 +249,11 @@ async function downgradeSiteTier(
 
 	if ( existing.site_url && existing.tier_sync_secret ) {
 		ctx.waitUntil(
-			pushTierUpdate( existing.site_url, existing.tier_sync_secret, 'free' )
+			pushTierUpdate(
+				existing.site_url,
+				existing.tier_sync_secret,
+				'free'
+			)
 		);
 	}
 }

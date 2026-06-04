@@ -3,7 +3,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { Loader2 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 
-const { nonce, restUrl, adminUrl = '/wp-admin/' } = window.wpAiMindData ?? {};
+const { nonce, restUrl, adminUrl = '/wp-admin/' } = window.stilusData ?? {};
 
 const ASPECT_RATIOS = [ '16:9', '1:1', '4:3', '9:16' ];
 

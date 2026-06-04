@@ -10,9 +10,10 @@ import { Env } from './types';
  *
  * Returns false for any invalid input (malformed hex, wrong HMAC, empty secret).
  *
- * @param bodyText     The exact string that was signed.
- * @param signatureHex Hex-encoded HMAC sent by the caller.
- * @param secret       Raw HMAC secret key.
+ * @param {string} bodyText     The exact string that was signed.
+ * @param {string} signatureHex Hex-encoded HMAC sent by the caller.
+ * @param {string} secret       Raw HMAC secret key.
+ * @return {Promise<boolean>} True if the signature is valid.
  */
 export async function verifyHmac(
 	bodyText: string,
@@ -52,9 +53,10 @@ export async function verifyHmac(
 /**
  * Verify a LemonSqueezy webhook signature from the X-Signature header.
  *
- * @param bodyText  Raw request body string.
- * @param signature Hex HMAC from the X-Signature header.
- * @param env       Worker env bindings (reads LS_WEBHOOK_SECRET).
+ * @param {string} bodyText  Raw request body string.
+ * @param {string} signature Hex HMAC from the X-Signature header.
+ * @param {Env}    env       Worker env bindings (reads LS_WEBHOOK_SECRET).
+ * @return {Promise<boolean>} True if the signature is valid.
  */
 export async function verifyLsSignature(
 	bodyText: string,

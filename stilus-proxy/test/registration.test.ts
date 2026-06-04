@@ -12,7 +12,13 @@ afterEach( () => {
 	vi.restoreAllMocks();
 } );
 
-/** Seed a valid challenge in KV and stub fetch to return 200 for the callback. */
+/**
+ * Seed a valid challenge in KV and stub fetch to return 200 for the callback.
+ *
+ * @param {string}  challenge   The challenge token to seed into KV.
+ * @param {boolean} callbackOk  Whether the simulated site callback should succeed.
+ * @return {Promise<ReturnType<typeof makeEnv>>} Env fixture with challenge pre-seeded.
+ */
 async function makeEnvWithChallenge(
 	challenge: string,
 	callbackOk = true
@@ -21,7 +27,11 @@ async function makeEnvWithChallenge(
 	await env.USAGE_KV.put( `challenge:${ challenge }`, '1' );
 	vi.stubGlobal(
 		'fetch',
-		vi.fn().mockResolvedValue( new Response( '{}', { status: callbackOk ? 200 : 500 } ) )
+		vi
+			.fn()
+			.mockResolvedValue(
+				new Response( '{}', { status: callbackOk ? 200 : 500 } )
+			)
 	);
 	return env;
 }
@@ -50,23 +60,31 @@ function makeRequest(
 describe( 'handleActivationChallenge', () => {
 	it( 'returns 405 for a POST request', async () => {
 		const env = makeEnv();
-		const req = new Request( 'https://worker.example.com/activation-challenge', {
-			method: 'POST',
-		} );
+		const req = new Request(
+			'https://worker.example.com/activation-challenge',
+			{
+				method: 'POST',
+			}
+		);
 		const res = await handleActivationChallenge( req, env );
 		expect( res.status ).toBe( 405 );
 	} );
 
 	it( 'returns a 64-char hex challenge and stores it in KV', async () => {
 		const env = makeEnv();
-		const req = new Request( 'https://worker.example.com/activation-challenge', {
-			method: 'GET',
-		} );
+		const req = new Request(
+			'https://worker.example.com/activation-challenge',
+			{
+				method: 'GET',
+			}
+		);
 		const res = await handleActivationChallenge( req, env );
 		expect( res.status ).toBe( 200 );
 		const data = ( await res.json() ) as { challenge: string };
 		expect( data.challenge ).toMatch( /^[0-9a-f]{64}$/ );
-		const stored = await env.USAGE_KV.get( `challenge:${ data.challenge }` );
+		const stored = await env.USAGE_KV.get(
+			`challenge:${ data.challenge }`
+		);
 		expect( stored ).toBe( '1' );
 	} );
 } );
@@ -172,10 +190,9 @@ describe( 'handleRegistration', () => {
 		expect( data.tier_sync_secret ).toMatch( /^[0-9a-f]{64}$/ );
 
 		// New: the secret is persisted on the SiteRecord in KV.
-		const stored = await env.USAGE_KV.get< import('../src/types').SiteRecord >(
-			`site:${ data.token }`,
-			'json'
-		);
+		const stored = await env.USAGE_KV.get<
+			import('../src/types').SiteRecord
+		>( `site:${ data.token }`, 'json' );
 		expect( stored?.tier_sync_secret ).toBe( data.tier_sync_secret );
 	} );
 
@@ -189,7 +206,12 @@ describe( 'handleRegistration', () => {
 		await env.USAGE_KV.put( `challenge:${ challenge }`, '1' );
 
 		await handleRegistration(
-			makeRequest( { body: { site_url: 'https://site.example.com', challenge_token: challenge } } ),
+			makeRequest( {
+				body: {
+					site_url: 'https://site.example.com',
+					challenge_token: challenge,
+				},
+			} ),
 			env
 		);
 
@@ -261,17 +283,21 @@ describe( 'handleRegistration', () => {
 
 		// Initial registration — creates trial record.
 		const res1 = await handleRegistration(
-			makeRequest( { body: { site_url: siteUrl, challenge_token: challenge1 } } ),
+			makeRequest( {
+				body: { site_url: siteUrl, challenge_token: challenge1 },
+			} ),
 			env
 		);
 		const { token } = ( await res1.json() ) as { token: string };
 
 		// Backdate trial_started_at by 31 days.
-		const stored = await env.USAGE_KV.get< import('../src/types').SiteRecord >(
-			`site:${ token }`,
-			'json'
-		) as import('../src/types').SiteRecord;
-		const expired = { ...stored, trial_started_at: Date.now() - 31 * 24 * 60 * 60 * 1000 };
+		const stored = ( await env.USAGE_KV.get<
+			import('../src/types').SiteRecord
+		>( `site:${ token }`, 'json' ) ) as import('../src/types').SiteRecord;
+		const expired = {
+			...stored,
+			trial_started_at: Date.now() - 31 * 24 * 60 * 60 * 1000,
+		};
 		await env.USAGE_KV.put( `site:${ token }`, JSON.stringify( expired ) );
 
 		// Re-register — must come back as free.
@@ -283,7 +309,9 @@ describe( 'handleRegistration', () => {
 		);
 
 		const res2 = await handleRegistration(
-			makeRequest( { body: { site_url: siteUrl, challenge_token: challenge2 } } ),
+			makeRequest( {
+				body: { site_url: siteUrl, challenge_token: challenge2 },
+			} ),
 			env
 		);
 		const data2 = ( await res2.json() ) as { token: string; tier: string };
@@ -300,7 +328,9 @@ describe( 'handleRegistration', () => {
 			await env.USAGE_KV.put( `challenge:${ ch }`, '1' );
 			vi.stubGlobal(
 				'fetch',
-				vi.fn().mockResolvedValue( new Response( '{}', { status: 200 } ) )
+				vi
+					.fn()
+					.mockResolvedValue( new Response( '{}', { status: 200 } ) )
 			);
 			await handleRegistration(
 				makeRequest( {

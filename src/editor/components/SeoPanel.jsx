@@ -1,7 +1,7 @@
 import { useSelect } from '@wordpress/data';
 import { CheckCircle2, XCircle, AlertCircle, Lock } from 'lucide-react';
 
-const { isPro } = window.wpAiMindData || {};
+const { isPro } = window.stilusData || {};
 
 function scoreItem( label, pass, tip ) {
 	let Icon;
