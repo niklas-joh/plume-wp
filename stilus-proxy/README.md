@@ -26,6 +26,8 @@ npx wrangler kv:namespace create USAGE_KV --preview
 
 # 4. Set secrets (never commit these values)
 npx wrangler secret put ANTHROPIC_API_KEY
+# Note: no STILUS_PROXY_SECRET wrangler secret is needed — HMAC signing uses a
+# per-site rotating secret that is generated on first registration and stored in KV.
 
 # 5. Type-check
 npm run typecheck
