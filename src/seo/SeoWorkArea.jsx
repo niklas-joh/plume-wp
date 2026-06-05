@@ -40,12 +40,14 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 	// Depends on post.id so a different post's expand resets correctly.
 	useEffect( () => {
 		const status = post?.wpaim_seo_status;
-		if ( ! status ) return;
+		if ( ! status ) {
+			return;
+		}
 		setFields( {
-			meta_title:     status.meta_title?.value     ?? '',
+			meta_title: status.meta_title?.value ?? '',
 			og_description: status.og_description?.value ?? '',
-			excerpt:        status.excerpt?.value         ?? '',
-			alt_text:       status.alt_text?.value        ?? '',
+			excerpt: status.excerpt?.value ?? '',
+			alt_text: status.alt_text?.value ?? '',
 		} );
 	}, [ post?.id ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
