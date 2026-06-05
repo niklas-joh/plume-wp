@@ -1,16 +1,15 @@
 <?php
 declare( strict_types=1 );
 
-namespace Stilus\Tests\Integration\Images;
+namespace Stilus\Tests\Unit\Modules\Images;
 
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use Stilus\Modules\Images\ImagesModule;
-use Stilus\Tests\Helpers\WpdbStubFactory;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tier-gating integration tests for the Images module REST route.
+ * Tier-gating unit tests for the Images module REST route.
  *
  * Exercises the permission_callback chain — TierManager::user_can('images')
  * returns false for the free tier and true for trial+.
@@ -24,6 +23,10 @@ class ImagesTierGatingTest extends TestCase {
 		parent::setUp();
 		Monkey\setUp();
 
+		// Ensure TierManager::get_user_tier() sees 'free' site tier so the user-meta
+		// path is exercised rather than the pro-site short-circuit.
+		Functions\when( 'get_option' )->justReturn( 'free' );
+
 		// Capture the registered routes so we can invoke permission_callback directly.
 		$this->captured_routes = [];
 		Functions\when( 'register_rest_route' )->alias(
@@ -36,8 +39,6 @@ class ImagesTierGatingTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
-		global $wpdb;
-		$wpdb = WpdbStubFactory::create(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Intentional test stub.
 		Monkey\tearDown();
 		parent::tearDown();
 	}
@@ -80,6 +81,9 @@ class ImagesTierGatingTest extends TestCase {
 			function ( $user_id, $key, $single = false ) use ( $month_key ) {
 				if ( 'stilus_tier' === $key ) {
 					return 'trial';
+				}
+				if ( 'stilus_trial_started' === $key ) {
+					return (string) time(); // trial started now, well within the trial period
 				}
 				if ( $month_key === $key ) {
 					return '0'; // well within 300k trial limit

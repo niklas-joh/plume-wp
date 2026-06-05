@@ -226,7 +226,10 @@ class SeoGenerateTest extends IntegrationTestCase {
 				'post_mime_type' => 'image/jpeg',
 			]
 		);
-		set_post_thumbnail( $post_id, $thumb_id );
+		// set_post_thumbnail() requires wp_get_attachment_image() to return non-empty,
+		// which fails for factory attachments that have no real file on disk. Write
+		// the meta key directly — get_post_thumbnail_id() reads only this key.
+		update_post_meta( $post_id, '_thumbnail_id', $thumb_id );
 
 		$response = $this->rest_do(
 			'POST',
