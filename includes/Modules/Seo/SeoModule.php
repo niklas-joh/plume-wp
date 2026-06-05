@@ -479,35 +479,49 @@ class SeoModule {
 			return [];
 		}
 
-		$yoast_title = \get_post_meta( $post_id, '_yoast_wpseo_title', true );
-		$meta_title  = $yoast_title ? $yoast_title : \get_post_meta( $post_id, 'rank_math_title', true );
+		// Short-circuit repeated REST hits for the same post within a request.
+		// Excerpt is live data from the REST payload, so it is read after the cache check.
+		$cache_key  = 'seo_status_meta_' . $post_id;
+		$meta_cache = \wp_cache_get( $cache_key, 'stilus' );
 
-		$yoast_desc     = \get_post_meta( $post_id, '_yoast_wpseo_metadesc', true );
-		$og_description = $yoast_desc ? $yoast_desc : \get_post_meta( $post_id, 'rank_math_description', true );
+		if ( false === $meta_cache ) {
+			$yoast_title = \get_post_meta( $post_id, '_yoast_wpseo_title', true );
+			$meta_title  = $yoast_title ? $yoast_title : \get_post_meta( $post_id, 'rank_math_title', true );
+
+			$yoast_desc     = \get_post_meta( $post_id, '_yoast_wpseo_metadesc', true );
+			$og_description = $yoast_desc ? $yoast_desc : \get_post_meta( $post_id, 'rank_math_description', true );
+
+			$thumb_id = \get_post_thumbnail_id( $post_id );
+			$alt_text = $thumb_id
+				? \get_post_meta( $thumb_id, '_wp_attachment_image_alt', true )
+				: '';
+
+			$meta_cache = [
+				'meta_title'     => (string) ( $meta_title ? $meta_title : '' ),
+				'og_description' => (string) ( $og_description ? $og_description : '' ),
+				'alt_text'       => (string) ( $alt_text ? $alt_text : '' ),
+			];
+			\wp_cache_set( $cache_key, $meta_cache, 'stilus' );
+		}
 
 		$excerpt = $post_data['excerpt']['raw'] ?? '';
 
-		$thumb_id = \get_post_thumbnail_id( $post_id );
-		$alt_text = $thumb_id
-			? \get_post_meta( $thumb_id, '_wp_attachment_image_alt', true )
-			: '';
-
 		return [
 			'meta_title'     => [
-				'status' => $meta_title ? 'filled' : 'empty',
-				'value'  => (string) ( $meta_title ? $meta_title : '' ),
+				'status' => $meta_cache['meta_title'] ? 'filled' : 'empty',
+				'value'  => $meta_cache['meta_title'],
 			],
 			'og_description' => [
-				'status' => $og_description ? 'filled' : 'empty',
-				'value'  => (string) ( $og_description ? $og_description : '' ),
+				'status' => $meta_cache['og_description'] ? 'filled' : 'empty',
+				'value'  => $meta_cache['og_description'],
 			],
 			'excerpt'        => [
 				'status' => $excerpt ? 'filled' : 'empty',
 				'value'  => (string) ( $excerpt ? $excerpt : '' ),
 			],
 			'alt_text'       => [
-				'status' => $alt_text ? 'filled' : 'empty',
-				'value'  => (string) ( $alt_text ? $alt_text : '' ),
+				'status' => $meta_cache['alt_text'] ? 'filled' : 'empty',
+				'value'  => $meta_cache['alt_text'],
 			],
 		];
 	}
