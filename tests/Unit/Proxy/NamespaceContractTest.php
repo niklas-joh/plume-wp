@@ -60,11 +60,11 @@ class NamespaceContractTest extends TestCase {
 	 *
 	 * Uses RecursiveDirectoryIterator discovery so newly added controllers anywhere
 	 * under includes/ are covered automatically without maintaining path patterns.
-	 * No exclusions are needed: every *Controller.php file under includes/ is a
-	 * REST controller that registers routes under stilus/v1.
+	 * All current *Controller.php files under includes/ register routes under stilus/v1;
+	 * add an explicit exclusion if a non-REST controller file is ever added here.
 	 *
 	 * @since 1.8.0
-	 * @since 1.12.0 Switched from a hardcoded list to recursive file discovery.
+	 * @since 1.9.0 Switched from a hardcoded list to recursive file discovery.
 	 */
 	public function test_php_rest_controllers_use_stilus_v1_namespace(): void {
 		$iterator        = new \RecursiveIteratorIterator(
