@@ -61,6 +61,30 @@ async function globalSetup() {
 	// On a fresh install the wizard blocks the dashboard and chat views.
 	wpCli( 'option set stilus_onboarding_seen 1', { stdio: 'inherit' } );
 	console.log( '[E2E setup] Onboarding marked as seen.' );
+
+	// ── Real API key injection (optional) ────────────────────────────────────
+	// When CLAUDE_API_KEY is set (CI secret), store it encrypted in WordPress DB
+	// via ProviderSettings and switch site tier to pro_byok so real-api-chat
+	// spec can make live Anthropic calls without any route intercepts.
+	// Silently skipped in local dev when the key is absent.
+	const claudeApiKey = process.env.CLAUDE_API_KEY;
+	if ( claudeApiKey ) {
+		// Validate format before injecting — prevents shell/PHP injection if the
+		// env value is ever unexpected. Anthropic keys are always sk-ant-api03-…
+		if ( ! /^sk-ant-[A-Za-z0-9_-]+$/.test( claudeApiKey ) ) {
+			throw new Error( '[E2E setup] CLAUDE_API_KEY does not match expected format (sk-ant-…). Aborting.' );
+		}
+		console.log( '[E2E setup] Storing Claude API key for real-API tests.' );
+		wpCli(
+			`eval "( new \\\\Stilus\\\\Settings\\\\ProviderSettings() )->set_api_key( 'claude', '${ claudeApiKey }' );"`,
+			{ stdio: 'inherit' }
+		);
+		// Switch to pro_byok so the direct Claude path is used, not the proxy.
+		// Mocked E2E tests override tier state client-side via addInitScript so
+		// this site-level change does not break them.
+		wpCli( 'option set stilus_site_tier pro_byok', { stdio: 'inherit' } );
+		console.log( '[E2E setup] Site tier set to pro_byok for real-API tests.' );
+	}
 }
 
 module.exports = globalSetup;
