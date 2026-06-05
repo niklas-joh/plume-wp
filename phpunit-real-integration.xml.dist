@@ -6,8 +6,8 @@
     colors="true"
 >
     <testsuites>
-        <testsuite name="Integration">
-            <directory>tests/Integration</directory>
+        <testsuite name="RealIntegration">
+            <directory>tests/RealIntegration</directory>
         </testsuite>
     </testsuites>
     <source>
