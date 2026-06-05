@@ -109,24 +109,25 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 				headers: { 'X-WP-Nonce': nonce },
 				data: { post_id: post.id, ...fields },
 			} );
-			const prev = post.wpaim_seo_status ?? {};
-			// Mirror the { status, value } shape that PHP now returns so the
-			// in-memory post object stays consistent with fresh REST responses.
+			// Mirror the { status, value } shape that PHP returns so the in-memory
+			// post object stays consistent with fresh REST responses. Use
+			// { status: 'empty', value: '' } for cleared fields so the badge
+			// reflects the user's deliberate removal rather than the previous state.
 			onUpdate( {
 				id: post.id,
 				wpaim_seo_status: {
 					meta_title: fields.meta_title
 						? { status: 'filled', value: fields.meta_title }
-						: prev.meta_title,
+						: { status: 'empty', value: '' },
 					og_description: fields.og_description
 						? { status: 'filled', value: fields.og_description }
-						: prev.og_description,
+						: { status: 'empty', value: '' },
 					excerpt: fields.excerpt
 						? { status: 'filled', value: fields.excerpt }
-						: prev.excerpt,
+						: { status: 'empty', value: '' },
 					alt_text: fields.alt_text
 						? { status: 'filled', value: fields.alt_text }
-						: prev.alt_text,
+						: { status: 'empty', value: '' },
 				},
 			} );
 			onClose();
