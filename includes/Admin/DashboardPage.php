@@ -128,13 +128,13 @@ class DashboardPage {
 				'usage'     => admin_url( 'admin.php?page=stilus-usage' ),
 				'settings'  => admin_url( 'admin.php?page=stilus-settings' ),
 				'posts'     => admin_url( 'edit.php' ),
-				'upgrade'   => 'https://[TODO-stilus-domain]/pricing',
+				'upgrade'   => 'https://wpaimind.com/pricing', // TODO: update to canonical Stilus domain once finalised.
 			],
 			'resourceUrls'   => [
-				'gettingStarted' => 'https://[TODO-stilus-domain]/docs/getting-started',
-				'promptTips'     => 'https://[TODO-stilus-domain]/docs/prompt-tips',
-				'apiKeySetup'    => 'https://[TODO-stilus-domain]/docs/api-key-setup',
-				'changelog'      => 'https://[TODO-stilus-domain]/changelog',
+				'gettingStarted' => 'https://wpaimind.com/docs/getting-started',
+				'promptTips'     => 'https://wpaimind.com/docs/prompt-tips',
+				'apiKeySetup'    => 'https://wpaimind.com/docs/api-key-setup',
+				'changelog'      => 'https://wpaimind.com/changelog',
 			],
 		];
 	}
