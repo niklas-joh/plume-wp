@@ -83,20 +83,17 @@ class ChatConversationTest extends IntegrationTestCase {
 		$this->assertSame( 201, $create_response->get_status() );
 		$conv_id = $create_response->get_data()['id'];
 
-		// Step 2 — install HTTP fixture returning a known Claude-format response.
+		// Step 2 — install HTTP fixture matching the proxy's normalised response shape:
+		// { content: string, usage: { input_tokens, output_tokens } }.
+		// The upstream Claude wire format (content as an array of blocks) must NOT
+		// be used here — complete_via_proxy() reads content as a string directly.
 		$fixture_text = 'Integration test response text';
 		$fixture      = [
-			'content' => [
-				[
-					'type' => 'text',
-					'text' => $fixture_text,
-				],
-			],
+			'content' => $fixture_text,
 			'usage'   => [
 				'input_tokens'  => 10,
 				'output_tokens' => 5,
 			],
-			'model'   => 'claude-opus-4-6',
 		];
 		$this->mock_http_with_claude_fixture( $fixture );
 
@@ -131,20 +128,14 @@ class ChatConversationTest extends IntegrationTestCase {
 		$this->assertSame( 201, $create_response->get_status() );
 		$conv_id = $create_response->get_data()['id'];
 
-		// Install HTTP fixture so the AI turn completes successfully.
+		// Install HTTP fixture matching the proxy's normalised response shape.
 		$this->mock_http_with_claude_fixture(
 			[
-				'content' => [
-					[
-						'type' => 'text',
-						'text' => 'Reply from AI.',
-					],
-				],
+				'content' => 'Reply from AI.',
 				'usage'   => [
 					'input_tokens'  => 5,
 					'output_tokens' => 3,
 				],
-				'model'   => 'claude-opus-4-6',
 			]
 		);
 
