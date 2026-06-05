@@ -43,13 +43,21 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 		if ( ! status ) {
 			return;
 		}
-		setFields( {
+		const prePopulated = {
 			meta_title: status.meta_title?.value ?? '',
 			og_description: status.og_description?.value ?? '',
 			excerpt: status.excerpt?.value ?? '',
 			alt_text: status.alt_text?.value ?? '',
-		} );
-	}, [ post?.id ] ); // eslint-disable-line react-hooks/exhaustive-deps
+		};
+		setFields( prePopulated );
+		// Allow "Apply all" when at least one existing meta value is present.
+		if ( Object.values( prePopulated ).some( Boolean ) ) {
+			setHasGenerated( true );
+		}
+		// wpaim_seo_status intentionally excluded: fields should only seed once per
+		// post expand, not re-seed on every status update after a partial apply.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ post?.id ] );
 
 	useEffect( () => {
 		if ( confirmReplace && yesButtonRef.current ) {
