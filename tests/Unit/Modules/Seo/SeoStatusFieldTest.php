@@ -49,6 +49,7 @@ class SeoStatusFieldTest extends TestCase {
 		$result = SeoModule::get_seo_status( [ 'id' => 42, 'excerpt' => [ 'raw' => '' ] ] );
 
 		$this->assertSame( 'filled', $result['meta_title']['status'] );
+		$this->assertSame( 'My Yoast Title', $result['meta_title']['value'] );
 	}
 
 	public function test_rank_math_title_detected_as_filled_when_yoast_empty(): void {
@@ -62,6 +63,7 @@ class SeoStatusFieldTest extends TestCase {
 		$result = SeoModule::get_seo_status( [ 'id' => 42, 'excerpt' => [ 'raw' => '' ] ] );
 
 		$this->assertSame( 'filled', $result['meta_title']['status'] );
+		$this->assertSame( 'My RankMath Title', $result['meta_title']['value'] );
 	}
 
 	public function test_excerpt_detected_as_filled(): void {
@@ -71,6 +73,7 @@ class SeoStatusFieldTest extends TestCase {
 		$result = SeoModule::get_seo_status( [ 'id' => 42, 'excerpt' => [ 'raw' => 'A nice summary.' ] ] );
 
 		$this->assertSame( 'filled', $result['excerpt']['status'] );
+		$this->assertSame( 'A nice summary.', $result['excerpt']['value'] );
 	}
 
 	public function test_alt_text_filled_when_featured_image_has_alt(): void {
@@ -84,6 +87,7 @@ class SeoStatusFieldTest extends TestCase {
 		$result = SeoModule::get_seo_status( [ 'id' => 42, 'excerpt' => [ 'raw' => '' ] ] );
 
 		$this->assertSame( 'filled', $result['alt_text']['status'] );
+		$this->assertSame( 'A descriptive alt text', $result['alt_text']['value'] );
 	}
 
 	public function test_alt_text_empty_when_no_featured_image(): void {
