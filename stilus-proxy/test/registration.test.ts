@@ -319,6 +319,99 @@ describe( 'handleRegistration', () => {
 		expect( data2.tier ).toBe( 'free' );
 	} );
 
+	it( 're-registration does not expose tier_sync_secret when it already exists', async () => {
+		// First registration — sets up the KV record with a tier_sync_secret.
+		const challenge1 = 'a1'.repeat( 32 );
+		const env = await makeEnvWithChallenge( challenge1 );
+		const siteUrl = 'https://already-has-secret.example.com';
+
+		const res1 = await handleRegistration(
+			makeRequest( {
+				body: { site_url: siteUrl, challenge_token: challenge1 },
+			} ),
+			env
+		);
+		expect( res1.status ).toBe( 201 );
+		const data1 = ( await res1.json() ) as { token: string };
+
+		// Confirm the KV record already has a tier_sync_secret persisted.
+		const stored = await env.USAGE_KV.get<
+			import('../src/types').SiteRecord
+		>( `site:${ data1.token }`, 'json' );
+		expect( stored?.tier_sync_secret ).toMatch( /^[0-9a-f]{64}$/ );
+
+		// Re-register with a second challenge — secret must NOT appear in response.
+		const challenge2 = 'b2'.repeat( 32 );
+		await env.USAGE_KV.put( `challenge:${ challenge2 }`, '1' );
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue( new Response( '{}', { status: 200 } ) )
+		);
+
+		const res2 = await handleRegistration(
+			makeRequest( {
+				body: { site_url: siteUrl, challenge_token: challenge2 },
+			} ),
+			env
+		);
+		expect( res2.status ).toBe( 200 );
+		const data2 = ( await res2.json() ) as Record< string, unknown >;
+		expect( data2.token ).toBe( data1.token );
+		expect( data2 ).not.toHaveProperty( 'tier_sync_secret' );
+	} );
+
+	it( 're-registration backfills tier_sync_secret for a pre-1.9 site without one', async () => {
+		// Simulate a pre-1.9 site: seed KV records manually without tier_sync_secret.
+		const env = makeEnv();
+		const siteUrl = 'https://pre-1-9-site.example.com';
+		const existingToken = 'oldtoken'.repeat( 8 );
+
+		// Build a sha256 hash of the site URL the same way the handler does.
+		const urlHashBytes = await crypto.subtle.digest(
+			'SHA-256',
+			new TextEncoder().encode( siteUrl )
+		);
+		const urlHash = Array.from( new Uint8Array( urlHashBytes ) )
+			.map( ( b ) => b.toString( 16 ).padStart( 2, '0' ) )
+			.join( '' );
+
+		const pre19Record: import('../src/types').SiteRecord = {
+			site_url: siteUrl,
+			tier: 'trial',
+			created_at: Date.now() - 1000,
+			trial_started_at: Date.now() - 1000,
+			// deliberately no tier_sync_secret
+		};
+		await env.USAGE_KV.put( `site:${ existingToken }`, JSON.stringify( pre19Record ) );
+		await env.USAGE_KV.put( `site_url:${ urlHash }`, existingToken );
+
+		// Seed a challenge and stub the site callback.
+		const challenge = 'c3'.repeat( 32 );
+		await env.USAGE_KV.put( `challenge:${ challenge }`, '1' );
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue( new Response( '{}', { status: 200 } ) )
+		);
+
+		const res = await handleRegistration(
+			makeRequest( {
+				body: { site_url: siteUrl, challenge_token: challenge },
+			} ),
+			env
+		);
+		expect( res.status ).toBe( 200 );
+		const data = ( await res.json() ) as Record< string, unknown >;
+
+		// Backfill: secret MUST be present in the response.
+		expect( data.tier_sync_secret ).toMatch( /^[0-9a-f]{64}$/ );
+
+		// And MUST be persisted to KV.
+		const updated = await env.USAGE_KV.get<
+			import('../src/types').SiteRecord
+		>( `site:${ existingToken }`, 'json' );
+		expect( updated?.tier_sync_secret ).toBe( data.tier_sync_secret as string );
+	} );
+
 	it( 'returns 429 when IP exceeds the registration rate limit', async () => {
 		const env = makeEnv();
 		const ip = '203.0.113.42';

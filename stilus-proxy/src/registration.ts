@@ -139,6 +139,9 @@ export async function handleRegistration(
 			// Backfill the tier-sync secret on idempotent re-registration so
 			// pre-1.9 sites pick it up without needing a manual rotate call.
 			let secret = record.tier_sync_secret;
+			// true whenever no secret is stored in KV yet (covers pre-1.9 backfill,
+			// trial-expiry demote of pre-1.9 sites, and any unrecognised record state)
+			const isNewSecret = ! record.tier_sync_secret;
 			if ( ! secret ) {
 				secret = generateToken();
 			}
@@ -160,7 +163,7 @@ export async function handleRegistration(
 				return jsonResponse( {
 					token: existingToken,
 					tier: 'free',
-					tier_sync_secret: secret,
+					...( isNewSecret ? { tier_sync_secret: secret } : {} ),
 				} );
 			}
 
@@ -178,7 +181,7 @@ export async function handleRegistration(
 			return jsonResponse( {
 				token: existingToken,
 				tier: record.tier,
-				tier_sync_secret: secret,
+				...( isNewSecret ? { tier_sync_secret: secret } : {} ),
 			} );
 		}
 	}
