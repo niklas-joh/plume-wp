@@ -5,6 +5,7 @@ import { pushTierUpdate } from '../src/tierSync';
 
 afterEach( () => {
 	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
 } );
 
 describe( 'pushTierUpdate', () => {
