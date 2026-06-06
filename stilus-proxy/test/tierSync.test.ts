@@ -34,4 +34,18 @@ describe( 'pushTierUpdate', () => {
 
 		expect( fetchMock ).toHaveBeenCalledTimes( 2 );
 	} );
+
+	it( 'gives up silently after all three 5xx attempts', async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response( null, { status: 503 } )
+		);
+		vi.stubGlobal( 'fetch', fetchMock );
+		vi.stubGlobal( 'setTimeout', ( fn: () => void ) => fn() );
+
+		await expect(
+			pushTierUpdate( 'https://example.com', 'secret', 'pro_managed' )
+		).resolves.toBeUndefined();
+
+		expect( fetchMock ).toHaveBeenCalledTimes( 3 );
+	} );
 } );
