@@ -48,4 +48,16 @@ describe( 'pushTierUpdate', () => {
 
 		expect( fetchMock ).toHaveBeenCalledTimes( 3 );
 	} );
+
+	it( 'aborts without fetching when signing fails', async () => {
+		vi.spyOn( crypto.subtle, 'sign' ).mockRejectedValue( new Error( 'sign failed' ) );
+		const fetchMock = vi.fn();
+		vi.stubGlobal( 'fetch', fetchMock );
+
+		await expect(
+			pushTierUpdate( 'https://example.com', 'secret', 'pro_managed' )
+		).resolves.toBeUndefined();
+
+		expect( fetchMock ).not.toHaveBeenCalled();
+	} );
 } );
