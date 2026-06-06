@@ -226,6 +226,25 @@ describe( 'handleWebhook', () => {
 		expect( record?.tier ).toBe( 'pro_managed' );
 	} );
 
+	it( 'returns 200 and writes no licence:* key for an unknown variantId in licence_key_created', async () => {
+		const env = await makePrepopulatedEnv( 'free' );
+
+		const payload = licenceKeyCreatedPayload(
+			TEST_LICENCE_KEY,
+			'active',
+			'9999999', // variant ID not present in env
+			TEST_TOKEN
+		);
+		const req = makeRequest( payload );
+		const { ctx } = makeCtx();
+		const res = await handleWebhook( req, env, ctx );
+
+		expect( res.status ).toBe( 200 );
+
+		const record = await env.USAGE_KV.get( `licence:${ TEST_LICENCE_KEY }` );
+		expect( record ).toBeNull();
+	} );
+
 	it( 'returns 200 and makes no KV changes for an unknown event type', async () => {
 		const env = await makePrepopulatedEnv( 'free' );
 
