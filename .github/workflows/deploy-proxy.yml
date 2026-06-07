@@ -4,11 +4,6 @@
 #
 # Manual dispatch (workflow_dispatch) is available for re-deploys without a
 # commit, e.g. to roll a Worker secret change.
-#
-# Before merging: add CLOUDFLARE_API_TOKEN to Settings → Secrets (Worker Scripts
-# edit scope). After confirming one successful deploy run, remove the five legacy
-# secrets: TAILSCALE_OAUTH_CLIENT_ID, TAILSCALE_OAUTH_SECRET, MAC_SSH_PRIVATE_KEY,
-# MAC_SSH_USER, MAC_SSH_HOST.
 name: Deploy proxy Worker
 
 on:
@@ -33,11 +28,14 @@ jobs:
       group: worker-deploy
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '20.12'
+          cache: npm
+          cache-dependency-path: stilus-proxy/package-lock.json
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -48,7 +46,7 @@ jobs:
         working-directory: stilus-proxy
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: stilus-proxy
