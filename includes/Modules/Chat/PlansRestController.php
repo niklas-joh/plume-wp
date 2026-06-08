@@ -53,9 +53,25 @@ class PlansRestController {
 				'callback'            => [ $this, 'execute_plan' ],
 				'permission_callback' => [ $this, 'check_permission' ],
 				'args'                => [
-					'id' => [
+					'id'      => [
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_key',
+					],
+					'title'   => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'outline' => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					],
+					'changes' => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					],
+					'status'  => [
+						'type' => 'string',
+						'enum' => [ 'draft', 'publish', 'pending' ],
 					],
 				],
 			]
@@ -80,6 +96,18 @@ class PlansRestController {
 				\__( 'This plan has expired or does not exist. Please ask the assistant again.', 'stilus' ),
 				[ 'status' => 404 ]
 			);
+		}
+
+		// Merge request-body overrides so users can edit the plan before confirming.
+		foreach ( [ 'title', 'outline', 'changes' ] as $field ) {
+			$val = $request->get_param( $field );
+			if ( null !== $val ) {
+				$plan[ $field ] = $val;
+			}
+		}
+		$status_override = $request->get_param( 'status' );
+		if ( null !== $status_override ) {
+			$plan['post_status'] = $status_override;
 		}
 
 		$tool_name = 'update' === ( $plan['plan_type'] ?? 'create' ) ? 'update_post' : 'create_post';
