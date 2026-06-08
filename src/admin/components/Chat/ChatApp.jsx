@@ -214,12 +214,12 @@ export default function ChatApp() {
 			setMessages( ( prev ) => [
 				...prev,
 				{
-					role:         'assistant',
-					content:      res.content,
-					model:        res.model,
-					tokens:       res.tokens,
+					role: 'assistant',
+					content: res.content,
+					model: res.model,
+					tokens: res.tokens,
 					pending_plan: res.pending_plan ?? null,
-					tools_used:   passiveTools.length > 0 ? passiveTools : null,
+					tools_used: passiveTools.length > 0 ? passiveTools : null,
 				},
 			] );
 			if ( needsTitleUpdate ) {

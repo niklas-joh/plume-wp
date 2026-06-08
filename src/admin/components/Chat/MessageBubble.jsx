@@ -7,9 +7,9 @@ import PlanCard from './PlanCard';
 const TOOL_LABELS = {
 	get_recent_posts: __( 'Fetched recent posts', 'stilus' ),
 	get_post_content: __( 'Read post content', 'stilus' ),
-	search_posts:     __( 'Searched posts', 'stilus' ),
-	get_pages:        __( 'Fetched pages', 'stilus' ),
-	get_site_info:    __( 'Read site info', 'stilus' ),
+	search_posts: __( 'Searched posts', 'stilus' ),
+	get_pages: __( 'Fetched pages', 'stilus' ),
+	get_site_info: __( 'Read site info', 'stilus' ),
 	generate_seo_meta: __( 'Generated SEO data', 'stilus' ),
 };
 

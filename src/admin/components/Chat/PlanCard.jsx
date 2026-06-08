@@ -20,7 +20,7 @@ import { FileText, Pencil, X, ExternalLink, Loader2 } from 'lucide-react';
  * @param {string}   [props.plan.post_status] Publication status.
  * @param {string}   [props.plan.post_type]   Post type.
  * @param {Function} props.onDismiss     Called when the user dismisses the card (no server call).
- * @returns {ReactElement}
+ * @return {ReactElement}
  *
  * @example
  * <PlanCard plan={ pending_plan } onDismiss={ () => clearPlan() } />
@@ -30,8 +30,12 @@ export default function PlanCard( { plan, onDismiss } ) {
 
 	const [ isEditing, setIsEditing ] = useState( false );
 	const [ editTitle, setEditTitle ] = useState( plan.title ?? '' );
-	const [ editOutline, setEditOutline ] = useState( plan.outline ?? plan.changes ?? '' );
-	const [ editStatus, setEditStatus ] = useState( plan.post_status || 'draft' );
+	const [ editOutline, setEditOutline ] = useState(
+		plan.outline ?? plan.changes ?? ''
+	);
+	const [ editStatus, setEditStatus ] = useState(
+		plan.post_status || 'draft'
+	);
 
 	const [ isExecuting, setIsExecuting ] = useState( false );
 	const [ editUrl, setEditUrl ] = useState( null );
@@ -43,7 +47,11 @@ export default function PlanCard( { plan, onDismiss } ) {
 		try {
 			const body = isUpdate
 				? { changes: editOutline, status: editStatus }
-				: { title: editTitle, outline: editOutline, status: editStatus };
+				: {
+						title: editTitle,
+						outline: editOutline,
+						status: editStatus,
+				  };
 
 			const result = await apiFetch( {
 				path: `/stilus/v1/plans/${ plan.id }/execute`,
@@ -66,6 +74,10 @@ export default function PlanCard( { plan, onDismiss } ) {
 		publish: __( 'Published', 'stilus' ),
 		pending: __( 'Pending review', 'stilus' ),
 	};
+
+	const confirmLabel = isUpdate
+		? __( 'Apply update', 'stilus' )
+		: __( 'Create post', 'stilus' );
 
 	if ( editUrl ) {
 		return (
@@ -116,9 +128,13 @@ export default function PlanCard( { plan, onDismiss } ) {
 				{ isEditing ? (
 					<>
 						{ ! isUpdate && (
-							<label className="wpaim-plan-card__field">
+							<label
+								htmlFor="wpaim-plan-edit-title"
+								className="wpaim-plan-card__field"
+							>
 								<span>{ __( 'Title', 'stilus' ) }</span>
 								<input
+									id="wpaim-plan-edit-title"
 									type="text"
 									value={ editTitle }
 									onChange={ ( e ) =>
@@ -128,13 +144,17 @@ export default function PlanCard( { plan, onDismiss } ) {
 								/>
 							</label>
 						) }
-						<label className="wpaim-plan-card__field">
+						<label
+							htmlFor="wpaim-plan-edit-outline"
+							className="wpaim-plan-card__field"
+						>
 							<span>
 								{ isUpdate
 									? __( 'Changes', 'stilus' )
 									: __( 'Outline', 'stilus' ) }
 							</span>
 							<textarea
+								id="wpaim-plan-edit-outline"
 								value={ editOutline }
 								onChange={ ( e ) =>
 									setEditOutline( e.target.value )
@@ -143,9 +163,13 @@ export default function PlanCard( { plan, onDismiss } ) {
 								className="wpaim-input"
 							/>
 						</label>
-						<label className="wpaim-plan-card__field wpaim-plan-card__field--inline">
+						<label
+							htmlFor="wpaim-plan-edit-status"
+							className="wpaim-plan-card__field wpaim-plan-card__field--inline"
+						>
 							<span>{ __( 'Status', 'stilus' ) }</span>
 							<select
+								id="wpaim-plan-edit-status"
 								value={ editStatus }
 								onChange={ ( e ) =>
 									setEditStatus( e.target.value )
@@ -186,9 +210,7 @@ export default function PlanCard( { plan, onDismiss } ) {
 				) }
 			</div>
 
-			{ error && (
-				<p className="wpaim-plan-card__error">{ error }</p>
-			) }
+			{ error && <p className="wpaim-plan-card__error">{ error }</p> }
 
 			<div className="wpaim-plan-card__actions">
 				<button
@@ -203,10 +225,8 @@ export default function PlanCard( { plan, onDismiss } ) {
 							strokeWidth={ 1.5 }
 							className="wpaim-spinner"
 						/>
-					) : isUpdate ? (
-						__( 'Apply update', 'stilus' )
 					) : (
-						__( 'Create post', 'stilus' )
+						confirmLabel
 					) }
 				</button>
 				<button
