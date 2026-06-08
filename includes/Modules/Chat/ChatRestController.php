@@ -44,7 +44,8 @@ use Stilus\Tiers\UsageTracker;
  */
 class ChatRestController {
 
-	private const NAMESPACE = 'stilus/v1';
+	private const NAMESPACE           = 'stilus/v1';
+	private const MAX_TOOL_ITERATIONS = 5;
 
 	/**
 	 * Inject the tool registry and executor used during AI tool-call loops.
@@ -338,7 +339,7 @@ class ChatRestController {
 				? $this->tool_registry->get_for_provider( $provider_slug )
 				: [];
 
-			$max_iterations = 5;
+			$max_iterations = self::MAX_TOOL_ITERATIONS;
 			$iteration      = 0;
 			$final_response = null;
 			$pending_plan   = null;

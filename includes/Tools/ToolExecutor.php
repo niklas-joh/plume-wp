@@ -394,20 +394,18 @@ class ToolExecutor {
 			return [ 'error' => 'Post type not permitted.' ];
 		}
 
-		$id   = \substr( \wp_generate_uuid4(), 0, 8 );
-		$data = [
-			'status'      => 'pending_approval',
-			'id'          => $id,
-			'plan_type'   => 'create',
-			'title'       => $title,
-			'outline'     => \sanitize_textarea_field( $args['outline'] ?? '' ),
-			'post_type'   => $post_type,
-			'post_status' => \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
-				? $args['status'] ?? 'draft'
-				: 'draft',
-		];
-
-		\set_transient( "stilus_plan_{$user_id}_{$id}", $data, HOUR_IN_SECONDS );
+		$data = $this->store_plan(
+			[
+				'plan_type'   => 'create',
+				'title'       => $title,
+				'outline'     => \sanitize_textarea_field( $args['outline'] ?? '' ),
+				'post_type'   => $post_type,
+				'post_status' => \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
+					? $args['status'] ?? 'draft'
+					: 'draft',
+			],
+			$user_id
+		);
 
 		return $data;
 	}
@@ -439,20 +437,34 @@ class ToolExecutor {
 			return [ 'error' => 'A description of changes is required.' ];
 		}
 
-		$id   = \substr( \wp_generate_uuid4(), 0, 8 );
-		$data = [
-			'status'      => 'pending_approval',
-			'id'          => $id,
-			'plan_type'   => 'update',
-			'post_id'     => $post_id,
-			'changes'     => $changes,
-			'post_status' => \in_array( $args['status'] ?? '', [ 'draft', 'publish', 'pending' ], true )
-				? $args['status']
-				: '',
-		];
+		$data = $this->store_plan(
+			[
+				'plan_type'   => 'update',
+				'post_id'     => $post_id,
+				'changes'     => $changes,
+				'post_status' => \in_array( $args['status'] ?? '', [ 'draft', 'publish', 'pending' ], true )
+					? $args['status']
+					: '',
+			],
+			$user_id
+		);
 
+		return $data;
+	}
+
+	/**
+	 * Persist a plan as a user-scoped transient and return the populated data array.
+	 *
+	 * @since 1.0.0
+	 * @param array $data    Plan fields (must not include 'id' or 'status').
+	 * @param int   $user_id WordPress user ID who owns the plan.
+	 * @return array Plan data including generated 'id' and 'status' => 'pending_approval'.
+	 */
+	private function store_plan( array $data, int $user_id ): array {
+		$id             = \substr( \wp_generate_uuid4(), 0, 8 );
+		$data['id']     = $id;
+		$data['status'] = 'pending_approval';
 		\set_transient( "stilus_plan_{$user_id}_{$id}", $data, HOUR_IN_SECONDS );
-
 		return $data;
 	}
 
