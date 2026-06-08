@@ -220,7 +220,7 @@ jobs:
 
                 gh pr create \
                   --title "fix: <title matching issue>" \
-                  --body "## Summary\n\nFixes #${{ github.event.issue.number }}\n\nOriginally reported during review of PR #${{ steps.parse.outputs.pr_number }}.\n\n<description of what changed and why>\n\n## Test plan\n\n- [ ] CI passes\n- [ ] Fix verified manually" \
+                  --body "## Summary\n\nCloses #${{ github.event.issue.number }}\n\nOriginally reported during review of PR #${{ steps.parse.outputs.pr_number }}.\n\n<description of what changed and why>\n\n## Test plan\n\n- [ ] CI passes\n- [ ] Fix verified manually" \
                   --base ${{ steps.parse.outputs.base_branch }} \
                   --repo ${{ github.repository }}
 
