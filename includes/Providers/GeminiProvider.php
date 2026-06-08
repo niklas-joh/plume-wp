@@ -146,6 +146,9 @@ class GeminiProvider extends AbstractProvider {
 		}
 		if ( ! empty( $request->tools ) ) {
 			$body['tools'] = $request->tools; // Already in Gemini wire format (functionDeclarations).
+			if ( $request->force_tool_use ) {
+				$body['tool_config'] = [ 'function_calling_config' => [ 'mode' => 'ANY' ] ];
+			}
 		}
 		$raw = $this->post( "/models/{$model}:generateContent", $body );
 		return $this->parse_response( $raw, $model );

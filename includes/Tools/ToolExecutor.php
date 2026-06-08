@@ -52,6 +52,9 @@ class ToolExecutor {
 			'get_pages'         => [ $this, 'get_pages' ],
 			'get_site_info'     => [ $this, 'get_site_info' ],
 			'generate_seo_meta' => [ $this, 'generate_seo_meta' ],
+			'plan_post'         => [ $this, 'plan_post' ],
+			'plan_update'       => [ $this, 'plan_update' ],
+			'chat_response'     => [ $this, 'chat_response' ],
 		];
 
 		if ( ! isset( $dispatch[ $tool_name ] ) ) {
@@ -363,6 +366,110 @@ class ToolExecutor {
 			'wp_version'   => $GLOBALS['wp_version'],
 			'active_theme' => \wp_get_theme()->get( 'Name' ),
 		];
+	}
+
+	/**
+	 * Store a pending post-creation plan for user approval.
+	 *
+	 * The plan is saved as a WordPress transient keyed by user ID + plan ID so that
+	 * only the owning user can execute it. Transient expires after one hour.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
+	 */
+	private function plan_post( array $args, int $user_id ): array {
+		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
+			return [ 'error' => 'Insufficient permissions.' ];
+		}
+
+		$title = \sanitize_text_field( $args['title'] ?? '' );
+		if ( '' === $title ) {
+			return [ 'error' => 'A post title is required.' ];
+		}
+
+		$post_type = \sanitize_key( $args['post_type'] ?? 'post' );
+		if ( ! \in_array( $post_type, $this->registry->allowed_post_types(), true ) ) {
+			return [ 'error' => 'Post type not permitted.' ];
+		}
+
+		$id   = \substr( \wp_generate_uuid4(), 0, 8 );
+		$data = [
+			'status'      => 'pending_approval',
+			'id'          => $id,
+			'plan_type'   => 'create',
+			'title'       => $title,
+			'outline'     => \sanitize_textarea_field( $args['outline'] ?? '' ),
+			'post_type'   => $post_type,
+			'post_status' => \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
+				? $args['status'] ?? 'draft'
+				: 'draft',
+		];
+
+		\set_transient( "stilus_plan_{$user_id}_{$id}", $data, HOUR_IN_SECONDS );
+
+		return $data;
+	}
+
+	/**
+	 * Store a pending post-update plan for user approval.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
+	 */
+	private function plan_update( array $args, int $user_id ): array {
+		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
+			return [ 'error' => 'Insufficient permissions.' ];
+		}
+
+		$post_id = \absint( $args['post_id'] ?? 0 );
+		if ( 0 === $post_id ) {
+			return [ 'error' => 'A valid post_id is required.' ];
+		}
+
+		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
+			return [ 'error' => 'Insufficient permissions to edit this post.' ];
+		}
+
+		$changes = \sanitize_textarea_field( $args['changes'] ?? '' );
+		if ( '' === $changes ) {
+			return [ 'error' => 'A description of changes is required.' ];
+		}
+
+		$id   = \substr( \wp_generate_uuid4(), 0, 8 );
+		$data = [
+			'status'      => 'pending_approval',
+			'id'          => $id,
+			'plan_type'   => 'update',
+			'post_id'     => $post_id,
+			'changes'     => $changes,
+			'post_status' => \in_array( $args['status'] ?? '', [ 'draft', 'publish', 'pending' ], true )
+				? $args['status']
+				: '',
+		];
+
+		\set_transient( "stilus_plan_{$user_id}_{$id}", $data, HOUR_IN_SECONDS );
+
+		return $data;
+	}
+
+	/**
+	 * Pass-through handler for the chat_response tool.
+	 *
+	 * The agentic loop exits when it detects this tool call and uses the message
+	 * directly. This handler exists so the dispatch table stays complete and
+	 * returns a valid array if somehow reached through the normal execute path.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
+	 */
+	private function chat_response( array $args, int $user_id ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $user_id required by dispatch signature.
+		return [ 'message' => $args['message'] ?? '' ];
 	}
 
 	/**

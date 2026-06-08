@@ -286,6 +286,9 @@ class ClaudeProvider extends AbstractProvider {
 		}
 		if ( ! empty( $request->tools ) ) {
 			$body['tools'] = $request->tools; // Already in Claude wire format from ToolRegistry.
+			if ( $request->force_tool_use ) {
+				$body['tool_choice'] = [ 'type' => 'any' ];
+			}
 		}
 		return $body;
 	}

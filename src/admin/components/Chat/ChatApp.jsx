@@ -204,13 +204,22 @@ export default function ChatApp() {
 					context_post_id: contextPostId ?? attachedPost?.id ?? 0,
 				},
 			} );
+			// Filter out internal plumbing tools from the passive indicator.
+			const passiveTools = ( res.tools_called ?? [] ).filter(
+				( t ) =>
+					! [ 'chat_response', 'plan_post', 'plan_update' ].includes(
+						t
+					)
+			);
 			setMessages( ( prev ) => [
 				...prev,
 				{
-					role: 'assistant',
-					content: res.content,
-					model: res.model,
-					tokens: res.tokens,
+					role:         'assistant',
+					content:      res.content,
+					model:        res.model,
+					tokens:       res.tokens,
+					pending_plan: res.pending_plan ?? null,
+					tools_used:   passiveTools.length > 0 ? passiveTools : null,
 				},
 			] );
 			if ( needsTitleUpdate ) {
