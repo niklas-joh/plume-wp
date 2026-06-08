@@ -1,4 +1,4 @@
-=== Stilus - Write and Design ===
+=== Stilus AI - Write and Design ===
 Contributors: njohansson
 Tags: ai, chatbot, openai, claude, content
 Requires at least: 6.4
@@ -12,7 +12,7 @@ AI-powered content co-pilot for WordPress.
 
 == Description ==
 
-Stilus - Write and Design integrates Claude (Anthropic), OpenAI, Google Gemini, and Ollama directly
+Stilus AI - Write and Design integrates Claude (Anthropic), OpenAI, Google Gemini, and Ollama directly
 into your WordPress dashboard, giving you AI assistance without leaving the editor.
 
 **Features:**

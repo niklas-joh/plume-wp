@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name:       Stilus - Write and Design
+ * Plugin Name:       Stilus AI - Write and Design
  * Plugin URI:        https://njohansson.eu/stilus/
- * Description:       AI-powered content co-pilot for WordPress.
+ * Description:       AI-powered content and design tool for WordPress.
  * Version:           1.8.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Niklas Johansson
- * Author URI:        https://njohansson.eu
+ * Author URI:        https://github.com/niklas-joh
  * License:           GPL-2.0-or-later
  * Text Domain:       stilus
  * Domain Path:       /languages
