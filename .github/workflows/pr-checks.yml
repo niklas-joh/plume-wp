@@ -138,7 +138,11 @@ jobs:
         with:
           node-version: '20'
 
-      - name: npm security audit
+      - name: npm security audit (plugin)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: npm security audit (stilus-proxy)
+        working-directory: stilus-proxy
         run: npm audit --omit=dev --audit-level=high
 
   # ── Cloud: Semgrep Security Scan ───────────────────────────────────────────
@@ -527,11 +531,11 @@ jobs:
         if: always()
         run: npx wp-env stop || true
 
-  # ── Vitest: Proxy namespace contract guard ─────────────────────────────────
-  # Permanent structural guard: Worker TypeScript must use /stilus/v1 URLs.
-  # Runs on any stilus-proxy/** change. ~5s, no secrets needed.
-  vitest-contract:
-    name: Vitest — Proxy namespace contract
+  # ── Vitest: Full proxy unit test suite ────────────────────────────────────
+  # Runs the complete stilus-proxy test suite (auth, webhook, tierSync,
+  # namespace-contract, etc.) on every stilus-proxy/** change.
+  vitest-proxy-unit:
+    name: Vitest — Proxy unit tests
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.proxy == 'true'
@@ -541,7 +545,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: 'stilus-proxy/.nvmrc'
           cache: 'npm'
           cache-dependency-path: stilus-proxy/package-lock.json
 
@@ -549,9 +553,9 @@ jobs:
         working-directory: stilus-proxy
         run: npm ci --no-audit --no-fund
 
-      - name: Run namespace contract tests
+      - name: Run proxy unit tests
         working-directory: stilus-proxy
-        run: npm test -- namespace-contract
+        run: npm test
 
   # ── Cloud: Real Integration Tests (live API calls) ─────────────────────────
   # Makes live Anthropic API calls and real proxy requests.
