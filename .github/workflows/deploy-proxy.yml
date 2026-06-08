@@ -24,6 +24,7 @@ jobs:
   deploy:
     name: wrangler deploy
     runs-on: ubuntu-latest
+    if: github.actor == 'niklas-joh'
     concurrency:
       group: worker-deploy
       cancel-in-progress: false
@@ -50,4 +51,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: stilus-proxy
-          command: deploy --env="" # explicit empty string targets top-level env; omitting it triggers a warning when named envs exist
+          command: deploy --env="dev" # targets stilus-proxy-dev; prod deploy happens in release.yml
