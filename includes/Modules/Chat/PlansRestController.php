@@ -31,7 +31,7 @@ class PlansRestController {
 	/**
 	 * Inject dependencies for plan execution.
 	 *
-	 * @since 1.0.0
+	 * @since 1.8.0
 	 * @param ToolExecutor $executor Tool executor to delegate create/update calls.
 	 */
 	public function __construct(
@@ -41,7 +41,7 @@ class PlansRestController {
 	/**
 	 * Register the /plans REST route.
 	 *
-	 * @since 1.0.0
+	 * @since 1.8.0
 	 * @return void
 	 */
 	public function register_routes(): void {
@@ -81,7 +81,7 @@ class PlansRestController {
 	/**
 	 * Execute a pending plan by creating or updating a post.
 	 *
-	 * @since 1.0.0
+	 * @since 1.8.0
 	 * @param \WP_REST_Request $request Incoming REST request with plan ID in path.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
@@ -136,7 +136,7 @@ class PlansRestController {
 	/**
 	 * Require edit_posts capability to execute plans.
 	 *
-	 * @since 1.0.0
+	 * @since 1.8.0
 	 * @return bool|\WP_Error
 	 */
 	public function check_permission(): bool|\WP_Error {
@@ -157,7 +157,7 @@ class PlansRestController {
 	/**
 	 * Convert a stored plan array into tool-executor arguments.
 	 *
-	 * @since 1.0.0
+	 * @since 1.8.0
 	 * @param array $plan Stored plan data from transient.
 	 * @return array
 	 */
