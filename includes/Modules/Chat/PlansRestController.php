@@ -140,11 +140,7 @@ class PlansRestController {
 			if ( ! empty( $plan['post_status'] ) ) {
 				$args['status'] = $plan['post_status'];
 			}
-			// changes become the content to update; the AI will fill in full content
-			// on the actual update — for now we pass it as a note in the post.
-			if ( ! empty( $plan['changes'] ) ) {
-				$args['content'] = $plan['changes'];
-			}
+			// TODO: pass AI-generated full post content once the update-generation flow is implemented.
 			return $args;
 		}
 
