@@ -23,8 +23,6 @@ jobs:
         with:
           # Open PRs only need the latest commit — full history is not required.
           fetch-depth: 1
-          # PAT required: GITHUB_TOKEN cannot push workflow-file changes (lacks `workflow` scope).
-          token: ${{ secrets.GH_PAT }}
 
       - name: Fetch and checkout PR head branch
         run: |
