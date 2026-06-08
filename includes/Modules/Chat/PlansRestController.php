@@ -157,6 +157,7 @@ class PlansRestController {
 	/**
 	 * Convert a stored plan array into tool-executor arguments.
 	 *
+	 * @since 1.0.0
 	 * @param array $plan Stored plan data from transient.
 	 * @return array
 	 */
