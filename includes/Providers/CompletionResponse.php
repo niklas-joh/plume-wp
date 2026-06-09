@@ -57,4 +57,26 @@ final class CompletionResponse {
 	public function is_tool_call(): bool {
 		return null !== $this->tool_call;
 	}
+
+	/**
+	 * Return a new instance with the content replaced.
+	 *
+	 * Used by the agentic loop to extract the message from a chat_response tool call
+	 * and treat it as the final text completion without mutating readonly properties.
+	 *
+	 * @since 1.0.0
+	 * @param string $text Replacement content.
+	 * @return static
+	 */
+	public function with_text( string $text ): self {
+		return new self(
+			content:           $text,
+			model:             $this->model,
+			prompt_tokens:     $this->prompt_tokens,
+			completion_tokens: $this->completion_tokens,
+			cost_usd:          $this->cost_usd,
+			raw:               $this->raw,
+			tool_call:         null,
+		);
+	}
 }

@@ -52,6 +52,9 @@ class ToolExecutor {
 			'get_pages'         => [ $this, 'get_pages' ],
 			'get_site_info'     => [ $this, 'get_site_info' ],
 			'generate_seo_meta' => [ $this, 'generate_seo_meta' ],
+			'plan_post'         => [ $this, 'plan_post' ],
+			'plan_update'       => [ $this, 'plan_update' ],
+			'chat_response'     => [ $this, 'chat_response' ],
 		];
 
 		if ( ! isset( $dispatch[ $tool_name ] ) ) {
@@ -138,10 +141,7 @@ class ToolExecutor {
 			}
 		}
 
-		$content = \wp_trim_words(
-			\wp_strip_all_tags( \apply_filters( 'the_content', $post->post_content ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-			500
-		);
+		$content = \wp_strip_all_tags( \apply_filters( 'the_content', $post->post_content ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 		return [
 			'id'      => $post->ID,
@@ -293,6 +293,10 @@ class ToolExecutor {
 				: 'draft';
 		}
 
+		if ( 1 === count( $update_data ) ) {
+			return [ 'error' => 'No fields to update were provided.' ];
+		}
+
 		$result = \wp_update_post( $update_data, true );
 
 		if ( \is_wp_error( $result ) ) {
@@ -363,6 +367,132 @@ class ToolExecutor {
 			'wp_version'   => $GLOBALS['wp_version'],
 			'active_theme' => \wp_get_theme()->get( 'Name' ),
 		];
+	}
+
+	/**
+	 * Store a pending post-creation plan for user approval.
+	 *
+	 * The plan is saved as a WordPress transient keyed by user ID + plan ID so that
+	 * only the owning user can execute it. Transient expires after one hour.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
+	 */
+	private function plan_post( array $args, int $user_id ): array {
+		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
+			return [ 'error' => 'Insufficient permissions.' ];
+		}
+
+		$title = \sanitize_text_field( $args['title'] ?? '' );
+		if ( '' === $title ) {
+			return [ 'error' => 'A post title is required.' ];
+		}
+
+		$post_type = \sanitize_key( $args['post_type'] ?? 'post' );
+		if ( ! \in_array( $post_type, $this->registry->allowed_post_types(), true ) ) {
+			return [ 'error' => 'Post type not permitted.' ];
+		}
+
+		$data = $this->store_plan(
+			[
+				'plan_type'   => 'create',
+				'title'       => $title,
+				'outline'     => \sanitize_textarea_field( $args['outline'] ?? '' ),
+				'post_type'   => $post_type,
+				'post_status' => \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
+					? $args['status'] ?? 'draft'
+					: 'draft',
+			],
+			$user_id
+		);
+
+		return $data;
+	}
+
+	/**
+	 * Store a pending post-update plan for user approval.
+	 *
+	 * Requires both a human-readable change summary and the full updated content
+	 * so that the approval step can apply real changes via update_post.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
+	 */
+	private function plan_update( array $args, int $user_id ): array {
+		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
+			return [ 'error' => 'Insufficient permissions.' ];
+		}
+
+		$post_id = \absint( $args['post_id'] ?? 0 );
+		if ( 0 === $post_id ) {
+			return [ 'error' => 'A valid post_id is required.' ];
+		}
+
+		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
+			return [ 'error' => 'Insufficient permissions to edit this post.' ];
+		}
+
+		$changes = \sanitize_textarea_field( $args['changes'] ?? '' );
+		if ( '' === $changes ) {
+			return [ 'error' => 'A description of changes is required.' ];
+		}
+
+		$new_content = \wp_kses_post( $args['new_content'] ?? '' );
+		if ( '' === $new_content ) {
+			return [ 'error' => 'The updated post content (new_content) is required.' ];
+		}
+
+		$plan_data = [
+			'plan_type'   => 'update',
+			'post_id'     => $post_id,
+			'changes'     => $changes,
+			'new_content' => $new_content,
+			'post_status' => \in_array( $args['status'] ?? '', [ 'draft', 'publish', 'pending' ], true )
+				? $args['status']
+				: '',
+		];
+
+		if ( ! empty( $args['new_title'] ) ) {
+			$plan_data['new_title'] = \sanitize_text_field( $args['new_title'] );
+		}
+
+		return $this->store_plan( $plan_data, $user_id );
+	}
+
+	/**
+	 * Persist a plan as a user-scoped transient and return the populated data array.
+	 *
+	 * @since 1.0.0
+	 * @param array $data    Plan fields (must not include 'id' or 'status').
+	 * @param int   $user_id WordPress user ID who owns the plan.
+	 * @return array Plan data including generated 'id' and 'status' => 'pending_approval'.
+	 */
+	private function store_plan( array $data, int $user_id ): array {
+		$id             = \substr( \wp_generate_uuid4(), 0, 8 );
+		$data['id']     = $id;
+		$data['status'] = 'pending_approval';
+		\set_transient( "stilus_plan_{$user_id}_{$id}", $data, HOUR_IN_SECONDS );
+		return $data;
+	}
+
+	/**
+	 * Pass-through handler for the chat_response tool.
+	 *
+	 * The agentic loop exits when it detects this tool call and uses the message
+	 * directly. This handler exists so the dispatch table stays complete and
+	 * returns a valid array if somehow reached through the normal execute path.
+	 *
+	 * @since 1.0.0
+	 * @param array $args    Tool arguments from the AI provider.
+	 * @param int   $user_id WordPress user ID performing the call.
+	 * @return array
+	 */
+	private function chat_response( array $args, int $user_id ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $user_id required by dispatch signature.
+		return [ 'message' => $args['message'] ?? '' ];
 	}
 
 	/**

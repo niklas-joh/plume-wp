@@ -161,7 +161,7 @@ class OpenAIProvider extends AbstractProvider {
 		];
 		if ( ! empty( $request->tools ) ) {
 			$body['tools']       = $request->tools; // Already in OpenAI wire format from ToolRegistry.
-			$body['tool_choice'] = 'auto';
+			$body['tool_choice'] = $request->force_tool_use ? 'required' : 'auto';
 		}
 		$raw = $this->post( '/chat/completions', $body );
 		return $this->parse_response( $raw, $model );

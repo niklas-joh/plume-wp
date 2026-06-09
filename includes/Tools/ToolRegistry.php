@@ -88,6 +88,23 @@ class ToolRegistry {
 	 */
 	private function register_tools(): void {
 		$this->tools[] = new ToolDefinition(
+			name:                'chat_response',
+			description:         'Send a conversational reply to the user. Call this tool for EVERY response — acknowledgements, explanations, answers, summaries, and follow-ups after completing an action. This is the only way to deliver text back to the user.',
+			parameters:          [
+				'type'       => 'object',
+				'properties' => [
+					'message' => [
+						'type'        => 'string',
+						'description' => 'The reply to display to the user.',
+					],
+				],
+				'required'   => [ 'message' ],
+			],
+			capability:          'read',
+			requires_write_tools: false,
+		);
+
+		$this->tools[] = new ToolDefinition(
 			name: 'get_recent_posts',
 			description: 'Get a list of recent posts from the WordPress site',
 			parameters: [
@@ -191,7 +208,7 @@ class ToolRegistry {
 
 		$this->tools[] = new ToolDefinition(
 			name:                'plan_post',
-			description:         'Propose a new WordPress blog post or page for user approval. Use this instead of create_post. Provide a title, publication status, and a brief outline of what the post will cover. Do not write the full content — the content will be generated after the user approves the plan.',
+			description:         'Propose a new WordPress blog post or page for user approval. Call this tool whenever the user asks you to write, create, draft, or generate a post or page. Provide a title and a brief outline — do not write the full content, that happens after the user approves.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [
@@ -222,25 +239,33 @@ class ToolRegistry {
 
 		$this->tools[] = new ToolDefinition(
 			name:                'plan_update',
-			description:         'Propose an update to an existing WordPress post for user approval. Provide the post_id and a description of the changes to make. Do not write the full content — it will be generated after the user approves.',
+			description:         'Propose an update to an existing WordPress post for user approval. Call this tool whenever the user asks you to edit, update, revise, improve, or change a post. First retrieve the post content with get_post_content, then provide a human-readable summary of changes AND the full updated content that will be applied when the user approves.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [
-					'post_id' => [
+					'post_id'     => [
 						'type'        => 'integer',
 						'description' => 'The ID of the post to update.',
 					],
-					'changes' => [
+					'changes'     => [
 						'type'        => 'string',
-						'description' => 'Description of what to add, change, or remove. Be specific (e.g. "Add stages 3 and 4, matching the tone of stage 1").',
+						'description' => 'Human-readable summary of what is being changed. Shown to the user on the approval card (e.g. "Made the intro punchier and tightened the conclusion").',
 					],
-					'status'  => [
+					'new_content' => [
+						'type'        => 'string',
+						'description' => 'The complete updated post content to apply if the user approves. Must be the full post body, not a diff or partial snippet.',
+					],
+					'new_title'   => [
+						'type'        => 'string',
+						'description' => 'The updated post title, if it is also changing. Omit if the title stays the same.',
+					],
+					'status'      => [
 						'type'        => 'string',
 						'enum'        => [ 'draft', 'publish', 'pending' ],
 						'description' => 'New publication status, if changing.',
 					],
 				],
-				'required'   => [ 'post_id', 'changes' ],
+				'required'   => [ 'post_id', 'changes', 'new_content' ],
 			],
 			capability:          'edit_posts',
 			requires_write_tools: true,

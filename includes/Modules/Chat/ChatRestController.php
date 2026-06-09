@@ -44,7 +44,8 @@ use Stilus\Tiers\UsageTracker;
  */
 class ChatRestController {
 
-	private const NAMESPACE = 'stilus/v1';
+	private const NAMESPACE           = 'stilus/v1';
+	private const MAX_TOOL_ITERATIONS = 5;
 
 	/**
 	 * Inject the tool registry and executor used during AI tool-call loops.
@@ -338,22 +339,25 @@ class ChatRestController {
 				? $this->tool_registry->get_for_provider( $provider_slug )
 				: [];
 
-			$max_iterations = 5;
+			$max_iterations = self::MAX_TOOL_ITERATIONS;
 			$iteration      = 0;
 			$final_response = null;
+			$pending_plan   = null;
+			$tools_called   = [];
 
 			while ( $iteration < $max_iterations ) {
 				++$iteration;
 
 				$req = new CompletionRequest(
-					messages:    $messages,
-					system:      $system,
-					model:       $model,
-					metadata:    [
+					messages:       $messages,
+					system:         $system,
+					model:          $model,
+					metadata:       [
 						'feature' => 'chat',
 						'post_id' => null,
 					],
-					tools:       $tools,
+					tools:          $tools,
+					force_tool_use: ! empty( $tools ),
 				);
 
 				$response = $provider->complete( $req );
@@ -365,6 +369,7 @@ class ChatRestController {
 					);
 				}
 
+				// Bare text response — happens when tools are not supported by the provider.
 				if ( ! $response->is_tool_call() ) {
 					$final_response = $response;
 					break;
@@ -388,15 +393,35 @@ class ChatRestController {
 					];
 				}
 
-				// Execute every tool and collect results keyed by tool_use id.
+				// Detect chat_response tool — the model's exit signal.
+				$chat_response_tu = null;
+				foreach ( $all_tool_uses as $tu ) {
+					if ( 'chat_response' === ( $tu['name'] ?? '' ) ) {
+						$chat_response_tu = $tu;
+						break;
+					}
+				}
+
+				// Execute all non-chat_response tools and collect results.
 				$tool_results = [];
 				foreach ( $all_tool_uses as $tu ) {
-					$arguments                 = $tu['input'] ?? [];
-					$tool_results[ $tu['id'] ] = $this->tool_executor->execute(
-						$tu['name'],
-						$arguments,
-						$user_id
-					);
+					if ( 'chat_response' === ( $tu['name'] ?? '' ) ) {
+						continue;
+					}
+					$tool_name                 = $tu['name'];
+					$result                    = $this->tool_executor->execute( $tool_name, $tu['input'] ?? [], $user_id );
+					$tool_results[ $tu['id'] ] = $result;
+					$tools_called[]            = $tool_name;
+
+					if ( 'pending_approval' === ( $result['status'] ?? '' ) ) {
+						$pending_plan = $result;
+					}
+				}
+
+				// If the model included chat_response, use its message as the final text and exit.
+				if ( null !== $chat_response_tu ) {
+					$final_response = $response->with_text( $chat_response_tu['input']['message'] ?? '' );
+					break;
 				}
 
 				$messages = $this->append_tool_exchange( $messages, $provider_slug, $response, $tool_results );
@@ -413,10 +438,12 @@ class ChatRestController {
 
 			return rest_ensure_response(
 				[
-					'content'  => $final_response->content,
-					'model'    => $final_response->model,
-					'tokens'   => $final_response->total_tokens,
-					'cost_usd' => $final_response->cost_usd,
+					'content'      => $final_response->content,
+					'model'        => $final_response->model,
+					'tokens'       => $final_response->total_tokens,
+					'cost_usd'     => $final_response->cost_usd,
+					'pending_plan' => $pending_plan,
+					'tools_called' => \array_values( \array_unique( $tools_called ) ),
 				]
 			);
 		} catch ( ProviderException $e ) {
