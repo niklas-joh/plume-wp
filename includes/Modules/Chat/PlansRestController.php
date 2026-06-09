@@ -173,7 +173,7 @@ class PlansRestController {
 		if ( 'update' === ( $plan['plan_type'] ?? 'create' ) ) {
 			$args = [
 				'post_id' => $plan['post_id'],
-				'content' => $plan['new_content'],
+				'content' => $plan['new_content'] ?? '',
 			];
 			if ( ! empty( $plan['new_title'] ) ) {
 				$args['title'] = $plan['new_title'];
