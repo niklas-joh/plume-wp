@@ -47,8 +47,6 @@ class ToolExecutor {
 			'get_recent_posts'  => [ $this, 'get_recent_posts' ],
 			'get_post_content'  => [ $this, 'get_post_content' ],
 			'search_posts'      => [ $this, 'search_posts' ],
-			'create_post'       => [ $this, 'create_post' ],
-			'update_post'       => [ $this, 'update_post' ],
 			'get_pages'         => [ $this, 'get_pages' ],
 			'get_site_info'     => [ $this, 'get_site_info' ],
 			'generate_seo_meta' => [ $this, 'generate_seo_meta' ],
@@ -198,115 +196,6 @@ class ToolExecutor {
 		\wp_reset_postdata();
 
 		return [ 'posts' => $posts ];
-	}
-
-	/**
-	 * Create a new post or page.
-	 *
-	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
-	 */
-	private function create_post( array $args, int $user_id ): array {
-		if ( ! (bool) \get_option( 'stilus_enable_write_tools', false ) ) {
-			return [ 'error' => 'Write tools are disabled.' ];
-		}
-
-		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
-			return [ 'error' => 'Insufficient permissions.' ];
-		}
-
-		$post_type = \sanitize_key( $args['post_type'] ?? 'post' );
-		if ( ! \in_array( $post_type, $this->registry->allowed_post_types(), true ) ) {
-			return [ 'error' => 'Post type not permitted.' ];
-		}
-
-		$title = \sanitize_text_field( $args['title'] ?? '' );
-		if ( '' === $title ) {
-			return [ 'error' => 'A post title is required.' ];
-		}
-
-		$content = \wp_kses_post( $args['content'] ?? '' );
-		$status  = \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
-			? $args['status']
-			: 'draft';
-
-		$post_id = \wp_insert_post(
-			[
-				'post_title'   => $title,
-				'post_content' => $content,
-				'post_status'  => $status,
-				'post_type'    => $post_type,
-				'post_author'  => $user_id,
-			],
-			true
-		);
-
-		if ( \is_wp_error( $post_id ) ) {
-			return [ 'error' => $post_id->get_error_message() ];
-		}
-
-		return [
-			'post_id'  => $post_id,
-			'edit_url' => \get_edit_post_link( $post_id, 'raw' ),
-			'title'    => $title,
-			'status'   => $status,
-		];
-	}
-
-	/**
-	 * Update an existing post or page.
-	 *
-	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
-	 */
-	private function update_post( array $args, int $user_id ): array {
-		if ( ! (bool) \get_option( 'stilus_enable_write_tools', false ) ) {
-			return [ 'error' => 'Write tools are disabled.' ];
-		}
-
-		$post_id = \absint( $args['post_id'] ?? 0 );
-		if ( 0 === $post_id ) {
-			return [ 'error' => 'A valid post_id is required.' ];
-		}
-
-		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
-			return [ 'error' => 'Insufficient permissions.' ];
-		}
-
-		$update_data = [ 'ID' => $post_id ];
-
-		if ( isset( $args['title'] ) ) {
-			$update_data['post_title'] = \sanitize_text_field( $args['title'] );
-		}
-
-		if ( isset( $args['content'] ) ) {
-			$update_data['post_content'] = \wp_kses_post( $args['content'] );
-		}
-
-		if ( isset( $args['status'] ) ) {
-			$update_data['post_status'] = \in_array( $args['status'], [ 'draft', 'publish', 'pending', 'private', 'trash' ], true )
-				? $args['status']
-				: 'draft';
-		}
-
-		if ( 1 === count( $update_data ) ) {
-			return [ 'error' => 'No fields to update were provided.' ];
-		}
-
-		$result = \wp_update_post( $update_data, true );
-
-		if ( \is_wp_error( $result ) ) {
-			return [ 'error' => $result->get_error_message() ];
-		}
-
-		return [
-			'post_id' => $post_id,
-			'updated' => true,
-		];
 	}
 
 	/**

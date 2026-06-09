@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Stilus\Tools\ToolExecutor;
+use Stilus\Tools\PostWriter;
 
 /**
  * REST controller for pending plan execution.
@@ -32,10 +32,10 @@ class PlansRestController {
 	 * Inject dependencies for plan execution.
 	 *
 	 * @since 1.8.0
-	 * @param ToolExecutor $executor Tool executor to delegate create/update calls.
+	 * @param PostWriter $post_writer PostWriter service for create/update operations.
 	 */
 	public function __construct(
-		private ToolExecutor $executor,
+		private PostWriter $post_writer,
 	) {}
 
 	/**
@@ -119,9 +119,10 @@ class PlansRestController {
 			$plan['post_status'] = $status_override;
 		}
 
-		$tool_name = 'update' === ( $plan['plan_type'] ?? 'create' ) ? 'update_post' : 'create_post';
-		$args      = $this->plan_to_tool_args( $plan );
-		$result    = $this->executor->execute( $tool_name, $args, $user_id );
+		$args   = $this->plan_to_tool_args( $plan );
+		$result = 'update' === ( $plan['plan_type'] ?? 'create' )
+			? $this->post_writer->update( $args, $user_id )
+			: $this->post_writer->create( $args, $user_id );
 
 		if ( isset( $result['error'] ) ) {
 			return new \WP_Error(
@@ -182,14 +183,21 @@ class PlansRestController {
 			if ( ! empty( $plan['post_status'] ) ) {
 				$args['status'] = $plan['post_status'];
 			}
+			if ( ! empty( $plan['meta_fields'] ) ) {
+				$args['meta_fields'] = $plan['meta_fields'];
+			}
 			return $args;
 		}
 
-		return [
+		$args = [
 			'title'     => $plan['title'],
 			'content'   => $plan['outline'] ?? '',
 			'status'    => $plan['post_status'] ?? 'draft',
 			'post_type' => $plan['post_type'] ?? 'post',
 		];
+		if ( ! empty( $plan['meta_fields'] ) ) {
+			$args['meta_fields'] = $plan['meta_fields'];
+		}
+		return $args;
 	}
 }

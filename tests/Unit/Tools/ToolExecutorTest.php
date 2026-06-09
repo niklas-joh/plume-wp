@@ -117,26 +117,6 @@ class ToolExecutorTest extends TestCase {
 	}
 
 	// -------------------------------------------------------------------------
-	// create_post
-	// -------------------------------------------------------------------------
-
-	public function test_create_post_blocked_when_write_tools_disabled(): void {
-		Functions\when( 'get_option' )
-			->alias( static function ( string $key, $default = false ) {
-				if ( 'stilus_enable_write_tools' === $key ) {
-					return false;
-				}
-				return $default;
-			} );
-
-		$executor = $this->make_executor();
-		$result   = $executor->execute( 'create_post', [ 'title' => 'Test' ], 1 );
-
-		$this->assertArrayHasKey( 'error', $result );
-		$this->assertStringContainsString( 'disabled', strtolower( $result['error'] ) );
-	}
-
-	// -------------------------------------------------------------------------
 	// generate_seo_meta
 	// -------------------------------------------------------------------------
 
@@ -241,50 +221,6 @@ class ToolExecutorTest extends TestCase {
 
 		$this->assertArrayHasKey( 'error', $result );
 		$this->assertStringContainsString( 'limit', strtolower( $result['error'] ) );
-	}
-
-	// -------------------------------------------------------------------------
-	// update_post
-	// -------------------------------------------------------------------------
-
-	public function test_update_post_blocked_without_edit_post_cap(): void {
-		Functions\when( 'get_option' )
-			->alias( static function ( string $key, $default = false ) {
-				if ( 'stilus_enable_write_tools' === $key ) {
-					return true;
-				}
-				return $default;
-			} );
-
-		Functions\when( 'absint' )->alias( static fn( $v ) => (int) abs( $v ) );
-
-		// user_can returns false for edit_post check.
-		Functions\when( 'user_can' )->justReturn( false );
-
-		$executor = $this->make_executor();
-		$result   = $executor->execute( 'update_post', [ 'post_id' => 5, 'title' => 'New title' ], 1 );
-
-		$this->assertArrayHasKey( 'error', $result );
-		$this->assertStringContainsString( 'permissions', strtolower( $result['error'] ) );
-	}
-
-	public function test_update_post_returns_error_when_no_fields_provided(): void {
-		Functions\when( 'get_option' )
-			->alias( static function ( string $key, $default = false ) {
-				if ( 'stilus_enable_write_tools' === $key ) {
-					return true;
-				}
-				return $default;
-			} );
-
-		Functions\when( 'absint' )->alias( static fn( $v ) => (int) abs( $v ) );
-		Functions\when( 'user_can' )->justReturn( true );
-
-		$executor = $this->make_executor();
-		$result   = $executor->execute( 'update_post', [ 'post_id' => 5 ], 1 );
-
-		$this->assertArrayHasKey( 'error', $result );
-		$this->assertStringContainsString( 'No fields', $result['error'] );
 	}
 
 	// -------------------------------------------------------------------------
