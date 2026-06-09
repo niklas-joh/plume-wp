@@ -58,7 +58,7 @@ export default function PlanCard( { plan, onDismiss } ) {
 		setError( null );
 		try {
 			const body = isUpdate
-				? { new_content: editOutline, new_title: editTitle || undefined, status: editStatus }
+				? { new_content: editOutline, new_title: editTitle !== '' ? editTitle : undefined, status: editStatus }
 				: {
 						title: editTitle,
 						outline: editOutline,

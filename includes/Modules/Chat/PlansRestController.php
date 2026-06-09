@@ -107,6 +107,7 @@ class PlansRestController {
 		}
 
 		// Merge request-body overrides so users can edit the plan before confirming.
+		// 'outline' is only meaningful for create plans; it is harmlessly ignored by plan_to_tool_args for update plans.
 		foreach ( [ 'title', 'outline', 'changes', 'new_content', 'new_title' ] as $field ) {
 			$val = $request->get_param( $field );
 			if ( null !== $val ) {
