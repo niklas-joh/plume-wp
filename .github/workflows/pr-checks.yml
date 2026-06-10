@@ -25,6 +25,7 @@ jobs:
   changes:
     name: Detect file changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       php: ${{ steps.filter.outputs.php }}
       js: ${{ steps.filter.outputs.js }}
@@ -60,6 +61,7 @@ jobs:
   phpstan:
     name: PHPStan — Static Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: changes
     if: needs.changes.outputs.php == 'true'
     steps:
@@ -89,6 +91,7 @@ jobs:
   php-compat:
     name: PHP Compat — ${{ matrix.php }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: changes
     if: needs.changes.outputs.php == 'true'
     strategy:
@@ -121,6 +124,7 @@ jobs:
   security:
     name: Security — Dependency Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -151,6 +155,7 @@ jobs:
   semgrep:
     name: Semgrep — Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -195,6 +200,7 @@ jobs:
   plugin-check:
     name: WP Plugin Check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: changes
     permissions:
       contents: read
@@ -395,6 +401,7 @@ jobs:
   lighthouse:
     name: Lighthouse — Performance Budget
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -459,6 +466,7 @@ jobs:
   e2e:
     name: E2E — Playwright (wp-env on Ubuntu)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: changes
     if: needs.changes.outputs.e2e == 'true'
     steps:
@@ -490,8 +498,26 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      # The Playwright CDN download has been seen to stall indefinitely after
+      # completing (PR #721 burnt the full 6-hour job limit). Caching the
+      # browser binaries avoids the download entirely on most runs, and the
+      # step-level timeout makes any remaining stall fail fast.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
         run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright OS dependencies (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 5
+        run: npx playwright install-deps chromium
 
       - name: Start wp-env
         run: npx wp-env start
@@ -537,6 +563,7 @@ jobs:
   vitest-proxy-unit:
     name: Vitest — Proxy unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: changes
     if: needs.changes.outputs.proxy == 'true'
     steps:
@@ -564,6 +591,7 @@ jobs:
   real-integration:
     name: Real Integration — live Anthropic API
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: changes
     if: needs.changes.outputs.php == 'true' || needs.changes.outputs.proxy == 'true'
     steps:
@@ -644,6 +672,7 @@ jobs:
   integration:
     name: PHP Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [changes]
     if: needs.changes.outputs.php == 'true'
     steps:
