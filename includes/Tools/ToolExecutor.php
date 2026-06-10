@@ -52,7 +52,6 @@ class ToolExecutor {
 			'generate_seo_meta' => [ $this, 'generate_seo_meta' ],
 			'plan_post'         => [ $this, 'plan_post' ],
 			'plan_update'       => [ $this, 'plan_update' ],
-			'chat_response'     => [ $this, 'chat_response' ],
 		];
 
 		if ( ! isset( $dispatch[ $tool_name ] ) ) {
@@ -284,10 +283,16 @@ class ToolExecutor {
 			return [ 'error' => 'Post type not permitted.' ];
 		}
 
+		$content = \wp_kses_post( $args['content'] ?? '' );
+		if ( '' === $content ) {
+			return [ 'error' => 'The full post content (content) is required.' ];
+		}
+
 		$plan_data = [
 			'plan_type'   => 'create',
 			'title'       => $title,
 			'outline'     => \sanitize_textarea_field( $args['outline'] ?? '' ),
+			'content'     => $content,
 			'post_type'   => $post_type,
 			'post_status' => \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
 				? $args['status'] ?? 'draft'
@@ -358,6 +363,20 @@ class ToolExecutor {
 	}
 
 	/**
+	 * Returns the WordPress transient key for a user-scoped plan.
+	 *
+	 * Centralised here so ToolExecutor and PlansRestController always use the same format.
+	 *
+	 * @since 1.9.0
+	 * @param int    $user_id WordPress user ID who owns the plan.
+	 * @param string $plan_id Plan identifier (8-character UUID fragment).
+	 * @return string
+	 */
+	public static function plan_transient_key( int $user_id, string $plan_id ): string {
+		return "stilus_plan_{$user_id}_{$plan_id}";
+	}
+
+	/**
 	 * Persist a plan as a user-scoped transient and return the populated data array.
 	 *
 	 * @since 1.0.0
@@ -369,24 +388,8 @@ class ToolExecutor {
 		$id             = \substr( \wp_generate_uuid4(), 0, 8 );
 		$data['id']     = $id;
 		$data['status'] = 'pending_approval';
-		\set_transient( "stilus_plan_{$user_id}_{$id}", $data, HOUR_IN_SECONDS );
+		\set_transient( self::plan_transient_key( $user_id, $id ), $data, HOUR_IN_SECONDS );
 		return $data;
-	}
-
-	/**
-	 * Pass-through handler for the chat_response tool.
-	 *
-	 * The agentic loop exits when it detects this tool call and uses the message
-	 * directly. This handler exists so the dispatch table stays complete and
-	 * returns a valid array if somehow reached through the normal execute path.
-	 *
-	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
-	 */
-	private function chat_response( array $args, int $user_id ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $user_id required by dispatch signature.
-		return [ 'message' => $args['message'] ?? '' ];
 	}
 
 	/**

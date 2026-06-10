@@ -13,7 +13,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use Stilus\Core\RestApi;
 use Stilus\Tools\PostWriter;
+use Stilus\Tools\ToolExecutor;
 
 /**
  * REST controller for pending plan execution.
@@ -26,12 +28,11 @@ use Stilus\Tools\PostWriter;
  */
 class PlansRestController {
 
-	private const NAMESPACE = 'stilus/v1';
-
 	/**
 	 * Inject dependencies for plan execution.
 	 *
 	 * @since 1.8.0
+	 * @since 1.9.0 Replaced the ToolExecutor dependency with PostWriter.
 	 * @param PostWriter $post_writer PostWriter service for create/update operations.
 	 */
 	public function __construct(
@@ -46,7 +47,7 @@ class PlansRestController {
 	 */
 	public function register_routes(): void {
 		\register_rest_route(
-			self::NAMESPACE,
+			RestApi::API_NAMESPACE,
 			'/plans/(?P<id>[a-f0-9]+)/execute',
 			[
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -64,6 +65,10 @@ class PlansRestController {
 					'outline'     => [
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_textarea_field',
+					],
+					'content'     => [
+						'type'              => 'string',
+						'sanitize_callback' => 'wp_kses_post',
 					],
 					'changes'     => [
 						'type'              => 'string',
@@ -97,7 +102,7 @@ class PlansRestController {
 		$user_id = \get_current_user_id();
 		$plan_id = $request->get_param( 'id' );
 
-		$plan = \get_transient( "stilus_plan_{$user_id}_{$plan_id}" );
+		$plan = \get_transient( ToolExecutor::plan_transient_key( $user_id, $plan_id ) );
 		if ( false === $plan ) {
 			return new \WP_Error(
 				'plan_not_found',
@@ -107,8 +112,8 @@ class PlansRestController {
 		}
 
 		// Merge request-body overrides so users can edit the plan before confirming.
-		// 'outline' is only meaningful for create plans; it is harmlessly ignored by plan_to_tool_args for update plans.
-		foreach ( [ 'title', 'outline', 'changes', 'new_content', 'new_title' ] as $field ) {
+		// 'outline'/'content' are only meaningful for create plans; they are harmlessly ignored by plan_to_tool_args for update plans.
+		foreach ( [ 'title', 'outline', 'content', 'changes', 'new_content', 'new_title' ] as $field ) {
 			$val = $request->get_param( $field );
 			if ( null !== $val ) {
 				$plan[ $field ] = $val;
@@ -132,7 +137,7 @@ class PlansRestController {
 			);
 		}
 
-		\delete_transient( "stilus_plan_{$user_id}_{$plan_id}" );
+		\delete_transient( ToolExecutor::plan_transient_key( $user_id, $plan_id ) );
 
 		return new \WP_REST_Response(
 			[
@@ -191,7 +196,8 @@ class PlansRestController {
 
 		$args = [
 			'title'     => $plan['title'],
-			'content'   => $plan['outline'] ?? '',
+			// Older pending plans stored before content became required only carry an outline.
+			'content'   => ! empty( $plan['content'] ) ? $plan['content'] : ( $plan['outline'] ?? '' ),
 			'status'    => $plan['post_status'] ?? 'draft',
 			'post_type' => $plan['post_type'] ?? 'post',
 		];
