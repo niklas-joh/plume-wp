@@ -186,7 +186,7 @@ class ToolRegistry {
 					],
 					'content'   => [
 						'type'        => 'string',
-						'description' => 'The post body content.',
+						'description' => 'The post body content, written in Markdown. It is converted to WordPress blocks automatically on save.',
 					],
 					'status'    => [
 						'type'        => 'string',
@@ -253,7 +253,7 @@ class ToolRegistry {
 					],
 					'new_content' => [
 						'type'        => 'string',
-						'description' => 'The complete updated post content to apply if the user approves. Must be the full post body, not a diff or partial snippet.',
+						'description' => 'The complete updated post content to apply if the user approves. Must be the full post body, not a diff or partial snippet. Write it in Markdown; it is converted to WordPress blocks automatically when applied.',
 					],
 					'new_title'   => [
 						'type'        => 'string',
@@ -286,7 +286,7 @@ class ToolRegistry {
 					],
 					'content' => [
 						'type'        => 'string',
-						'description' => 'New post body content.',
+						'description' => 'New post body content, written in Markdown. It is converted to WordPress blocks automatically on save.',
 					],
 					'status'  => [
 						'type'        => 'string',
