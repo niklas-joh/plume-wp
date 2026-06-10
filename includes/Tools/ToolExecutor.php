@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use Stilus\Content\ContentNormaliser;
+
 /**
  * Executes tool calls on behalf of an authenticated user.
  *
@@ -26,9 +28,13 @@ class ToolExecutor {
 	 * Inject the tool registry needed to validate allowed post types.
 	 *
 	 * @since 1.0.0
-	 * @param ToolRegistry $registry The tool registry instance.
+	 * @param ToolRegistry      $registry   The tool registry instance.
+	 * @param ContentNormaliser $normaliser Converts AI markdown to block markup before save.
 	 */
-	public function __construct( private ToolRegistry $registry ) {}
+	public function __construct(
+		private ToolRegistry $registry,
+		private ContentNormaliser $normaliser = new ContentNormaliser(),
+	) {}
 
 	// -------------------------------------------------------------------------
 	// Dispatch
@@ -227,9 +233,9 @@ class ToolExecutor {
 			return [ 'error' => 'A post title is required.' ];
 		}
 
-		$content = \wp_kses_post( $args['content'] ?? '' );
+		$content = \wp_kses_post( $this->normaliser->normalise( (string) ( $args['content'] ?? '' ) ) );
 		$status  = \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
-			? $args['status']
+			? ( $args['status'] ?? 'draft' )
 			: 'draft';
 
 		$post_id = \wp_insert_post(
@@ -284,7 +290,7 @@ class ToolExecutor {
 		}
 
 		if ( isset( $args['content'] ) ) {
-			$update_data['post_content'] = \wp_kses_post( $args['content'] );
+			$update_data['post_content'] = \wp_kses_post( $this->normaliser->normalise( (string) $args['content'] ) );
 		}
 
 		if ( isset( $args['status'] ) ) {
