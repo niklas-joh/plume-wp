@@ -43,7 +43,7 @@ export default function PlanCard( { plan, onDismiss } ) {
 	);
 	const [ editContent, setEditContent ] = useState(
 		isUpdate
-			? plan.new_content ?? plan.outline ?? plan.changes ?? ''
+			? plan.new_content ?? ''
 			: plan.content ?? plan.outline ?? ''
 	);
 	const [ editStatus, setEditStatus ] = useState(

@@ -721,11 +721,11 @@ class ChatRestController {
 
 		// Fall back to the single tool_call extracted by the provider if raw parsing found nothing.
 		if ( empty( $tool_uses ) ) {
-			$tc          = $response->tool_call;
+			$tool_call   = $response->tool_call;
 			$tool_uses[] = [
-				'id'    => $tc['id'],
-				'name'  => $tc['name'],
-				'input' => $tc['arguments'],
+				'id'    => $tool_call['id'],
+				'name'  => $tool_call['name'],
+				'input' => $tool_call['arguments'],
 			];
 		}
 
@@ -751,9 +751,9 @@ class ChatRestController {
 		$tool_call = $tool_response->tool_call;
 
 		// Convenience: result for the primary (first) tool call.
-		$fallback_result     = reset( $tool_results );
-		$primary_result      = $tool_results[ $tool_call['id'] ] ?? ( ! empty( $fallback_result ) ? $fallback_result : [] );
-		$primary_result_json = \wp_json_encode( $primary_result );
+		$first_result        = reset( $tool_results );
+		$default_result      = $tool_results[ $tool_call['id'] ] ?? ( ! empty( $first_result ) ? $first_result : [] );
+		$default_result_json = \wp_json_encode( $default_result );
 
 		switch ( $provider_slug ) {
 			case 'claude':
@@ -807,7 +807,7 @@ class ChatRestController {
 					$result_blocks[] = [
 						'type'        => 'tool_result',
 						'tool_use_id' => $tool_call['id'],
-						'content'     => $primary_result_json,
+						'content'     => $default_result_json,
 					];
 				}
 				$messages[] = [
@@ -834,7 +834,7 @@ class ChatRestController {
 				$messages[] = [
 					'role'         => 'tool',
 					'tool_call_id' => $tool_call['id'],
-					'content'      => $primary_result_json,
+					'content'      => $default_result_json,
 				];
 				break;
 
@@ -882,7 +882,7 @@ class ChatRestController {
 			default:
 				$messages[] = [
 					'role'    => 'user',
-					'content' => 'Tool result: ' . $primary_result_json,
+					'content' => 'Tool result: ' . $default_result_json,
 				];
 		}
 

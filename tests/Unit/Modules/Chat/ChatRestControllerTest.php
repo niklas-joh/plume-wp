@@ -1,4 +1,7 @@
 <?php
+
+declare( strict_types=1 );
+
 namespace Stilus\Tests\Unit\Modules\Chat;
 
 use Brain\Monkey;
