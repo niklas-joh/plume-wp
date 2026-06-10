@@ -47,14 +47,11 @@ class ToolExecutor {
 			'get_recent_posts'  => [ $this, 'get_recent_posts' ],
 			'get_post_content'  => [ $this, 'get_post_content' ],
 			'search_posts'      => [ $this, 'search_posts' ],
-			'create_post'       => [ $this, 'create_post' ],
-			'update_post'       => [ $this, 'update_post' ],
 			'get_pages'         => [ $this, 'get_pages' ],
 			'get_site_info'     => [ $this, 'get_site_info' ],
 			'generate_seo_meta' => [ $this, 'generate_seo_meta' ],
 			'plan_post'         => [ $this, 'plan_post' ],
 			'plan_update'       => [ $this, 'plan_update' ],
-			'chat_response'     => [ $this, 'chat_response' ],
 		];
 
 		if ( ! isset( $dispatch[ $tool_name ] ) ) {
@@ -201,115 +198,6 @@ class ToolExecutor {
 	}
 
 	/**
-	 * Create a new post or page.
-	 *
-	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
-	 */
-	private function create_post( array $args, int $user_id ): array {
-		if ( ! (bool) \get_option( 'stilus_enable_write_tools', false ) ) {
-			return [ 'error' => 'Write tools are disabled.' ];
-		}
-
-		if ( ! \user_can( $user_id, 'edit_posts' ) ) {
-			return [ 'error' => 'Insufficient permissions.' ];
-		}
-
-		$post_type = \sanitize_key( $args['post_type'] ?? 'post' );
-		if ( ! \in_array( $post_type, $this->registry->allowed_post_types(), true ) ) {
-			return [ 'error' => 'Post type not permitted.' ];
-		}
-
-		$title = \sanitize_text_field( $args['title'] ?? '' );
-		if ( '' === $title ) {
-			return [ 'error' => 'A post title is required.' ];
-		}
-
-		$content = \wp_kses_post( $args['content'] ?? '' );
-		$status  = \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
-			? $args['status']
-			: 'draft';
-
-		$post_id = \wp_insert_post(
-			[
-				'post_title'   => $title,
-				'post_content' => $content,
-				'post_status'  => $status,
-				'post_type'    => $post_type,
-				'post_author'  => $user_id,
-			],
-			true
-		);
-
-		if ( \is_wp_error( $post_id ) ) {
-			return [ 'error' => $post_id->get_error_message() ];
-		}
-
-		return [
-			'post_id'  => $post_id,
-			'edit_url' => \get_edit_post_link( $post_id, 'raw' ),
-			'title'    => $title,
-			'status'   => $status,
-		];
-	}
-
-	/**
-	 * Update an existing post or page.
-	 *
-	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
-	 */
-	private function update_post( array $args, int $user_id ): array {
-		if ( ! (bool) \get_option( 'stilus_enable_write_tools', false ) ) {
-			return [ 'error' => 'Write tools are disabled.' ];
-		}
-
-		$post_id = \absint( $args['post_id'] ?? 0 );
-		if ( 0 === $post_id ) {
-			return [ 'error' => 'A valid post_id is required.' ];
-		}
-
-		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
-			return [ 'error' => 'Insufficient permissions.' ];
-		}
-
-		$update_data = [ 'ID' => $post_id ];
-
-		if ( isset( $args['title'] ) ) {
-			$update_data['post_title'] = \sanitize_text_field( $args['title'] );
-		}
-
-		if ( isset( $args['content'] ) ) {
-			$update_data['post_content'] = \wp_kses_post( $args['content'] );
-		}
-
-		if ( isset( $args['status'] ) ) {
-			$update_data['post_status'] = \in_array( $args['status'], [ 'draft', 'publish', 'pending', 'private', 'trash' ], true )
-				? $args['status']
-				: 'draft';
-		}
-
-		if ( 1 === count( $update_data ) ) {
-			return [ 'error' => 'No fields to update were provided.' ];
-		}
-
-		$result = \wp_update_post( $update_data, true );
-
-		if ( \is_wp_error( $result ) ) {
-			return [ 'error' => $result->get_error_message() ];
-		}
-
-		return [
-			'post_id' => $post_id,
-			'updated' => true,
-		];
-	}
-
-	/**
 	 * Retrieve a list of published pages.
 	 *
 	 * @since 1.0.0
@@ -395,20 +283,27 @@ class ToolExecutor {
 			return [ 'error' => 'Post type not permitted.' ];
 		}
 
-		$data = $this->store_plan(
-			[
-				'plan_type'   => 'create',
-				'title'       => $title,
-				'outline'     => \sanitize_textarea_field( $args['outline'] ?? '' ),
-				'post_type'   => $post_type,
-				'post_status' => \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
-					? $args['status'] ?? 'draft'
-					: 'draft',
-			],
-			$user_id
-		);
+		$content = \wp_kses_post( $args['content'] ?? '' );
+		if ( '' === $content ) {
+			return [ 'error' => 'The full post content (content) is required.' ];
+		}
 
-		return $data;
+		$plan_data = [
+			'plan_type'   => 'create',
+			'title'       => $title,
+			'outline'     => \sanitize_textarea_field( $args['outline'] ?? '' ),
+			'content'     => $content,
+			'post_type'   => $post_type,
+			'post_status' => \in_array( $args['status'] ?? 'draft', [ 'draft', 'publish', 'pending' ], true )
+				? $args['status'] ?? 'draft'
+				: 'draft',
+		];
+
+		if ( ! empty( $args['meta_fields'] ) && is_array( $args['meta_fields'] ) ) {
+			$plan_data['meta_fields'] = $args['meta_fields'];
+		}
+
+		return $this->store_plan( $plan_data, $user_id );
 	}
 
 	/**
@@ -460,7 +355,25 @@ class ToolExecutor {
 			$plan_data['new_title'] = \sanitize_text_field( $args['new_title'] );
 		}
 
+		if ( ! empty( $args['meta_fields'] ) && is_array( $args['meta_fields'] ) ) {
+			$plan_data['meta_fields'] = $args['meta_fields'];
+		}
+
 		return $this->store_plan( $plan_data, $user_id );
+	}
+
+	/**
+	 * Returns the WordPress transient key for a user-scoped plan.
+	 *
+	 * Centralised here so ToolExecutor and PlansRestController always use the same format.
+	 *
+	 * @since 1.9.0
+	 * @param int    $user_id WordPress user ID who owns the plan.
+	 * @param string $plan_id Plan identifier (8-character UUID fragment).
+	 * @return string
+	 */
+	public static function plan_transient_key( int $user_id, string $plan_id ): string {
+		return "stilus_plan_{$user_id}_{$plan_id}";
 	}
 
 	/**
@@ -475,24 +388,8 @@ class ToolExecutor {
 		$id             = \substr( \wp_generate_uuid4(), 0, 8 );
 		$data['id']     = $id;
 		$data['status'] = 'pending_approval';
-		\set_transient( "stilus_plan_{$user_id}_{$id}", $data, HOUR_IN_SECONDS );
+		\set_transient( self::plan_transient_key( $user_id, $id ), $data, HOUR_IN_SECONDS );
 		return $data;
-	}
-
-	/**
-	 * Pass-through handler for the chat_response tool.
-	 *
-	 * The agentic loop exits when it detects this tool call and uses the message
-	 * directly. This handler exists so the dispatch table stays complete and
-	 * returns a valid array if somehow reached through the normal execute path.
-	 *
-	 * @since 1.0.0
-	 * @param array $args    Tool arguments from the AI provider.
-	 * @param int   $user_id WordPress user ID performing the call.
-	 * @return array
-	 */
-	private function chat_response( array $args, int $user_id ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $user_id required by dispatch signature.
-		return [ 'message' => $args['message'] ?? '' ];
 	}
 
 	/**
