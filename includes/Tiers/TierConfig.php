@@ -101,7 +101,7 @@ class TierConfig {
 		if ( '' !== $option ) {
 			return rtrim( $option, '/' );
 		}
-		return 'https://plume-proxy.plume.workers.dev';
+		return 'https://plume-proxy.stilus.workers.dev';
 	}
 
 	/**
