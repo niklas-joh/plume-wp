@@ -177,6 +177,7 @@ class Plugin {
 	 * @return void
 	 */
 	public static function activate(): void {
+		Schema::maybe_migrate_tables();
 		Schema::create_tables();
 		self::maybe_migrate_from_wp_ai_mind();
 		update_option( 'plume_just_activated', true );
