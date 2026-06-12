@@ -1,6 +1,6 @@
 #!/bin/sh
 # Full PHPCS + PHPStan gate before pushing.
-# Skip in CI — dev deps (phpcs/phpstan) are absent in the release workflow's --no-dev install.
+# Skip in CI — dev deps (phpcs/phpstan) are absent in --no-dev installs; CI checks run separately in pr-checks.yml.
 [ "${CI}" = "true" ] && exit 0
 
 echo "Running pre-push checks..."

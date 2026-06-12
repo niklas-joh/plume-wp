@@ -74,7 +74,6 @@ jobs:
             echo "::warning::Moved orphaned version tags to HEAD:$moved. Branch history likely diverged from tag history."
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_PAT: ${{ secrets.GH_PAT }}
 
       - name: Release
