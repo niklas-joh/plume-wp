@@ -58,7 +58,7 @@ jobs:
         # commit to main. This step detects any such orphaned tags and moves
         # them to HEAD so semantic-release treats them as already released.
         run: |
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git remote set-url origin "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY}.git"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           moved=""
@@ -75,11 +75,14 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
 
       - name: Release
         run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GH_PAT required — GITHUB_TOKEN cannot push the version-bump commit to main
+          # because the branch ruleset blocks direct pushes; GH_PAT has bypass access.
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
   deploy-worker:
     name: Deploy prod Worker
