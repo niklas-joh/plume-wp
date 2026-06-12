@@ -31,10 +31,9 @@ if [[ -z "$MATCHED_FILES" ]]; then
   exit 0
 fi
 
-grep -rl0 --include="*.php" \
-  --exclude-dir=vendor --exclude-dir=assets --exclude-dir=dist \
-  "@since NEXT_VERSION" "${REPO_ROOT}" \
-  | xargs -0 sed -i '' "s/@since NEXT_VERSION/@since ${VERSION}/g"
+while IFS= read -r file; do
+  perl -pi -e "s/\@since NEXT_VERSION/\@since ${VERSION}/g" "$file"
+done <<< "$MATCHED_FILES"
 
 FILE_COUNT=$(echo "$MATCHED_FILES" | wc -l | tr -d ' ')
 echo "stamp-since-tags: updated files:"
