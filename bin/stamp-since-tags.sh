@@ -31,9 +31,8 @@ if [[ -z "$MATCHED_FILES" ]]; then
   exit 0
 fi
 
-while IFS= read -r file; do
-  perl -pi -e "s/\@since NEXT_VERSION/\@since ${VERSION}/g" "$file"
-done <<< "$MATCHED_FILES"
+mapfile -t _since_files <<< "$MATCHED_FILES"
+perl -pi -e "s|\@since NEXT_VERSION|\@since ${VERSION}|g" "${_since_files[@]}"  # \@ prevents Perl array interpolation
 
 FILE_COUNT=$(echo "$MATCHED_FILES" | wc -l | tr -d ' ')
 echo "stamp-since-tags: updated files:"
