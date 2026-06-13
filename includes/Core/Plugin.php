@@ -132,8 +132,6 @@ class Plugin {
 		\Plume\Modules\Images\ImagesModule::register();
 	}
 
-
-
 	/**
 	 * Dispatch the admin menu registration action.
 	 *
