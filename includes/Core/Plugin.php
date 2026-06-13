@@ -171,7 +171,7 @@ class Plugin {
 	// ── Activation / deactivation ─────────────────────────────────────────────
 
 	/**
-	 * Run on plugin activation: create DB tables and schedule cron events.
+	 * Run on plugin activation: create DB tables, seed default options, and schedule cron events.
 	 *
 	 * @since 1.0.0
 	 * @return void
