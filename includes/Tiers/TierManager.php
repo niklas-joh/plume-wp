@@ -285,43 +285,39 @@ class TierManager {
 	 * to be called by a daily WP-Cron event. Processes users in batches to avoid
 	 * memory exhaustion on sites with large user tables.
 	 *
-	 * Queries by meta_key only (which is indexed) and filters the 'trial' value
-	 * in PHP to avoid an unindexed meta_value scan. Offset-based pagination is
-	 * used so that non-trial users in a batch do not cause premature termination.
-	 * Any users skipped due to offset drift from mid-batch deletions are caught
-	 * on the next daily cron run.
+	 * Uses meta_value => 'trial' to filter in SQL (one query per batch) rather
+	 * than fetching all meta_key users and re-reading each in PHP. The loop
+	 * self-advances: demoting a user removes them from subsequent queries, so no
+	 * offset is required. The loop stops when a batch yields zero demotions,
+	 * meaning all remaining trial users are still within their trial period.
 	 *
 	 * @since 1.2.0
 	 * @since 1.9.0 Deletes the meta instead of overwriting with 'free'.
-	 * @since NEXT_VERSION Refactored to query by meta_key only to avoid unindexed meta_value scan.
 	 * @return void
 	 */
 	public static function maybe_demote_expired_trials(): void {
 		$batch_size = 200;
-		$offset     = 0;
+		$demoted    = 0;
 
 		do {
-			// meta_key is indexed in wp_usermeta; the 'trial' value check is applied in PHP below.
-			$users   = get_users( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			$users = get_users( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- indexed meta_key; meta_value narrows to trial users only, avoiding a per-row PHP filter.
 				[
-					'meta_key' => self::META_KEY,
-					'fields'   => 'ID',
-					'number'   => $batch_size,
-					'offset'   => $offset,
+					'meta_key'   => self::META_KEY,
+					'meta_value' => 'trial',
+					'fields'     => 'ID',
+					'number'     => $batch_size,
+					// No offset: demotions remove users from this result set so each
+					// query naturally fetches the next unprocessed batch.
 				]
 			);
-			$found   = count( $users );
-			$offset += $batch_size;
+			$demoted = 0;
 
 			foreach ( $users as $user_id ) {
-				$uid = (int) $user_id;
-				if ( 'trial' !== get_user_meta( $uid, self::META_KEY, true ) ) {
-					continue;
-				}
-				if ( ! self::is_trial_active( $uid ) ) {
-					delete_user_meta( $uid, self::META_KEY );
+				if ( ! self::is_trial_active( (int) $user_id ) ) {
+					delete_user_meta( (int) $user_id, self::META_KEY );
+					++$demoted;
 				}
 			}
-		} while ( $found === $batch_size );
+		} while ( $demoted > 0 );
 	}
 }
