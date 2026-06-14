@@ -1,3 +1,9 @@
+## [1.9.2](https://github.com/niklas-joh/wp-ai-mind/compare/v1.9.1...v1.9.2) (2026-06-14)
+
+### Bug Fixes
+
+* **plugin-check:** resolve WordPress.org plugin check warnings ([#774](https://github.com/niklas-joh/wp-ai-mind/issues/774)) ([32f6f6d](https://github.com/niklas-joh/wp-ai-mind/commit/32f6f6d8d49879a2c5d116b9e2972c8de72df837))
+
 ## [1.9.1](https://github.com/niklas-joh/wp-ai-mind/compare/v1.9.0...v1.9.1) (2026-06-13)
 
 ### Bug Fixes
