@@ -28,7 +28,7 @@ class AdminMenu {
 	 */
 	public static function register(): void {
 		add_menu_page(
-			__( 'Plume AI - Write and Design', 'plume' ),
+			__( 'Plume AI — Write and Design', 'plume' ),
 			__( 'Plume AI', 'plume' ),
 			'edit_posts',
 			'plume',
@@ -69,7 +69,7 @@ class AdminMenu {
 	 */
 	private static function get_menu_icon(): string {
 		return 'data:image/svg+xml;base64,' . base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding SVG menu icon for WordPress admin, not obfuscation.
-			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>'
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/></svg>'
 		);
 	}
 }
