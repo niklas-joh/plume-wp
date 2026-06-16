@@ -13,7 +13,7 @@ import ContextPicker from './ContextPicker';
  * @param {Object}        props
  * @param {Function}      props.onSend           Called with the trimmed message string when submitted.
  * @param {boolean}       props.isLoading        Disables the input and shows a spinner while true.
- * @param {Object|null}   props.attachedPost     Currently attached post object (`{ id, title }`) or null.
+ * @param {Object|null}   props.attachedPost     Currently attached post object (`{ id, title, edit_link }`) or null.
  * @param {Function}      props.onAttach         Called with the selected post object when context is chosen.
  * @param {Function}      props.onDetach         Called when the attachment pill dismiss button is clicked.
  * @param {boolean}       [props.borderless]     When true, removes the top border (used in the centred launch view).
@@ -80,7 +80,18 @@ export default function Composer( {
 				<div className="plume-composer__attachment">
 					<span className="plume-composer__attachment-pill">
 						<FileText size={ 11 } strokeWidth={ 1.5 } />
-						{ attachedPost.title }
+						{ attachedPost.edit_link ? (
+							<a
+								href={ attachedPost.edit_link }
+								target="_blank"
+								rel="noreferrer noopener"
+								className="plume-composer__attachment-link"
+							>
+								{ attachedPost.title }
+							</a>
+						) : (
+							attachedPost.title
+						) }
 						<button
 							className="plume-composer__attachment-dismiss"
 							onClick={ onDetach }

@@ -556,6 +556,7 @@ class ChatRestController {
 				'title'      => get_the_title( $post ),
 				'type'       => $post->post_type,
 				'type_label' => $type_label,
+				'edit_link'  => get_edit_post_link( $post->ID, 'raw' ) ?? '',
 			];
 		}
 		return rest_ensure_response( $data );
