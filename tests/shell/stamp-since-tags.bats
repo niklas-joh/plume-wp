@@ -56,6 +56,7 @@ teardown() {
   run "$SCRIPT" "1.9.0"
 
   [ "$status" -eq 0 ]
-  grep -q "NEXT_VERSION" "$TEST_ROOT/vendor/some-lib/bar.php"
+  grep -q "@since NEXT_VERSION" "$TEST_ROOT/vendor/some-lib/bar.php"
+  ! grep -q "@since 1.9.0" "$TEST_ROOT/vendor/some-lib/bar.php"
   grep -q "@since 1.9.0" "$TEST_ROOT/needs-stamp.php"
 }
