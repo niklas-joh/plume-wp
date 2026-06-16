@@ -84,8 +84,9 @@ export default function Composer( {
 							<a
 								href={ attachedPost.edit_link }
 								target="_blank"
-								rel="noreferrer noopener"
+								rel="noopener noreferrer"
 								className="plume-composer__attachment-link"
+								aria-label={ `Edit "${ attachedPost.title }" (opens in new tab)` }
 							>
 								{ attachedPost.title }
 							</a>
