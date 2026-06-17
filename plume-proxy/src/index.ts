@@ -208,16 +208,18 @@ async function callClaude(
 	};
 }
 
+function resolveSystemText( system: string | SystemBlock[] | undefined ): string {
+	if ( ! system ) return '';
+	return typeof system === 'string' ? system : ( system[ 0 ]?.text ?? '' );
+}
+
 async function callOpenAI(
 	body: ProxyRequest,
 	resolvedModel: string,
 	clampedMaxTokens: number,
 	env: Env
 ): Promise< NormalizedResponse > {
-	const sysText =
-		typeof body.system === 'string'
-			? body.system
-			: ( body.system?.[ 0 ]?.text ?? '' );
+	const sysText = resolveSystemText( body.system );
 	const messages = sysText
 		? [ { role: 'system', content: sysText }, ...body.messages ]
 		: body.messages;
@@ -307,14 +309,9 @@ async function callGemini(
 		contents,
 		generationConfig: { maxOutputTokens: clampedMaxTokens },
 	};
-	if ( body.system ) {
-		const sysText =
-			typeof body.system === 'string'
-				? body.system
-				: ( body.system?.[ 0 ]?.text ?? '' );
-		if ( sysText ) {
-			geminiBody.systemInstruction = { parts: [ { text: sysText } ] };
-		}
+	const sysText = resolveSystemText( body.system );
+	if ( sysText ) {
+		geminiBody.systemInstruction = { parts: [ { text: sysText } ] };
 	}
 	if ( body.tools && body.tools.length > 0 ) {
 		geminiBody.tools = toGeminiTools( body.tools );

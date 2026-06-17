@@ -178,7 +178,7 @@ class ClaudeProvider extends AbstractProvider {
 		$raw_options = [
 			'model'      => ! empty( $request->model ) ? $request->model : null,
 			'max_tokens' => $request->max_tokens,
-			'system'     => '' !== $request->system ? $this->system_payload( $request->system ) : null,
+			'system'     => '' !== $request->system ? $this->format_system_prompt( $request->system ) : null,
 		];
 		$options     = array_filter( $raw_options, fn( $v ) => null !== $v );
 		if ( ! empty( $request->tools ) ) {
@@ -271,7 +271,7 @@ class ClaudeProvider extends AbstractProvider {
 	 * @param string $system Raw system prompt text.
 	 * @return string|array Plain string for short prompts; cache-control block array for long ones.
 	 */
-	protected function system_payload( string $system ): string|array {
+	protected function format_system_prompt( string $system ): string|array {
 		if ( mb_strlen( $system ) <= self::CACHE_CONTROL_MIN_CHARS ) {
 			return $system;
 		}
@@ -328,7 +328,7 @@ class ClaudeProvider extends AbstractProvider {
 			'messages'   => $request->messages,
 		];
 		if ( '' !== $request->system ) {
-			$body['system'] = $this->system_payload( $request->system );
+			$body['system'] = $this->format_system_prompt( $request->system );
 		}
 		if ( ! empty( $request->tools ) ) {
 			$body['tools'] = $request->tools; // Already in Claude wire format from ToolRegistry.

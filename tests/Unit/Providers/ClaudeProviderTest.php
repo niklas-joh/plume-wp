@@ -425,7 +425,7 @@ class ClaudeProviderTest extends TestCase {
 
 	public function test_system_payload_returns_plain_string_for_short_system(): void {
 		$provider = new ClaudeProvider( 'sk-ant-test' );
-		$method   = new \ReflectionMethod( $provider, 'system_payload' );
+		$method   = new \ReflectionMethod( $provider, 'format_system_prompt' );
 		$result   = $method->invoke( $provider, 'Short prompt.' );
 		$this->assertIsString( $result );
 		$this->assertSame( 'Short prompt.', $result );
@@ -433,7 +433,7 @@ class ClaudeProviderTest extends TestCase {
 
 	public function test_system_payload_returns_cache_block_for_long_system(): void {
 		$provider     = new ClaudeProvider( 'sk-ant-test' );
-		$method       = new \ReflectionMethod( $provider, 'system_payload' );
+		$method       = new \ReflectionMethod( $provider, 'format_system_prompt' );
 		$long_system  = str_repeat( 'a', 8193 );
 		$result       = $method->invoke( $provider, $long_system );
 		$this->assertIsArray( $result );
@@ -445,7 +445,7 @@ class ClaudeProviderTest extends TestCase {
 
 	public function test_system_payload_boundary_at_2048_chars_stays_plain_string(): void {
 		$provider    = new ClaudeProvider( 'sk-ant-test' );
-		$method      = new \ReflectionMethod( $provider, 'system_payload' );
+		$method      = new \ReflectionMethod( $provider, 'format_system_prompt' );
 		$edge_system = str_repeat( 'b', 8192 );
 		$result      = $method->invoke( $provider, $edge_system );
 		$this->assertIsString( $result );
