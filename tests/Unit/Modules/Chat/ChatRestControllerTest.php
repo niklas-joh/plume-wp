@@ -569,7 +569,7 @@ class ChatRestControllerTest extends TestCase {
         // Tool call response (iteration 1).
         $tool_response = new CompletionResponse(
             content:           '',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     10,
             completion_tokens: 5,
             cost_usd:          0.0,
@@ -580,7 +580,7 @@ class ChatRestControllerTest extends TestCase {
         // Final text response (iteration 2).
         $final_response = new CompletionResponse(
             content:           'Final answer',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     20,
             completion_tokens: 15,
             cost_usd:          0.001,
@@ -613,7 +613,7 @@ class ChatRestControllerTest extends TestCase {
 
         $request = new \WP_REST_Request( 'POST' );
         $request->set_url_params( [ 'id' => '42' ] );
-        $request->set_body_params( [ 'content' => 'Hello', 'provider' => 'claude', 'model' => 'claude-3-5-sonnet' ] );
+        $request->set_body_params( [ 'content' => 'Hello', 'provider' => 'claude', 'model' => 'claude-sonnet-4-6' ] );
 
         $response = $controller->send_message( $request );
 
@@ -711,7 +711,7 @@ class ChatRestControllerTest extends TestCase {
 
         $tool_response = new CompletionResponse(
             content:           '',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     10,
             completion_tokens: 5,
             cost_usd:          0.0,
@@ -1099,7 +1099,7 @@ class ChatRestControllerTest extends TestCase {
 
         $tool_response = new CompletionResponse(
             content:           '',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     10,
             completion_tokens: 5,
             cost_usd:          0.0,
@@ -1108,7 +1108,7 @@ class ChatRestControllerTest extends TestCase {
         );
         $final_response = new CompletionResponse(
             content:           'Done',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     20,
             completion_tokens: 15,
             cost_usd:          0.001,
@@ -1348,7 +1348,7 @@ class ChatRestControllerTest extends TestCase {
     public function test_extract_tool_calls_returns_all_claude_tool_use_blocks(): void {
         $response = new CompletionResponse(
             content: '',
-            model: 'claude-3-5-sonnet',
+            model: 'claude-sonnet-4-6',
             prompt_tokens: 10,
             completion_tokens: 5,
             raw: [
@@ -1374,7 +1374,7 @@ class ChatRestControllerTest extends TestCase {
     public function test_extract_tool_calls_falls_back_to_tool_call_when_raw_is_empty(): void {
         $response = new CompletionResponse(
             content: '',
-            model: 'claude-3-5-sonnet',
+            model: 'claude-sonnet-4-6',
             prompt_tokens: 10,
             completion_tokens: 5,
             raw: [ 'content' => [] ],
@@ -1487,7 +1487,7 @@ class ChatRestControllerTest extends TestCase {
 
         $chat_response = new CompletionResponse(
             content:           '',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     10,
             completion_tokens: 5,
             cost_usd:          0.0,
@@ -1539,7 +1539,7 @@ class ChatRestControllerTest extends TestCase {
 
         $plan_response = new CompletionResponse(
             content:           '',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     10,
             completion_tokens: 5,
             cost_usd:          0.0,
@@ -1553,7 +1553,7 @@ class ChatRestControllerTest extends TestCase {
 
         $final_response = new CompletionResponse(
             content:           'I have proposed a post for your approval.',
-            model:             'claude-3-5-sonnet',
+            model:             'claude-sonnet-4-6',
             prompt_tokens:     20,
             completion_tokens: 15,
             cost_usd:          0.0,
