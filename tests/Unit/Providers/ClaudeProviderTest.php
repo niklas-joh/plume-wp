@@ -402,6 +402,9 @@ class ClaudeProviderTest extends TestCase {
 		$this->assertSame( 800, $response->cache_read_tokens );
 		$this->assertSame( 200, $response->cache_write_tokens );
 		$this->assertSame( 'Cached reply', $response->content );
+		// For claude-sonnet-4-6: 100 in × $3/M + 20 out × $15/M + 800 cache-read × $0.30/M + 200 cache-write × $3.75/M.
+		$expected_cost = ( 100 / 1_000_000 * 3.0 ) + ( 20 / 1_000_000 * 15.0 ) + ( 800 / 1_000_000 * 0.30 ) + ( 200 / 1_000_000 * 3.75 );
+		$this->assertEqualsWithDelta( $expected_cost, $response->cost_usd, 1.0e-10 );
 	}
 
 	public function test_tools_injected_in_request_body(): void {
