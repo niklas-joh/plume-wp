@@ -40,26 +40,26 @@ class ClaudeProvider extends AbstractProvider {
 	];
 
 	// Cost per 1M tokens (input/output/cache) in USD.
-	// cache_in: cache-write surcharge (1.25× normal input).
+	// cache_write_in: cache-write surcharge (1.25× normal input).
 	// cache_read_in: cache-read rate (0.10× normal input).
 	private const PRICING = [
 		'claude-opus-4-6'           => [
-			'in'            => 5.0,
-			'out'           => 25.0,
-			'cache_in'      => 6.25,
-			'cache_read_in' => 0.50,
+			'in'             => 5.0,
+			'out'            => 25.0,
+			'cache_write_in' => 6.25,
+			'cache_read_in'  => 0.50,
 		],
 		'claude-sonnet-4-6'         => [
-			'in'            => 3.0,
-			'out'           => 15.0,
-			'cache_in'      => 3.75,
-			'cache_read_in' => 0.30,
+			'in'             => 3.0,
+			'out'            => 15.0,
+			'cache_write_in' => 3.75,
+			'cache_read_in'  => 0.30,
 		],
 		'claude-haiku-4-5-20251001' => [
-			'in'            => 1.0,
-			'out'           => 5.0,
-			'cache_in'      => 1.25,
-			'cache_read_in' => 0.10,
+			'in'             => 1.0,
+			'out'            => 5.0,
+			'cache_write_in' => 1.25,
+			'cache_read_in'  => 0.10,
 		],
 	];
 
@@ -290,14 +290,14 @@ class ClaudeProvider extends AbstractProvider {
 	 *
 	 * Centralises pricing so future rate changes require a single edit.
 	 * Cache read tokens are billed at cache_read_in (0.10× normal input).
-	 * Cache write tokens are billed at cache_in (1.25× normal input).
+	 * Cache write tokens are billed at cache_write_in (1.25× normal input).
 	 *
 	 * @since 1.0.0
 	 * @param string $model              Model slug used for the completion.
 	 * @param int    $in_tokens          Normal input token count.
 	 * @param int    $out_tokens         Output token count.
 	 * @param int    $cache_read_tokens  Tokens read from cache (billed at cache_read_in rate).
-	 * @param int    $cache_write_tokens Tokens written to cache (billed at cache_in rate).
+	 * @param int    $cache_write_tokens Tokens written to cache (billed at cache_write_in rate).
 	 * @return float Cost in USD.
 	 */
 	private function calculate_cost(
@@ -311,7 +311,7 @@ class ClaudeProvider extends AbstractProvider {
 		$normal_cost = $in_tokens / 1_000_000 * $pricing['in'];
 		$out_cost    = $out_tokens / 1_000_000 * $pricing['out'];
 		$read_cost   = $cache_read_tokens / 1_000_000 * $pricing['cache_read_in'];
-		$write_cost  = $cache_write_tokens / 1_000_000 * $pricing['cache_in'];
+		$write_cost  = $cache_write_tokens / 1_000_000 * $pricing['cache_write_in'];
 		return $normal_cost + $out_cost + $read_cost + $write_cost;
 	}
 
