@@ -60,6 +60,13 @@ Compare `updatedAt` against the `deferred_at` timestamp in the file.
   - **New information or partial clarification** (adds context but does not fully resolve the question) → re-evaluate whether the issue can now be planned. If yes, re-classify. If the decision question is still open, update the deferred state file with the new context and post a follow-up comment asking the remaining clarifying question
   - **Unrelated comment** (off-topic, acknowledgement only) → mark `SKIP (deferred, no update)` and continue skipping
 
+**If the deferred state file does not exist or is empty**, reconstruct the deferred list from GitHub using the `comments` data already loaded in Phase 1a — do not make additional API calls. For each open issue in the candidate set:
+
+- If it has at least one comment whose body starts with `**Nightly triage` AND no owner/member comment was posted after the last such triage comment → treat as `SKIP (deferred, no update)` and exclude from the working set.
+- If it has a triage comment followed by an owner/member reply → treat as `Deferred re-evaluated (new activity)` and re-classify normally.
+
+This makes GitHub issue comments the authoritative source of deferred state. The local `.artifacts/reports/triage-deferred.md` file is a performance cache — the run is correct with or without it.
+
 ### Step 1d — Check recent commits
 
 ```bash
@@ -107,7 +114,17 @@ Classify each issue in the working set across two axes.
 
 **Strategic flag:** Issues that cannot be resolved without an architectural or product decision get a `DEFER` flag and a one-line note describing the decision needed. Do not stop the run. Continue with everything else; DEFER items are written to the deferred state file at the end of the run.
 
-When an issue is marked DEFER **for the first time** (i.e. it is not already in the deferred state file), post a comment on the issue:
+When an issue is marked DEFER, check whether a triage comment has already been posted **using the `comments` data already fetched in Phase 1a** — do not make another API call.
+
+A triage comment is any comment whose body starts with `**Nightly triage`.
+
+Post a new DEFER comment only when **at least one** of these is true:
+- No triage comment exists on the issue yet.
+- The last triage comment was followed by an owner/member reply (i.e. the human responded, but the question is still not fully resolved — a follow-up clarification is warranted).
+
+**Do not post** if the most recent comment on the issue is itself a triage comment with no owner/member reply since — the issue is already awaiting a decision and another comment is noise.
+
+When posting is warranted:
 
 ```bash
 gh issue comment <n> --body "**Nightly triage — decision needed**
@@ -119,7 +136,7 @@ This issue was reviewed in the automated nightly triage run but cannot be resolv
 Reply to this comment with your decision and the next nightly run will pick it up automatically."
 ```
 
-Do not post this comment if the issue is already in the deferred state file — it was commented on in a previous run. A follow-up comment is only posted if re-evaluation in Phase 1c finds new information that narrows but does not resolve the question.
+A follow-up comment (not a duplicate) is only posted when Phase 1c re-evaluation finds new information that narrows but does not fully resolve the question.
 
 Output the prioritisation matrix:
 
@@ -427,7 +444,9 @@ After outputting the report, update the deferred state file:
 mkdir -p .artifacts/reports
 cat > .artifacts/reports/triage-deferred.md << 'EOF'
 # Triage deferred issues
-# Maintained automatically by /issue-triage. Do not edit manually.
+# Performance cache only — GitHub issue comments are the authoritative source.
+# If this file is deleted, Phase 1c reconstructs state from GitHub automatically.
+# Do not edit manually.
 # Format: issue number | deferred_at (ISO date) | decision needed
 
 7 | 2026-06-07 | Choose between transient and object cache — impacts multisite behaviour
@@ -435,4 +454,4 @@ cat > .artifacts/reports/triage-deferred.md << 'EOF'
 EOF
 ```
 
-Write only issues that remain unresolved and deferred. Remove any issue from this file that was resolved, covered by a PR, or re-evaluated and actioned in this run. The file is the single source of truth for skip logic in Phase 1c of the next run.
+Write only issues that remain unresolved and deferred. Remove any issue from this file that was resolved, covered by a PR, or re-evaluated and actioned in this run. This file accelerates Phase 1c skip logic — if it is absent, Phase 1c reconstructs the same state from GitHub comments.
