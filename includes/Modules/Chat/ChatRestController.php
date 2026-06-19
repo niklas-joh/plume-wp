@@ -409,6 +409,14 @@ class ChatRestController {
 					break;
 				}
 
+				// Safety net for models that ignore the "call chat_response after plan_update/plan_post" instruction.
+				if ( null !== $pending_plan ) {
+					$final_response = $response->with_text(
+						__( "I've prepared the changes for your review.", 'plume' )
+					);
+					break;
+				}
+
 				$messages = $this->append_tool_exchange( $messages, $provider_slug, $response, $tool_results );
 			}
 
