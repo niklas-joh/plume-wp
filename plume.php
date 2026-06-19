@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Plume AI - Write and Design
+ * Plugin Name:       Plume
  * Plugin URI:        https://njohansson.eu/plume/
  * Description:       AI-powered content and design tool for WordPress.
  * Version:           1.9.2
