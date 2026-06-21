@@ -1,3 +1,9 @@
+## [1.10.2](https://github.com/niklas-joh/plume-ai/compare/v1.10.1...v1.10.2) (2026-06-21)
+
+### Bug Fixes
+
+* **wporg:** add composer.json to zip allowlist and escape DB table names ([#822](https://github.com/niklas-joh/plume-ai/issues/822)) ([6d5503c](https://github.com/niklas-joh/plume-ai/commit/6d5503c028292f27aabbc64a674511f1c105f7b4))
+
 ## [1.10.1](https://github.com/niklas-joh/plume-ai/compare/v1.10.0...v1.10.1) (2026-06-20)
 
 ### Bug Fixes
