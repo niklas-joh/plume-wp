@@ -197,7 +197,7 @@ jobs:
             - Do NOT open new PRs — push all fixes directly to the head branch.
             - Do NOT open more than one PR per issue.
 
-          claude_args: "--allowedTools Bash(git:*),Bash(gh:*),Bash(composer:*),Bash(npm:*),Bash(npx:*),Bash(./vendor/bin/phpcs:*),Bash(./vendor/bin/phpunit:*),Read,Edit,MultiEdit,Write,Glob,Grep,LS"
+          claude_args: "--model claude-opus-4-8 --allowedTools Bash(git:*),Bash(gh:*),Bash(composer:*),Bash(npm:*),Bash(npx:*),Bash(./vendor/bin/phpcs:*),Bash(./vendor/bin/phpunit:*),Read,Edit,MultiEdit,Write,Glob,Grep,LS"
 
       - name: Report execution failure
         if: failure() && steps.claude.outcome == 'failure'
