@@ -82,10 +82,9 @@ class ConversationStore {
 	 */
 	public function get_messages( int $conversation_id ): array {
 		global $wpdb;
-		// $table is from Schema::table() — a closed internal whitelist, not user input.
-		$table   = Schema::table( 'messages' );
+		$table   = esc_sql( Schema::table( 'messages' ) );
 		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE conversation_id = %d ORDER BY id ASC", $conversation_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE conversation_id = %d ORDER BY id ASC", $conversation_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
 		return ! empty( $results ) ? $results : [];
@@ -101,11 +100,10 @@ class ConversationStore {
 	 */
 	public function list_for_user( int $user_id, int $limit = 50 ): array {
 		global $wpdb;
-		// $table is from Schema::table() — a closed internal whitelist, not user input.
-		$table   = Schema::table( 'conversations' );
+		$table   = esc_sql( Schema::table( 'conversations' ) );
 		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE user_id = %d ORDER BY updated_at DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+				"SELECT * FROM {$table} WHERE user_id = %d ORDER BY updated_at DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$user_id,
 				$limit
 			),
@@ -123,10 +121,9 @@ class ConversationStore {
 	 */
 	public function get_conversation( int $conversation_id ): ?array {
 		global $wpdb;
-		// $table is from Schema::table() — a closed internal whitelist, not user input.
-		$table = Schema::table( 'conversations' );
+		$table = esc_sql( Schema::table( 'conversations' ) );
 		$row   = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $conversation_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $conversation_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
 		return ! empty( $row ) ? $row : null;
