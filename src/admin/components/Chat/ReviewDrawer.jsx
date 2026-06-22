@@ -35,8 +35,8 @@ let commentIdCounter = 0;
  * @param {number}   props.plan.post_id       Post being updated; content is fetched on mount.
  * @param {string}   props.plan.new_content   AI-proposed content string.
  * @param {number}   props.convId             Active conversation ID for the revision request.
- * @param {string}   [props.provider]         Provider slug forwarded to the messages endpoint.
- * @param {string}   [props.model]            Model slug forwarded to the messages endpoint.
+ * @param {string}   props.selectedProvider   Provider slug the user selected in chat; forwarded so the revision uses the same model.
+ * @param {string}   props.selectedModel      Model slug the user selected in chat; forwarded with the revision request.
  * @param {Function} props.onApply            Called after a successful plan execution.
  * @param {Function} props.onClose            Called when the drawer is dismissed.
  * @param {Function} props.onMessagesRefresh  Called after a revision round-trip so ChatApp reloads history.
@@ -45,8 +45,8 @@ let commentIdCounter = 0;
 export default function ReviewDrawer( {
 	plan,
 	convId,
-	provider,
-	model,
+	selectedProvider,
+	selectedModel,
 	onApply,
 	onClose,
 	onMessagesRefresh,
@@ -294,7 +294,12 @@ export default function ReviewDrawer( {
 			const res = await apiFetch( {
 				path: `/plume/v1/conversations/${ convId }/messages`,
 				method: 'POST',
-				data: { content: message, provider, model },
+				data: {
+					content: message,
+					provider: selectedProvider,
+					model: selectedModel,
+					context_post_id: currentPlan.post_id ?? 0,
+				},
 			} );
 
 			if ( ! res.pending_plan ) {
