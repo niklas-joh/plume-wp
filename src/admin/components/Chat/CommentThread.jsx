@@ -17,7 +17,7 @@ import { MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
  * @param {Function} props.onUnsavedChange    Called with `(diffBlockId, hasDirty: boolean)` on input state change.
  * @param {string}   [props.pendingAnchor]    Pre-populated selected text for the active unsaved input row.
  * @param {Function} [props.onAnchorConsumed] Called after the pending anchor is consumed into the input row.
- * @returns {ReactElement}
+ * @return {ReactElement}
  */
 export default function CommentThread( {
 	diffBlockId,
@@ -53,7 +53,9 @@ export default function CommentThread( {
 
 	function handleSave() {
 		const text = inputText.trim();
-		if ( ! text ) return;
+		if ( ! text ) {
+			return;
+		}
 		onSave( diffBlockId, activeAnchor ?? '', text );
 		setInputText( '' );
 		setActiveAnchor( null );
@@ -91,7 +93,10 @@ export default function CommentThread( {
 					<span>
 						{ comments.length === 1
 							? __( '1 comment on this change', 'plume' )
-							: `${ comments.length } ${ __( 'comments on this change', 'plume' ) }` }
+							: `${ comments.length } ${ __(
+									'comments on this change',
+									'plume'
+							  ) }` }
 					</span>
 					{ isExpanded ? (
 						<ChevronUp size={ 12 } />
@@ -102,7 +107,11 @@ export default function CommentThread( {
 			) }
 
 			<div
-				className={ `plume-comment-thread__body${ isExpanded || pendingAnchor ? ' plume-comment-thread__body--open' : '' }` }
+				className={ `plume-comment-thread__body${
+					isExpanded || pendingAnchor
+						? ' plume-comment-thread__body--open'
+						: ''
+				}` }
 			>
 				{ comments.map( ( c ) => (
 					<div key={ c.id } className="plume-comment-item">
@@ -131,7 +140,10 @@ export default function CommentThread( {
 
 				<div className="plume-comment-item plume-comment-item--input">
 					{ activeAnchor && (
-						<span className="plume-comment-item__anchor" title={ activeAnchor }>
+						<span
+							className="plume-comment-item__anchor"
+							title={ activeAnchor }
+						>
 							{ activeAnchor.length > 40
 								? activeAnchor.slice( 0, 40 ) + '…'
 								: activeAnchor }
