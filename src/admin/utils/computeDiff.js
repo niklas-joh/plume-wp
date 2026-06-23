@@ -15,9 +15,12 @@ import DOMPurify from 'dompurify';
  * @return {Array<{id: string, unchanged: string[], removedText: string|null, addedText: string|null}>}
  */
 export function computeDiff( oldText, newText ) {
-	const oldHtml = stripBlockMarkup( oldText );
-	// DOMPurify sanitises the AI-generated HTML before it is stored in diff
-	// blocks that will be rendered via dangerouslySetInnerHTML in DiffView.
+	// Sanitise both sides: every block string flows untouched into DiffView's
+	// dangerouslySetInnerHTML. The old (post-content) side can carry markup
+	// authored by a lower-privileged contributor, and marked passes raw HTML in
+	// the AI plan through unescaped — either could relay a stored XSS payload
+	// into wp-admin without this.
+	const oldHtml = DOMPurify.sanitize( stripBlockMarkup( oldText ) );
 	const newHtml = DOMPurify.sanitize( marked.parse( newText ) );
 	const oldBlocks = htmlToBlocks( oldHtml );
 	const newBlocks = htmlToBlocks( newHtml );
