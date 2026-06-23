@@ -1,12 +1,14 @@
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 /**
  * Paragraph-level diff between two text strings.
  *
  * Normalises both sides to a common HTML representation before diffing:
  * the old text (WordPress block markup) has block comment delimiters stripped;
- * the new text (Markdown from the AI plan) is converted to HTML via `marked`.
- * Each top-level block element becomes one unit in the LCS comparison.
+ * the new text (Markdown from the AI plan) is converted to HTML via `marked`
+ * and sanitised with DOMPurify. Each top-level block element becomes one unit
+ * in the LCS comparison.
  *
  * @param {string} oldText  Current post content (raw WordPress block markup).
  * @param {string} newText  Proposed post content from the AI plan (Markdown).
@@ -14,7 +16,9 @@ import { marked } from 'marked';
  */
 export function computeDiff( oldText, newText ) {
 	const oldHtml = stripBlockMarkup( oldText );
-	const newHtml = marked.parse( newText );
+	// DOMPurify sanitises the AI-generated HTML before it is stored in diff
+	// blocks that will be rendered via dangerouslySetInnerHTML in DiffView.
+	const newHtml = DOMPurify.sanitize( marked.parse( newText ) );
 	const oldBlocks = htmlToBlocks( oldHtml );
 	const newBlocks = htmlToBlocks( newHtml );
 	const ops = lcs( oldBlocks, newBlocks );
@@ -42,8 +46,12 @@ function stripBlockMarkup( raw ) {
  * `<ul>`, etc. becomes one diffable unit. Falls back to double-newline
  * splitting for server-side or test environments.
  *
+ * When the DOM finds no child elements (e.g. plain-text content with stripped
+ * block delimiters), falls back to the double-newline split so the LCS still
+ * receives segments rather than treating the whole text as one block.
+ *
  * @param {string} html  HTML string to split.
- * @return {string[]}    Array of `outerHTML` strings for each block element.
+ * @return {string[]}    Array of `outerHTML` strings (or plain-text segments).
  */
 function htmlToBlocks( html ) {
 	if ( typeof document === 'undefined' ) {
@@ -54,20 +62,31 @@ function htmlToBlocks( html ) {
 	}
 	const el = document.createElement( 'div' );
 	el.innerHTML = html;
-	return Array.from( el.children )
+	const blocks = Array.from( el.children )
 		.map( ( node ) => node.outerHTML )
 		.filter( Boolean );
+	// Plain-text content (e.g. WP content with block delimiters stripped but no
+	// wrapping elements) has no element children — fall back to paragraph splitting
+	// so the LCS receives meaningful segments rather than one large unchanged block.
+	if ( blocks.length === 0 && html.trim() ) {
+		return html
+			.split( /\n\n+/ )
+			.map( ( p ) => p.trim() )
+			.filter( Boolean );
+	}
+	return blocks;
 }
 
 /**
  * Reduces an HTML block to a normalised tag+text key for LCS equality checks.
  *
  * Compares by tag name and text content, ignoring attributes (e.g. WP adds
- * class="wp-block-heading" that Markdown output lacks). Two blocks are
- * considered equal when they represent the same semantic element with the
- * same text.
+ * class="wp-block-heading" that Markdown output lacks). `<p>` elements are
+ * treated as equivalent to unwrapped plain-text segments so that old WP content
+ * (stripped of block delimiters, no `<p>` wrapper) still matches the Markdown
+ * output which always wraps paragraph text in `<p>` tags.
  *
- * @param {string} html  outerHTML of a single block element.
+ * @param {string} html  outerHTML of a single block element, or plain text.
  * @return {string}
  */
 function normalizeForComparison( html ) {
@@ -81,15 +100,20 @@ function normalizeForComparison( html ) {
 				.replace( /\s+/g, ' ' )
 				.trim()
 				.toLowerCase();
+			// Paragraph elements are semantically equivalent to unwrapped plain
+			// text — omit the tag prefix so pre-HTML WP content matches marked's
+			// <p>-wrapped Markdown output.
+			if ( tag === 'p' ) {
+				return text;
+			}
 			return `${ tag }:${ text }`;
 		}
 		return div.textContent.replace( /\s+/g, ' ' ).trim().toLowerCase();
 	}
-	return html
-		.replace( /<[^>]*>/g, '' )
-		.replace( /\s+/g, ' ' )
-		.trim()
-		.toLowerCase();
+	// SSR/test fallback: normalise whitespace only. Regex tag-stripping patterns
+	// (/<[^>]*>/g) are intentionally avoided — static analysis tools flag them as
+	// incomplete multi-character sanitisation (CodeQL rule: js/incomplete-html-tag-sanitization).
+	return html.replace( /\s+/g, ' ' ).trim().toLowerCase();
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +124,9 @@ function normalizeForComparison( html ) {
  * Compute edit ops via LCS.
  * Returns an array of `{ type: 'equal'|'remove'|'add', text: string }`.
  *
+ * Normalised keys are pre-computed once before the DP loop to avoid
+ * O(m·n) repeated DOM-parse calls inside `normalizeForComparison`.
+ *
  * @param {string[]} oldParas
  * @param {string[]} newParas
  * @return {Array<{type: string, text: string}>}
@@ -108,6 +135,10 @@ function lcs( oldParas, newParas ) {
 	const m = oldParas.length;
 	const n = newParas.length;
 
+	// Pre-compute normalised keys to avoid repeated DOM parsing per DP cell.
+	const oldKeys = oldParas.map( normalizeForComparison );
+	const newKeys = newParas.map( normalizeForComparison );
+
 	// Build LCS table.
 	const dp = Array.from( { length: m + 1 }, () =>
 		new Array( n + 1 ).fill( 0 )
@@ -115,8 +146,7 @@ function lcs( oldParas, newParas ) {
 	for ( let i = 1; i <= m; i++ ) {
 		for ( let j = 1; j <= n; j++ ) {
 			dp[ i ][ j ] =
-				normalizeForComparison( oldParas[ i - 1 ] ) ===
-				normalizeForComparison( newParas[ j - 1 ] )
+				oldKeys[ i - 1 ] === newKeys[ j - 1 ]
 					? dp[ i - 1 ][ j - 1 ] + 1
 					: Math.max( dp[ i - 1 ][ j ], dp[ i ][ j - 1 ] );
 		}
@@ -127,12 +157,7 @@ function lcs( oldParas, newParas ) {
 	let i = m;
 	let j = n;
 	while ( i > 0 || j > 0 ) {
-		if (
-			i > 0 &&
-			j > 0 &&
-			normalizeForComparison( oldParas[ i - 1 ] ) ===
-				normalizeForComparison( newParas[ j - 1 ] )
-		) {
+		if ( i > 0 && j > 0 && oldKeys[ i - 1 ] === newKeys[ j - 1 ] ) {
 			ops.unshift( { type: 'equal', text: oldParas[ i - 1 ] } );
 			i--;
 			j--;

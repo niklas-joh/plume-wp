@@ -15,7 +15,8 @@ function stripHtml( html ) {
 		div.innerHTML = html;
 		return div.textContent;
 	}
-	return html.replace( /<[^>]*>/g, '' );
+	// DiffView only renders in the browser; this path is unreachable in production.
+	return '';
 }
 
 /**

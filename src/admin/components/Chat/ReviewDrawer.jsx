@@ -324,7 +324,6 @@ export default function ReviewDrawer( {
 			setRevision( ( r ) => r + 1 );
 			setAiResponseOpen( true );
 			setDrawerState( 'plan' );
-			// setDrawerState already called above to go back to 'plan'
 			onMessagesRefresh();
 		} catch ( err ) {
 			setError(
