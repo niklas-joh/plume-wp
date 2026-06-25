@@ -45,7 +45,7 @@ provider, raw input/output tokens, weighted tokens. Also surfaces feature name o
 
 ### Text models
 
-The proxy defaults are compiled into `plume-proxy/src/index.ts:28` (`DEFAULT_TIER_MODELS`)
+The proxy defaults are compiled into `plume-proxy/src/index.ts:24` (`DEFAULT_TIER_MODELS`)
 and the weight table at `plume-proxy/src/index.ts:48` (`DEFAULT_MODEL_TOKEN_WEIGHT`).
 Both can be overridden without a Worker redeploy by writing to `USAGE_KV['config:models']`
 (see `getModelConfig()` at `plume-proxy/src/index.ts:66`).
@@ -275,7 +275,7 @@ pro_managed=2 000 000) and these have not yet been converted to credits.
 | trial | 500 cr | Images × 45 cr/call | GPT Image 1.5 high | 11 calls | **$4.39** |
 | trial | 500 cr | Generator × 10 cr/call | Haiku | 50 calls | **$0.28** |
 | pro_managed | 2 000 cr | Images × 45 cr/call | GPT Image 1.5 high | 44 calls | **$17.56** |
-| pro_managed | 2 000 cr | Chat, long turns ~9 cr | Sonnet 4.6 | 222 turns | **$1.87** |
+| pro_managed | 2 000 cr | Chat, long turns ~9 cr | Sonnet 4.6 | 222 turns | **$4.23** |
 
 **Key finding:** The image worst case on pro_managed ($17.56/month per user) exceeds the
 pro_managed subscription revenue at current pricing. OpenAI high-quality images must be
