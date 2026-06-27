@@ -824,10 +824,20 @@ async function handleChatProxy(
 	} catch ( error ) {
 		// eslint-disable-next-line no-console
 		console.error( 'Proxy error:', error );
-		const status = typeof ( error as { status?: number } )?.status === 'number'
-			? ( error as { status: number } ).status
-			: 500;
-		const message = status !== 500 && error instanceof Error ? error.message : 'Internal proxy error';
+		// Only honour our own tagged validation error (the typed 400 from
+		// getModelForTier). Upstream provider errors also carry a `status`
+		// (e.g. a 429/401 from our Anthropic/OpenAI account) but must never be
+		// forwarded verbatim, as their status semantics collide with the
+		// proxy's own — they collapse to a generic 500 instead.
+		const tagged = error as { status?: number; isValidationError?: boolean };
+		const isValidationError =
+			tagged?.isValidationError === true &&
+			typeof tagged.status === 'number';
+		const status = isValidationError ? ( tagged.status as number ) : 500;
+		const message =
+			isValidationError && error instanceof Error
+				? error.message
+				: 'Internal proxy error';
 		return jsonResponse( { error: message }, status );
 	}
 }
@@ -882,9 +892,12 @@ function getModelForTier(
 		tierModels[ provider ]?.[ tier ] ??
 		DEFAULT_TIER_MODELS[ provider ][ tier ];
 	if ( allowed.length === 0 ) {
+		// Tagged with isValidationError so the handleChatProxy catch block can
+		// distinguish this intended 400 from arbitrary upstream provider errors
+		// (which also carry a `status`) and avoid forwarding their status verbatim.
 		throw Object.assign(
 			new Error( `No ${ provider } models available for tier ${ tier }` ),
-			{ status: 400 }
+			{ status: 400, isValidationError: true }
 		);
 	}
 	if ( requestedModel && allowed.includes( requestedModel ) ) {
