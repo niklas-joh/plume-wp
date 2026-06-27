@@ -3,7 +3,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import worker from '../src/index';
 import { makeEnv } from './helpers/kv-mock';
-import { chatCredits } from '../src/credits';
+import {
+	chatCredits,
+	GENERATOR_CREDITS,
+	SEO_CREDITS,
+	IMAGE_CREDITS,
+} from '../src/credits';
 import type { SiteRecord, ToolParam } from '../src/types';
 
 afterEach( () => {
@@ -687,6 +692,46 @@ describe( 'handleChatProxy', () => {
 		expect( stored ).toBe( chatCredits( 2000, 2000, 1 ) );
 		expect( stored ).toBe( 2 );
 	} );
+
+	it.each( [
+		[ 'generator', GENERATOR_CREDITS ],
+		[ 'seo', SEO_CREDITS ],
+		[ 'images', IMAGE_CREDITS ],
+	] as const )(
+		'%s feature charges the flat credit amount (%i) regardless of token usage',
+		async ( feature, expectedCredits ) => {
+			const env = await makeEnvWithSiteToken( 'pro_managed' );
+
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockImplementation( async () => {
+					return new Response(
+						JSON.stringify( {
+							content: [ { type: 'text', text: 'response' } ],
+							// Large token counts to prove the flat charge ignores them.
+							usage: {
+								input_tokens: 9999,
+								output_tokens: 9999,
+							},
+						} ),
+						{ status: 200 }
+					);
+				} )
+			);
+
+			const body = JSON.stringify( {
+				messages: [ { role: 'user', content: 'Hello' } ],
+				provider: 'claude',
+				feature,
+			} );
+
+			const response = await worker.fetch( makeChatRequest( body ), env );
+			expect( response.status ).toBe( 200 );
+
+			const stored = await getStoredUsage( env );
+			expect( stored ).toBe( expectedCredits );
+		}
+	);
 
 	it( 'returns 429 once monthly credit allowance is exhausted for a free-tier site', async () => {
 		const env = await makeEnvWithSiteToken( 'free' );
