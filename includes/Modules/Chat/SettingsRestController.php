@@ -83,7 +83,7 @@ class SettingsRestController {
 			'available_post_types' => $this->get_public_post_types(),
 			'enable_write_tools'   => (bool) \get_option( 'plume_enable_write_tools', true ),
 			// Note: intentionally snake_case to match WP REST convention; JS reads this as `settings.is_paid`.
-			'is_paid'              => ( 'free' !== TierManager::get_user_tier() ),
+			'is_paid'              => TierManager::is_paid(),
 		];
 
 		return rest_ensure_response( $data );

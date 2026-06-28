@@ -99,8 +99,7 @@ class DashboardPage {
 	 * @return array<string, mixed> Associative array of localised dashboard data.
 	 */
 	private static function get_dashboard_data(): array {
-		$tier    = TierManager::get_user_tier();
-		$is_paid = 'free' !== $tier;
+		$is_paid = TierManager::is_paid();
 		$usage   = UsageTracker::get_usage();
 
 		$banner_state = 'none';

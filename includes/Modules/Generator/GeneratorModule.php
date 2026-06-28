@@ -68,7 +68,7 @@ class GeneratorModule {
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'plume/v1' ) ),
 				'currentPostId' => 0,
-				'isPaid'        => ( 'free' !== TierManager::get_user_tier() ),
+				'isPaid'        => TierManager::is_paid(),
 				'siteTitle'     => \get_bloginfo( 'name' ),
 			]
 		);
