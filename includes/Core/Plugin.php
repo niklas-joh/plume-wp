@@ -213,16 +213,20 @@ class Plugin {
 	}
 
 	/**
-	 * Run on plugin deactivation: flush rewrite rules.
+	 * Run on plugin deactivation: shed the orphaned trial-check cron and flush rewrite rules.
 	 *
-	 * No cron events are scheduled by this plugin any more — the trial-check
-	 * cron was removed along with the trial tier — so there is nothing left
-	 * to clear here.
+	 * This plugin no longer schedules any cron events — the trial-check cron was
+	 * removed along with the trial tier. The defensive clear below stays so that
+	 * installs upgraded from a version that did schedule `plume_trial_check` shed
+	 * the now-callback-less event on a deactivate/reactivate cycle.
 	 *
 	 * @since 1.0.0
 	 * @return void
 	 */
 	public static function deactivate(): void {
+		// Defensive: shed the orphaned trial-check event left on installs upgraded
+		// from a version that scheduled it; the callback no longer exists.
+		wp_clear_scheduled_hook( 'plume_trial_check' );
 		flush_rewrite_rules();
 	}
 
