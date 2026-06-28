@@ -75,29 +75,6 @@ class TierManager {
 	}
 
 	/**
-	 * Assigns a tier to a user.
-	 *
-	 * Returns false when $tier is not a recognised tier slug.
-	 *
-	 * Retained despite having no production callers: the backfill migration in
-	 * Plugin::backfill_site_tier_option() still reads the per-user META_KEY this
-	 * method historically wrote, and the unit suite exercises its validation
-	 * contract. No current code path writes the meta.
-	 *
-	 * @since 1.2.0
-	 * @param string   $tier    Tier slug to assign.
-	 * @param int|null $user_id User ID; defaults to the current user.
-	 * @return bool True on success, false when the tier is invalid or the meta update fails.
-	 */
-	public static function set_user_tier( string $tier, ?int $user_id = null ): bool {
-		if ( ! in_array( $tier, TierConfig::get_valid_tiers(), true ) ) {
-			return false;
-		}
-		$user_id = $user_id ?? get_current_user_id();
-		return (bool) update_user_meta( $user_id, self::META_KEY, $tier );
-	}
-
-	/**
 	 * Sets the site-wide tier (used by the LemonSqueezy webhook receiver).
 	 *
 	 * Fires `plume_tier_changed` on success so other modules can react

@@ -71,23 +71,6 @@ class TierManagerTest extends TestCase {
 		$this->assertSame( 'pro_byok', TierManager::get_user_tier() );
 	}
 
-	// ── set_user_tier ────────────────────────────────────────────────────────
-
-	public function test_set_user_tier_rejects_invalid_tier(): void {
-		$this->assertFalse( TierManager::set_user_tier( 'enterprise', 1 ) );
-	}
-
-	public function test_set_user_tier_rejects_trial_tier(): void {
-		// 'trial' is not in TierConfig::TIERS any more — the trial tier was removed.
-		$this->assertFalse( TierManager::set_user_tier( 'trial', 1 ) );
-	}
-
-	public function test_set_user_tier_stores_valid_tier(): void {
-		Functions\expect( 'update_user_meta' )->once()->with( 3, 'plume_tier', 'pro_managed' )->andReturn( true );
-
-		$this->assertTrue( TierManager::set_user_tier( 'pro_managed', 3 ) );
-	}
-
 	// ── set_site_tier ────────────────────────────────────────────────────────
 
 	public function test_set_site_tier_rejects_invalid_tier(): void {
@@ -225,6 +208,12 @@ class TierManagerTest extends TestCase {
 
 	public function test_get_monthly_limit_method_does_not_exist(): void {
 		$this->assertFalse( method_exists( TierManager::class, 'get_monthly_limit' ) );
+	}
+
+	public function test_set_user_tier_method_does_not_exist(): void {
+		// Zero production callers once the trial tier (its only per-user write
+		// path) was removed — deleted outright rather than kept "just in case".
+		$this->assertFalse( method_exists( TierManager::class, 'set_user_tier' ) );
 	}
 
 	public function test_trial_started_meta_constant_does_not_exist(): void {

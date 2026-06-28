@@ -68,11 +68,12 @@ class PluginTest extends TestCase {
     }
 
     /**
-     * deactivate() must not fatal now that the plume_trial_check hook is no
-     * longer scheduled by activate() — flush_rewrite_rules() must still run.
+     * activate() no longer schedules plume_trial_check, but deactivate() must
+     * still defensively clear it so installs upgraded from a version that did
+     * schedule it shed the now-callback-less orphaned event.
      */
-    public function test_deactivate_does_not_clear_trial_check_cron_and_does_not_fatal(): void {
-        Functions\expect( 'wp_clear_scheduled_hook' )->never();
+    public function test_deactivate_clears_orphaned_trial_check_cron_and_does_not_fatal(): void {
+        Functions\expect( 'wp_clear_scheduled_hook' )->once()->with( 'plume_trial_check' );
         Functions\expect( 'flush_rewrite_rules' )->once();
 
         Plugin::deactivate();
