@@ -33,7 +33,8 @@ const LAUNCH_SUGGESTIONS = [
  * @return {ReactElement}
  */
 export default function ChatApp() {
-	const { isPro } = window.plumeData || {};
+	const { features } = window.plumeData || {};
+	const modelSelection = features?.model_selection ?? false;
 
 	const [ conversations, setConversations ] = useState( [] );
 	const [ activeConvId, setActiveConvId ] = useState( null );
@@ -394,11 +395,10 @@ export default function ChatApp() {
 					selectedModel={ selectedModel }
 					onProviderChange={ setSelectedProvider }
 					onModelChange={ setSelectedModel }
-					isPro={ isPro }
+					modelSelection={ modelSelection }
 				/>
 				<QuickActions
 					onAction={ sendMessage }
-					isPro={ isPro }
 					attachedPost={ attachedPost }
 					onRequestAttach={ requestPostAttach }
 				/>

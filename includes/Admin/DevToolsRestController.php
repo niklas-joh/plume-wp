@@ -189,8 +189,8 @@ class DevToolsRestController {
 	 */
 	public static function handle_set_ceiling(): WP_REST_Response {
 		$user_id = get_current_user_id();
-		$tier    = TierManager::get_user_tier( $user_id );
-		$limit   = TierManager::get_monthly_limit( $tier );
+		$tier    = TierManager::get_user_tier();
+		$limit   = UsageTracker::get_cached_credit_limit( $tier );
 
 		if ( null === $limit ) {
 			return new WP_REST_Response(
@@ -208,8 +208,8 @@ class DevToolsRestController {
 		return new WP_REST_Response(
 			[
 				'success' => true,
-				/* translators: %s: formatted token count e.g. "50,000" */
-				'message' => sprintf( __( 'Usage set to ceiling: %s tokens.', 'plume' ), number_format_i18n( $limit ) ),
+				/* translators: %s: formatted credit count e.g. "100" */
+				'message' => sprintf( __( 'Usage set to ceiling: %s credits.', 'plume' ), number_format_i18n( $limit ) ),
 			],
 			200
 		);

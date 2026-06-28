@@ -2,8 +2,15 @@ import { useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 import { Loader2 } from 'lucide-react';
 import DOMPurify from 'dompurify';
+import OutOfCreditsNotice from '../shared/OutOfCreditsNotice';
+import { isOutOfCreditsError } from '../shared/credits';
 
-const { nonce, restUrl, adminUrl = '/wp-admin/' } = window.plumeData ?? {};
+const {
+	nonce,
+	restUrl,
+	adminUrl = '/wp-admin/',
+	websiteUrl = 'https://wpaimind.com',
+} = window.plumeData ?? {};
 
 const ASPECT_RATIOS = [ '16:9', '1:1', '4:3', '9:16' ];
 
@@ -30,6 +37,7 @@ export default function ImagesWorkArea( { post, onClose, onUpdate } ) {
 	const [ generating, setGenerating ] = useState( false );
 	const [ setting, setSetting ] = useState( false );
 	const [ error, setError ] = useState( null );
+	const [ outOfCredits, setOutOfCredits ] = useState( false );
 	const [ warning, setWarning ] = useState( null );
 
 	const editUrl = `${ adminUrl }post.php?post=${ post.id }&action=edit`;
@@ -40,6 +48,7 @@ export default function ImagesWorkArea( { post, onClose, onUpdate } ) {
 		}
 		setGenerating( true );
 		setError( null );
+		setOutOfCredits( false );
 		setWarning( null );
 		setImages( [] );
 		setSelectedId( null );
@@ -61,7 +70,11 @@ export default function ImagesWorkArea( { post, onClose, onUpdate } ) {
 				);
 			}
 		} catch ( e ) {
-			setError( e.message ?? 'Generation failed.' );
+			if ( isOutOfCreditsError( e ) ) {
+				setOutOfCredits( true );
+			} else {
+				setError( e.message ?? 'Generation failed.' );
+			}
 		} finally {
 			setGenerating( false );
 		}
@@ -248,6 +261,9 @@ export default function ImagesWorkArea( { post, onClose, onUpdate } ) {
 				</div>
 			) }
 
+			{ outOfCredits && (
+				<OutOfCreditsNotice websiteUrl={ websiteUrl } />
+			) }
 			{ error && <p className="plume-work-error">{ error }</p> }
 
 			<div className="plume-work-actions">

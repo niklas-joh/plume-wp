@@ -3,8 +3,10 @@
  * Integration tests for the Generator REST endpoint.
  *
  * Exercises the full REST lifecycle against a real WordPress instance,
- * including permission checks, tier gating, prompt construction, draft
- * post creation, and response shape.
+ * including permission checks, prompt construction, draft post creation,
+ * and response shape. Tier/quota gating was removed from the permission
+ * callback in the credits-based redesign — every tier now reaches the
+ * handler; only the edit_posts capability is still enforced here.
  *
  * @package Plume\Tests\Integration\Generator
  */
@@ -40,36 +42,44 @@ class GeneratorModuleTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * Verify that an editor on the free tier cannot access the generate endpoint.
+	 * Verify that an editor on the free tier CAN access the generate endpoint.
 	 *
-	 * The free tier has generator=false in TierConfig::FEATURES, so the
-	 * permission_callback must reject with 403 even though the user has edit_posts.
+	 * The permission_callback no longer checks tier or quota — credit
+	 * enforcement happens entirely on the Worker side. A free-tier editor
+	 * with edit_posts must reach the handler, not be blocked with 403.
 	 *
 	 * @since 1.0.0
 	 * @return void
 	 */
-	public function test_generate_blocked_for_free_tier(): void {
+	public function test_generate_allowed_for_free_tier(): void {
 		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
+		$this->mock_http_with_claude_fixture(
+			[
+				'content' => 'Generated body text.',
+				'usage'   => [ 'input_tokens' => 10, 'output_tokens' => 10 ],
+			]
+		);
+
 		$response = $this->rest_do( 'POST', '/plume/v1/generate', [ 'title' => 'Test Post' ] );
 
-		$this->assertSame( 403, $response->get_status() );
+		$this->assertNotSame( 403, $response->get_status(), 'Free-tier editors must not be blocked by the permission_callback.' );
 	}
 
 	/**
 	 * Verify that the generate endpoint returns 201 with the expected response shape
 	 * and creates a draft post in the database.
 	 *
-	 * A trial-tier editor submits a title, keywords, tone, and length. The outbound
+	 * A free-tier editor submits a title, keywords, tone, and length. The outbound
 	 * HTTP call to the proxy is mocked. The test asserts the 201 response includes
 	 * post_id, edit_url, content, and tokens_used, and that the draft post exists.
 	 *
 	 * @since 1.0.0
 	 * @return void
 	 */
-	public function test_generate_returns_201_with_draft_post_for_trial_user(): void {
-		$this->set_user_tier( self::$editor_user_id, 'trial' );
+	public function test_generate_returns_201_with_draft_post(): void {
+		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
 		$prompt_tokens     = 120;
@@ -96,7 +106,7 @@ class GeneratorModuleTest extends IntegrationTestCase {
 			]
 		);
 
-		$this->assertSame( 201, $response->get_status(), 'Generator must return 201 for a trial-tier editor.' );
+		$this->assertSame( 201, $response->get_status(), 'Generator must return 201 for a free-tier editor.' );
 
 		$data = $response->get_data();
 		$this->assertArrayHasKey( 'post_id', $data, 'Response must include post_id.' );
@@ -119,14 +129,14 @@ class GeneratorModuleTest extends IntegrationTestCase {
 	 * Verify that the generate endpoint injects the title and keywords into the
 	 * AI provider request body.
 	 *
-	 * A trial-tier editor submits a known title and keywords string. The test
+	 * A free-tier editor submits a known title and keywords string. The test
 	 * asserts both strings appear in the captured outbound HTTP request body.
 	 *
 	 * @since 1.0.0
 	 * @return void
 	 */
 	public function test_generate_injects_title_and_keywords_into_ai_request(): void {
-		$this->set_user_tier( self::$editor_user_id, 'trial' );
+		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
 		$this->mock_http_with_claude_fixture(
@@ -174,7 +184,7 @@ class GeneratorModuleTest extends IntegrationTestCase {
 	 * @return void
 	 */
 	public function test_generate_returns_500_on_provider_failure(): void {
-		$this->set_user_tier( self::$editor_user_id, 'trial' );
+		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
 		// A 401 from the proxy clears the site token and throws ProviderException.

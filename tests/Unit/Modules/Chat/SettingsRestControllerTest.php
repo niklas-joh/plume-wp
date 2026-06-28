@@ -47,7 +47,7 @@ class SettingsRestControllerTest extends TestCase {
                 'plume_default_provider' => 'claude',
                 'plume_image_provider'   => 'gemini',
                 'plume_site_voice'        => 'friendly',
-                'plume_modules'          => [ 'chat' => true, 'text_rewrite' => false, 'summaries' => false, 'seo' => false, 'images' => false, 'generator' => false, 'frontend_widget' => false, 'usage' => false ],
+                'plume_modules'          => [ 'chat' => true, 'text_rewrite' => false, 'summaries' => false, 'seo' => false, 'images' => false, 'generator' => false, 'usage' => false ],
                 'plume_ollama_url'        => 'http://localhost:11434',
             ];
             return $map[ $key ] ?? $default;
@@ -93,7 +93,6 @@ class SettingsRestControllerTest extends TestCase {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'plume_tier' ? 'free' : null );
         Functions\when( 'get_option' )->justReturn( '' );
-        Functions\when( 'plume_is_pro' )->justReturn( false );
 
         $controller = new class extends SettingsRestController {
             protected function make_provider_settings(): \Plume\Settings\ProviderSettings {
@@ -115,12 +114,10 @@ class SettingsRestControllerTest extends TestCase {
         $this->assertSame( '', $data['api_keys']['gemini'] );
     }
 
-    // ── GET /settings — is_pro field ─────────────────────────────────────────
+    // ── GET /settings — is_paid field ─────────────────────────────────────────
 
-    private function make_controller_with_is_pro( bool $is_pro ): SettingsRestController {
-        $controller = new class( $is_pro ) extends SettingsRestController {
-            private bool $is_pro;
-            public function __construct( bool $is_pro ) { $this->is_pro = $is_pro; }
+    private function make_controller_with_tier( string $tier ): SettingsRestController {
+        $controller = new class extends SettingsRestController {
             protected function make_provider_settings(): \Plume\Settings\ProviderSettings {
                 $stub = new class extends \Plume\Settings\ProviderSettings {
                     public function __construct() {}
@@ -131,63 +128,53 @@ class SettingsRestControllerTest extends TestCase {
             }
         };
 
-        // Wrap the controller so plume_is_pro() is available as a mocked function.
-        Functions\when( 'plume_is_pro' )->justReturn( $is_pro );
+        Functions\when( 'get_option' )->alias(
+            fn( $key, $default = false ) =>
+                'plume_site_tier' === $key ? $tier : $default
+        );
 
         return $controller;
     }
 
-    public function test_get_settings_is_pro_field_is_present(): void {
+    public function test_get_settings_is_paid_field_is_present(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
-        Functions\when( 'get_option' )->justReturn( '' );
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'plume_tier' ? 'free' : null );
 
-        $controller = $this->make_controller_with_is_pro( false );
+        $controller = $this->make_controller_with_tier( 'free' );
 
         $response = $controller->get_settings( new \WP_REST_Request() );
-        $this->assertArrayHasKey( 'is_pro', $response->data );
+        $this->assertArrayHasKey( 'is_paid', $response->data );
     }
 
-    public function test_get_settings_is_pro_is_always_boolean(): void {
+    public function test_get_settings_is_paid_is_always_boolean(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
-        Functions\when( 'get_option' )->justReturn( '' );
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'plume_tier' ? 'free' : null );
 
-        foreach ( [ false, true ] as $value ) {
-            $controller = $this->make_controller_with_is_pro( $value );
+        foreach ( [ 'free', 'pro_managed', 'pro_byok' ] as $tier ) {
+            $controller = $this->make_controller_with_tier( $tier );
             $response   = $controller->get_settings( new \WP_REST_Request() );
-            $this->assertIsBool( $response->data['is_pro'], 'is_pro must be a bool, got ' . gettype( $response->data['is_pro'] ) );
+            $this->assertIsBool( $response->data['is_paid'], 'is_paid must be a bool, got ' . gettype( $response->data['is_paid'] ) );
         }
     }
 
-    public function test_get_settings_is_pro_reflects_tier(): void {
+    public function test_get_settings_is_paid_reflects_tier(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
-        Functions\when( 'get_option' )->justReturn( '' );
         Functions\when( 'get_post_types' )->justReturn( [] );
-        Functions\when( 'plume_is_pro' )->justReturn( false );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
 
-        // Tier is now site-level — flip the SITE_OPTION between the two responses.
-        $tier = 'free';
-        Functions\when( 'get_option' )->alias( function( $key, $default = false ) use ( &$tier ) {
-            if ( 'plume_site_tier' === $key ) {
-                return $tier;
-            }
-            return $default;
-        } );
-        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => null );
+        $controller     = $this->make_controller_with_tier( 'free' );
+        $response_free  = $controller->get_settings( new \WP_REST_Request() );
+        $this->assertFalse( $response_free->data['is_paid'], 'free tier should report is_paid: false' );
 
-        $controller   = new SettingsRestController();
-        $response_free = $controller->get_settings( new \WP_REST_Request() );
-        $this->assertFalse( $response_free->data['is_pro'], 'free tier should report is_pro: false' );
+        $controller     = $this->make_controller_with_tier( 'pro_managed' );
+        $response_pro   = $controller->get_settings( new \WP_REST_Request() );
+        $this->assertTrue( $response_pro->data['is_paid'], 'pro_managed tier should report is_paid: true' );
 
-        $tier          = 'pro_managed';
-        $response_pro  = $controller->get_settings( new \WP_REST_Request() );
-        $this->assertTrue( $response_pro->data['is_pro'], 'pro_managed tier should report is_pro: true' );
+        $controller     = $this->make_controller_with_tier( 'pro_byok' );
+        $response_byok  = $controller->get_settings( new \WP_REST_Request() );
+        $this->assertTrue( $response_byok->data['is_paid'], 'pro_byok tier should report is_paid: true' );
     }
 
     // ── POST /settings — saves options ────────────────────────────────────────
@@ -266,7 +253,7 @@ class SettingsRestControllerTest extends TestCase {
         $this->assertFalse( $modules_map['seo'] );
         $this->assertFalse( $modules_map['images'] );
         $this->assertFalse( $modules_map['generator'] );
-        $this->assertFalse( $modules_map['frontend_widget'] );
+        $this->assertArrayNotHasKey( 'frontend_widget', $modules_map );
         $this->assertFalse( $modules_map['usage'] );
         $this->assertSame( 'http://localhost:11434',      $stored['plume_ollama_url'] );
 
@@ -290,7 +277,7 @@ class SettingsRestControllerTest extends TestCase {
             return is_array( $default ) ? $default : '';
         } );
         Functions\when( 'get_post_types' )->justReturn( [] );
-        Functions\when( 'plume_is_pro' )->justReturn( false );
+        
 
         $controller = new class extends SettingsRestController {
             protected function make_provider_settings(): \Plume\Settings\ProviderSettings {
@@ -318,7 +305,7 @@ class SettingsRestControllerTest extends TestCase {
         Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
             return is_array( $default ) ? $default : '';
         } );
-        Functions\when( 'plume_is_pro' )->justReturn( false );
+        
 
         // Build fake WP post type objects.
         $fake_post  = new \stdClass();
@@ -414,9 +401,9 @@ class SettingsRestControllerTest extends TestCase {
         $this->assertTrue( $stored['plume_enable_write_tools'] );
     }
 
-    // ── GET /settings — is_pro field ─────────────────────────────────────────
+    // ── GET /settings — is_paid field ─────────────────────────────────────────
 
-    public function test_get_settings_includes_is_pro_field(): void {
+    public function test_get_settings_includes_is_paid_field(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_option' )->alias(
@@ -424,7 +411,6 @@ class SettingsRestControllerTest extends TestCase {
                 'plume_site_tier' === $key ? 'pro_managed' : ( is_array( $default ) ? $default : ( $default ?: '' ) )
         );
         Functions\when( 'get_current_user_id' )->justReturn( 2 );
-        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'plume_tier' ? 'pro_managed' : null );
 
         $controller = new class extends SettingsRestController {
             protected function make_provider_settings(): \Plume\Settings\ProviderSettings {
@@ -441,17 +427,16 @@ class SettingsRestControllerTest extends TestCase {
         $response = $controller->get_settings( $request );
         $data     = $response->data;
 
-        $this->assertArrayHasKey( 'is_pro', $data );
-        $this->assertIsBool( $data['is_pro'] );
-        $this->assertTrue( $data['is_pro'] );
+        $this->assertArrayHasKey( 'is_paid', $data );
+        $this->assertIsBool( $data['is_paid'] );
+        $this->assertTrue( $data['is_paid'] );
     }
 
-    public function test_get_settings_is_pro_false_for_free_user(): void {
+    public function test_get_settings_is_paid_false_for_free_user(): void {
         Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_post_types' )->justReturn( [] );
         Functions\when( 'get_option' )->justReturn( '' );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'get_user_meta' )->alias( fn( $uid, $key, $single ) => $key === 'plume_tier' ? 'free' : null );
 
         $controller = new class extends SettingsRestController {
             protected function make_provider_settings(): \Plume\Settings\ProviderSettings {
@@ -468,9 +453,9 @@ class SettingsRestControllerTest extends TestCase {
         $response = $controller->get_settings( $request );
         $data     = $response->data;
 
-        $this->assertArrayHasKey( 'is_pro', $data );
-        $this->assertIsBool( $data['is_pro'] );
-        $this->assertFalse( $data['is_pro'] );
+        $this->assertArrayHasKey( 'is_paid', $data );
+        $this->assertIsBool( $data['is_paid'] );
+        $this->assertFalse( $data['is_paid'] );
     }
 
     public function test_save_settings_skips_masked_api_keys(): void {

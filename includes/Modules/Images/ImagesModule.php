@@ -73,7 +73,7 @@ class ImagesModule {
 			[
 				'nonce'      => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'    => \esc_url_raw( \rest_url( 'plume/v1' ) ),
-				'isPro'      => TierManager::user_can( 'images' ),
+				'isPaid'     => ( 'free' !== TierManager::get_user_tier() ),
 				'adminUrl'   => \esc_url_raw( \admin_url() ),
 				'websiteUrl' => PLUME_WEBSITE_URL,
 			]
@@ -101,8 +101,7 @@ class ImagesModule {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => [ self::class, 'handle_generate' ],
 				'permission_callback' => function () {
-						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'images', $user_id ) && UsageTracker::check_limit( $user_id );
+					return \current_user_can( 'edit_posts' );
 				},
 				'args'                => [
 					'prompt'       => [

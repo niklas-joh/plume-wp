@@ -44,9 +44,20 @@ class ModuleRegistryTest extends TestCase {
         Functions\when( 'get_option' )->justReturn( [] );
         $registry = new ModuleRegistry();
         $modules  = $registry->get_all();
-        $expected = [ 'chat', 'text_rewrite', 'summaries', 'seo', 'images', 'generator', 'frontend_widget', 'usage' ];
+        $expected = [ 'chat', 'text_rewrite', 'summaries', 'seo', 'images', 'generator', 'usage' ];
         foreach ( $expected as $key ) {
             $this->assertArrayHasKey( $key, $modules );
         }
+    }
+
+    /**
+     * The frontend widget feature ([plume_chat] shortcode) was removed entirely
+     * along with the trial tier — this must not silently resurface as a key.
+     */
+    public function test_get_all_modules_does_not_include_frontend_widget(): void {
+        Functions\when( 'get_option' )->justReturn( [] );
+        $registry = new ModuleRegistry();
+        $modules  = $registry->get_all();
+        $this->assertArrayNotHasKey( 'frontend_widget', $modules );
     }
 }

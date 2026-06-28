@@ -12,7 +12,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Plume\Settings\ProviderSettings;
 use Plume\Tiers\TierManager;
 use Plume\Tiers\UsageTracker;
 
@@ -88,33 +87,35 @@ class DashboardPage {
 	/**
 	 * Assemble the data object passed to the dashboard React app.
 	 *
-	 * Determines the upgrade banner state: suppressed for Pro/BYOK users and
-	 * trial users (who already have access and receive a separate expiry notice).
+	 * Determines the upgrade banner state: free-tier users see a low-credits
+	 * nudge once their usage crosses 80% of their monthly limit; paid tiers
+	 * (pro_managed, pro_byok) never see the banner regardless of usage.
 	 *
 	 * @since 1.0.0
+	 * @since NEXT_VERSION Removed the ProviderSettings/own-API-key lookup — that
+	 *                      signal no longer suppresses the banner on its own;
+	 *                      replaced isPro with isPaid and the free_tier banner
+	 *                      state with free_tier_low_credits (usage-threshold-gated).
 	 * @return array<string, mixed> Associative array of localised dashboard data.
 	 */
 	private static function get_dashboard_data(): array {
-		$provider_settings = new ProviderSettings();
-		$provider          = (string) get_option( 'plume_default_provider', '' );
-		$has_own_key       = $provider && $provider_settings->has_key( $provider );
-		$is_pro            = TierManager::user_can( 'generator' );
+		$tier    = TierManager::get_user_tier();
+		$is_paid = 'free' !== $tier;
+		$usage   = UsageTracker::get_usage();
 
-		// Suppress the upgrade banner when the user has generator access (pro_managed, pro_byok, or
-		// trial tiers all have generator = true) or when they supply their own API key. Trial users
-		// intentionally do not see the banner — they already have access and will receive a separate
-		// trial-expiry notice when their quota runs low.
-		if ( $is_pro || $has_own_key ) {
-			$banner_state = 'none';
-		} else {
-			$banner_state = 'free_tier';
+		$banner_state = 'none';
+		if ( ! $is_paid && null !== $usage['limit'] && $usage['limit'] > 0 ) {
+			$pct = ( $usage['used'] / $usage['limit'] ) * 100;
+			if ( $pct > 80 ) {
+				$banner_state = 'free_tier_low_credits';
+			}
 		}
 
 		return [
 			'bannerState'    => $banner_state,
 			'onboardingSeen' => (bool) get_option( 'plume_onboarding_seen', false ),
-			'isPro'          => $is_pro,
-			'usage'          => current_user_can( 'manage_options' ) ? UsageTracker::get_usage() : null,
+			'isPaid'         => $is_paid,
+			'usage'          => current_user_can( 'manage_options' ) ? $usage : null,
 			'version'        => PLUME_VERSION,
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'restUrl'        => esc_url_raw( rest_url( 'plume/v1' ) ),

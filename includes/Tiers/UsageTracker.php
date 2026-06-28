@@ -21,6 +21,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class UsageTracker {
 
 	/**
+	 * Fallback monthly credit limit used when the real per-tier limit cannot be
+	 * resolved (transient cache miss with no successful Worker fetch).
+	 *
+	 * @since NEXT_VERSION
+	 */
+	public const FALLBACK_LIMIT = 100;
+
+	/**
 	 * Returns the wp_usermeta key for the current calendar month's token counter.
 	 *
 	 * Centralises the key format so all consumers (get_usage, log_usage, dev-tools
@@ -37,14 +45,21 @@ class UsageTracker {
 	/**
 	 * Returns the current month's usage summary for a user.
 	 *
+	 * `can_use` is always true: the Cloudflare Worker's KV ledger is the sole
+	 * source of truth for credit enforcement now (it rejects exhausted requests
+	 * with a 429), so this local summary exists purely for dashboard display.
+	 *
 	 * @since 1.2.0
+	 * @since NEXT_VERSION limit now comes from get_cached_credit_limit() instead of
+	 *                      the deleted TierManager::get_monthly_limit(); can_use is
+	 *                      hardcoded true rather than computed locally.
 	 * @param int|null $user_id User ID; defaults to the current user.
 	 * @return array{tier: string, used: int, limit: int|null, remaining: int|null, can_use: bool}
 	 */
 	public static function get_usage( ?int $user_id = null ): array {
 		$user_id = $user_id ?? get_current_user_id();
-		$tier    = TierManager::get_user_tier( $user_id );
-		$limit   = TierManager::get_monthly_limit( $tier );
+		$tier    = TierManager::get_user_tier();
+		$limit   = self::get_cached_credit_limit( $tier );
 
 		$key  = self::get_current_month_key();
 		$used = (int) get_user_meta( $user_id, $key, true );
@@ -64,8 +79,48 @@ class UsageTracker {
 			'used'      => $used,
 			'limit'     => $limit,
 			'remaining' => max( 0, $limit - $used ),
-			'can_use'   => $used < $limit,
+			'can_use'   => true,
 		];
+	}
+
+	/**
+	 * Returns the monthly credit limit for a tier, cached in a transient.
+	 *
+	 * Known interim limitation (tracked as a follow-up GitHub issue — a minimal
+	 * Worker endpoint such as `GET /v1/config` returning
+	 * `{ credit_limits: { free: 100, pro_managed: 500 } }`): the Worker's
+	 * `/register` and `/rotate-secret` responses do not yet expose a credit-limit
+	 * field, so there is currently nothing to fetch on a cache miss. The real
+	 * per-tier limit (defined Worker-side in `MONTHLY_CREDIT_LIMITS`) cannot be
+	 * read from PHP until that follow-up ships, so every cache miss falls
+	 * through to FALLBACK_LIMIT and caches that value. This method still owns
+	 * the transient read-through/TTL/pro_byok-null plumbing so that wiring in
+	 * the real Worker fetch later is a one-line change inside this method, not
+	 * a call-site migration across the plugin.
+	 *
+	 * The transient is deliberately on the hot path's "miss" side only — never
+	 * blocking a real request on an HTTP round trip is more important than a
+	 * dashboard figure being briefly stale or wrong by a fallback margin.
+	 *
+	 * @since NEXT_VERSION
+	 * @param string $tier Tier slug.
+	 * @return int|null Monthly credit limit, or null for the unlimited pro_byok tier.
+	 */
+	public static function get_cached_credit_limit( string $tier ): ?int {
+		if ( 'pro_byok' === $tier ) {
+			return null;
+		}
+
+		$transient_key = 'plume_credit_limit_' . $tier;
+		$cached        = get_transient( $transient_key );
+		if ( false !== $cached ) {
+			return (int) $cached;
+		}
+
+		// TODO: fetch the real limit from the Worker once it exposes one (see PHPDoc above).
+		$limit = self::FALLBACK_LIMIT;
+		set_transient( $transient_key, $limit, DAY_IN_SECONDS );
+		return $limit;
 	}
 
 	/**
@@ -96,16 +151,5 @@ class UsageTracker {
 		if ( ! $wpdb->rows_affected ) {
 			add_user_meta( $user_id, $key, $tokens, true );
 		}
-	}
-
-	/**
-	 * Checks whether a user is within their monthly token allowance.
-	 *
-	 * @since 1.2.0
-	 * @param int|null $user_id User ID; defaults to the current user.
-	 * @return bool True when the user can still make requests this month.
-	 */
-	public static function check_limit( ?int $user_id = null ): bool {
-		return self::get_usage( $user_id )['can_use'];
 	}
 }

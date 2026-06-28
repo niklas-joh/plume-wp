@@ -1,0 +1,119 @@
+/**
+ * Unit tests for FeaturesTab — module-enable settings grid.
+ *
+ * @see src/admin/settings/FeaturesTab.jsx
+ */
+import React from 'react';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import FeaturesTab from '../../src/admin/settings/FeaturesTab';
+
+// @wordpress/element re-exports React hooks.
+jest.mock( '@wordpress/element', () => ( {
+	...jest.requireActual( 'react' ),
+} ) );
+
+// lucide-react icons — stub every named export as a no-op span.
+jest.mock( 'lucide-react', () =>
+	new Proxy( {}, { get: () => () => <span /> } )
+);
+
+describe( 'FeaturesTab', () => {
+	let container;
+	let root;
+
+	beforeEach( () => {
+		container = document.createElement( 'div' );
+		document.body.appendChild( container );
+		root = createRoot( container );
+	} );
+
+	afterEach( () => {
+		act( () => {
+			root.unmount();
+		} );
+		document.body.removeChild( container );
+	} );
+
+	it( 'does not render a frontend_widget card', async () => {
+		await act( async () => {
+			root.render(
+				<FeaturesTab settings={ {} } saveSettings={ jest.fn() } />
+			);
+		} );
+
+		expect( container.textContent ).not.toContain( 'Frontend Widget' );
+	} );
+
+	it( 'renders every remaining module card unlocked regardless of is_paid', async () => {
+		await act( async () => {
+			root.render(
+				<FeaturesTab
+					settings={ { is_paid: false } }
+					saveSettings={ jest.fn() }
+				/>
+			);
+		} );
+
+		expect(
+			container.querySelector( '.plume-feature-card--locked' )
+		).toBeNull();
+		expect( container.querySelectorAll( '.plume-feature-card' ).length ).toBe(
+			7
+		);
+	} );
+
+	it( 'does not render a Pro badge or lock icon on any card', async () => {
+		await act( async () => {
+			root.render(
+				<FeaturesTab
+					settings={ { is_paid: false } }
+					saveSettings={ jest.fn() }
+				/>
+			);
+		} );
+
+		expect( container.querySelector( '.plume-pro-badge' ) ).toBeNull();
+		expect( container.textContent ).not.toContain( 'Requires Plume Pro' );
+	} );
+
+	it( 'calls saveSettings with the toggled module slug when a toggle changes', async () => {
+		const saveSettings = jest.fn();
+
+		await act( async () => {
+			root.render(
+				<FeaturesTab
+					settings={ { enabled_modules: [], is_paid: false } }
+					saveSettings={ saveSettings }
+				/>
+			);
+		} );
+
+		const toggle = container.querySelector(
+			'input[aria-label="SEO"]'
+		);
+		expect( toggle ).not.toBeNull();
+
+		// Clicking a real checkbox toggles `.checked` and fires a native
+		// `change` event — this exercises the same React onChange path a
+		// real user interaction would, without needing @testing-library.
+		await act( async () => {
+			toggle.click();
+		} );
+
+		expect( saveSettings ).toHaveBeenCalled();
+	} );
+
+	it( 'shows the updated section description without a Pro-licence mention', async () => {
+		await act( async () => {
+			root.render(
+				<FeaturesTab settings={ {} } saveSettings={ jest.fn() } />
+			);
+		} );
+
+		expect( container.textContent ).toContain(
+			'Enable or disable individual AI modules.'
+		);
+		expect( container.textContent ).not.toContain( 'Pro licence' );
+	} );
+} );

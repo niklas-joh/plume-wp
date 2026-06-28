@@ -541,42 +541,8 @@ class SeoModuleTest extends TestCase {
 		$this->assertSame( [], $response->data['updated'] );
 	}
 
-	// ── permission_callback ────────────────────────────────────────────────────
-
-	public function test_permission_callback_returns_false_when_usage_limit_exceeded(): void {
-		$captured_args = [];
-
-		Functions\when( 'register_rest_route' )->alias(
-			function( $namespace, $route, $args ) use ( &$captured_args ) {
-				$captured_args[ $route ] = $args;
-			}
-		);
-
-		SeoModule::register_routes();
-
-		$this->assertArrayHasKey( '/seo/generate', $captured_args );
-		$permission_callback = $captured_args['/seo/generate']['permission_callback'];
-
-		// User has permission but is over the free monthly limit.
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
-		Functions\when( 'current_user_can' )->justReturn( true );
-		Functions\when( 'get_current_user_id' )->justReturn( 1 );
-		Functions\when( 'get_user_meta' )->alias(
-			function( $user_id, $key, $single ) use ( $month_key ) {
-				if ( 'plume_tier' === $key ) {
-					return 'free';
-				}
-				if ( $month_key === $key ) {
-					return '60000'; // over 50k free limit
-				}
-				return '';
-			}
-		);
-
-		$result = $permission_callback();
-
-		$this->assertFalse( (bool) $result );
-	}
+	// Note: the SEO route permission_callback no longer checks tier or quota —
+	// see Tests\Unit\Modules\Seo\SeoTierGatingTest for the uniform-access coverage.
 
 	// ── register_seo_status_field ──────────────────────────────────────────────
 

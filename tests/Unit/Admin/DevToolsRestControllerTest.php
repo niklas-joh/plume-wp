@@ -104,16 +104,20 @@ class DevToolsRestControllerTest extends TestCase {
 
 	public function test_handle_set_ceiling_sets_usage_to_tier_ceiling_for_limited_tier(): void {
 		Functions\when( 'get_current_user_id' )->justReturn( 2 );
-		// No site-wide paid tier → resolves to free (limit = 50 000).
+		// No site-wide paid tier → resolves to free; get_cached_credit_limit() falls
+		// back to UsageTracker::FALLBACK_LIMIT (the Worker has no config endpoint yet —
+		// tracked as a follow-up issue, see UsageTracker::get_cached_credit_limit()'s PHPDoc).
 		Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => $default );
 		Functions\when( 'get_user_meta' )->alias(
 			function ( int $uid, string $key ): string {
 				return 'plume_tier' === $key ? '' : '';
 			}
 		);
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\when( 'set_transient' )->justReturn( true );
 		Functions\expect( 'update_user_meta' )
 			->once()
-			->with( 2, \Mockery::type( 'string' ), 50000 )
+			->with( 2, \Mockery::type( 'string' ), \Plume\Tiers\UsageTracker::FALLBACK_LIMIT )
 			->andReturn( true );
 		Functions\when( '__' )->returnArg();
 		Functions\when( 'number_format_i18n' )->alias( fn( $n ) => (string) number_format( (int) $n ) );
@@ -122,5 +126,21 @@ class DevToolsRestControllerTest extends TestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $response->data['success'] );
+	}
+
+	/**
+	 * Confirms handle_set_ceiling() depends on UsageTracker::get_cached_credit_limit()
+	 * rather than the deleted TierManager::get_monthly_limit() — the dependency this
+	 * Phase 0.3 fix repoints.
+	 */
+	public function test_handle_set_ceiling_does_not_depend_on_deleted_get_monthly_limit(): void {
+		$this->assertFalse(
+			method_exists( \Plume\Tiers\TierManager::class, 'get_monthly_limit' ),
+			'get_monthly_limit() must be removed from TierManager.'
+		);
+		$this->assertTrue(
+			method_exists( \Plume\Tiers\UsageTracker::class, 'get_cached_credit_limit' ),
+			'handle_set_ceiling() must depend on UsageTracker::get_cached_credit_limit() instead.'
+		);
 	}
 }

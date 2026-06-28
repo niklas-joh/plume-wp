@@ -15,8 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Registers the top-level Plume admin menu and all sub-menu pages.
  *
- * The 'Upgrade' sub-menu is conditionally added only for free and trial users;
- * Pro users see a clean menu without the upsell entry.
+ * The 'Upgrade' sub-menu is conditionally added only for free users; Pro
+ * users see a clean menu without the upsell entry.
  */
 class AdminMenu {
 
@@ -47,7 +47,7 @@ class AdminMenu {
 		add_submenu_page( 'plume', __( 'Settings', 'plume' ), __( 'Settings', 'plume' ), 'manage_options', 'plume-settings', [ SettingsPage::class, 'render' ] );
 
 		$tier = \Plume\Tiers\TierManager::get_user_tier();
-		if ( in_array( $tier, [ 'free', 'trial' ], true ) ) {
+		if ( 'free' === $tier ) {
 			add_submenu_page(
 				'plume',
 				__( 'Upgrade', 'plume' ),

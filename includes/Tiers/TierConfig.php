@@ -14,12 +14,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Single source of truth for tier capabilities and limits.
+ * Single source of truth for recognised tier slugs and proxy connectivity.
  *
- * The constants and any methods that do not call WordPress i18n functions are
- * safe to load before `init`. Methods that call `__()` (such as
- * `get_tier_labels()`) must only be invoked after `init` when translations
- * are available.
+ * Feature gating is no longer tier-based (every tier can use every content
+ * feature; only model_selection/own_api_key remain gated, via
+ * TierManager::user_can()) and credit limits live exclusively in the
+ * Cloudflare Worker's KV store, fetched/cached by UsageTracker. This class
+ * therefore only owns the valid tier slugs and proxy URL resolution.
  *
  * @since 1.2.0
  */
@@ -31,7 +32,7 @@ class TierConfig {
 	 * @since 1.2.0
 	 * @var string[]
 	 */
-	const TIERS = [ 'free', 'trial', 'pro_managed', 'pro_byok' ];
+	const TIERS = [ 'free', 'pro_managed', 'pro_byok' ];
 
 	/**
 	 * Production proxy URL used when PLUME_PROXY_URL is not defined.
@@ -39,58 +40,6 @@ class TierConfig {
 	 * @since 1.8.1
 	 */
 	const DEFAULT_PROXY_URL = 'https://plume-proxy.plumewp.workers.dev';
-
-	/**
-	 * Authoritative feature matrix for local enforcement. Changing this file
-	 * requires direct file-system access (SSH/SFTP); the Cloudflare Worker proxy
-	 * is the server-side source of truth for rate limits and paid entitlements.
-	 *
-	 * @since 1.0.0
-	 */
-	const FEATURES = [
-		'free'        => [
-			'chat'            => true,
-			'generator'       => false,
-			'seo'             => false,
-			'images'          => false,
-			'model_selection' => false,
-			'own_api_key'     => false,
-		],
-		'trial'       => [
-			'chat'            => true,
-			'generator'       => true,
-			'seo'             => true,
-			'images'          => true,
-			'model_selection' => false,
-			'own_api_key'     => false,
-		],
-		'pro_managed' => [
-			'chat'            => true,
-			'generator'       => true,
-			'seo'             => true,
-			'images'          => true,
-			'model_selection' => true,
-			'own_api_key'     => false,
-		],
-		'pro_byok'    => [
-			'chat'            => true,
-			'generator'       => true,
-			'seo'             => true,
-			'images'          => true,
-			'model_selection' => true,
-			'own_api_key'     => true,
-		],
-	];
-
-	// Monthly token limits; null = unlimited.
-	const MONTHLY_LIMITS = [
-		'free'        => 50000,
-		'trial'       => 300000,
-		'pro_managed' => 2000000,
-		'pro_byok'    => null,
-	];
-
-	const TRIAL_DAYS = 30;
 
 	/**
 	 * Return the base URL of the Cloudflare Worker proxy.
@@ -122,18 +71,6 @@ class TierConfig {
 	}
 
 	/**
-	 * Returns whether a feature is enabled for a given tier.
-	 *
-	 * @since 1.2.0
-	 * @param string $tier    Tier slug.
-	 * @param string $feature Feature key (e.g. 'chat', 'own_api_key').
-	 * @return bool True when the feature is enabled for the tier.
-	 */
-	public static function get_feature( string $tier, string $feature ): bool {
-		return (bool) ( self::FEATURES[ $tier ][ $feature ] ?? false );
-	}
-
-	/**
 	 * Returns translatable human-readable labels for all tier slugs.
 	 *
 	 * Centralised here so TierStatusPage and UsageWidget share
@@ -145,22 +82,8 @@ class TierConfig {
 	public static function get_tier_labels(): array {
 		return [
 			'free'        => __( 'Free', 'plume' ),
-			'trial'       => __( 'Trial', 'plume' ),
 			'pro_managed' => __( 'Pro Managed', 'plume' ),
 			'pro_byok'    => __( 'Pro BYOK', 'plume' ),
 		];
-	}
-
-	/**
-	 * Returns the monthly token limit for a tier.
-	 *
-	 * Falls back to the 'free' limit (50 000) when the tier is unrecognised.
-	 *
-	 * @since 1.2.0
-	 * @param string $tier Tier slug.
-	 * @return int|null Monthly token limit, or null for unlimited tiers.
-	 */
-	public static function get_limit( string $tier ): ?int {
-		return array_key_exists( $tier, self::MONTHLY_LIMITS ) ? self::MONTHLY_LIMITS[ $tier ] : 50000;
 	}
 }

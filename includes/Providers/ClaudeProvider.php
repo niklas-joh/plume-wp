@@ -19,7 +19,7 @@ use Plume\Tiers\TierManager;
 /**
  * Handles completions, streaming, and tier-aware routing for Anthropic Claude.
  *
- * Free, trial, and pro_managed tiers route through the NJ proxy client so that
+ * Free and pro_managed tiers route through the NJ proxy client so that
  * usage is logged centrally. The pro_byok tier calls the Anthropic API directly.
  *
  * @since 1.0.0
@@ -121,15 +121,15 @@ class ClaudeProvider extends AbstractProvider {
 		if ( '' !== $this->api_key ) {
 			return true;
 		}
-		$tier = TierManager::get_user_tier( get_current_user_id() );
-		return in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true )
+		$tier = TierManager::get_user_tier();
+		return in_array( $tier, [ 'free', 'pro_managed' ], true )
 			&& SiteRegistration::is_registered();
 	}
 
 	/**
 	 * Route completion by tier:
-	 *   - free / trial / pro_managed → proxy (ProxyClient handles usage logging)
-	 *   - pro_byok                   → direct Anthropic API call (AbstractProvider logs usage)
+	 *   - free / pro_managed → proxy (ProxyClient handles usage logging)
+	 *   - pro_byok           → direct Anthropic API call (AbstractProvider logs usage)
 	 *
 	 * @since 1.0.0
 	 * @param CompletionRequest $request The completion request.
@@ -137,9 +137,9 @@ class ClaudeProvider extends AbstractProvider {
 	 * @throws ProviderException On API or proxy failure.
 	 */
 	protected function do_complete( CompletionRequest $request ): CompletionResponse {
-		$tier = TierManager::get_user_tier( get_current_user_id() );
+		$tier = TierManager::get_user_tier();
 
-		if ( in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true ) ) {
+		if ( in_array( $tier, [ 'free', 'pro_managed' ], true ) ) {
 			return $this->complete_via_proxy( $request );
 		}
 
@@ -192,7 +192,8 @@ class ClaudeProvider extends AbstractProvider {
 				$request->tools
 			);
 		}
-		$result = ProxyClient::chat( $request->messages, $options, 'claude' );
+		$feature = $request->metadata['feature'] ?? 'chat';
+		$result  = ProxyClient::chat( $request->messages, $feature, $options, 'claude' );
 
 		if ( is_wp_error( $result ) ) {
 			throw new ProviderException( $result->get_error_message(), 'claude' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped

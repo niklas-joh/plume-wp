@@ -423,6 +423,69 @@ class ClaudeProviderTest extends TestCase {
 		$this->assertSame( "I'll fetch that post for you.", $response->content );
 	}
 
+	public function test_complete_via_proxy_forwards_feature_from_request_metadata(): void {
+		$this->mock_wpdb();
+		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		Functions\when( 'get_option' )->justReturn( 'mock-site-token' );
+		Functions\stubs( [ '__' => fn( $str ) => $str ] );
+
+		$captured_body = null;
+		Functions\when( 'wp_remote_post' )->alias( function ( $url, $args ) use ( &$captured_body ) {
+			$captured_body = json_decode( $args['body'], true );
+			return [
+				'response' => [ 'code' => 200 ],
+				'body'     => json_encode( [
+					'content' => 'ok',
+					'usage'   => [ 'input_tokens' => 1, 'output_tokens' => 1 ],
+				] ),
+			];
+		} );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+		$provider = new ClaudeProvider( '' );
+		$request  = new CompletionRequest(
+			messages: [ [ 'role' => 'user', 'content' => 'Write a post' ] ],
+			metadata: [ 'feature' => 'generator' ],
+		);
+		$provider->complete( $request );
+
+		$this->assertNotNull( $captured_body );
+		$this->assertSame( 'generator', $captured_body['feature'] );
+	}
+
+	public function test_complete_via_proxy_defaults_feature_to_chat_when_metadata_absent(): void {
+		$this->mock_wpdb();
+		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		Functions\when( 'get_option' )->justReturn( 'mock-site-token' );
+		Functions\stubs( [ '__' => fn( $str ) => $str ] );
+
+		$captured_body = null;
+		Functions\when( 'wp_remote_post' )->alias( function ( $url, $args ) use ( &$captured_body ) {
+			$captured_body = json_decode( $args['body'], true );
+			return [
+				'response' => [ 'code' => 200 ],
+				'body'     => json_encode( [
+					'content' => 'ok',
+					'usage'   => [ 'input_tokens' => 1, 'output_tokens' => 1 ],
+				] ),
+			];
+		} );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+		$provider = new ClaudeProvider( '' );
+		$request  = new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ] );
+		$provider->complete( $request );
+
+		$this->assertNotNull( $captured_body );
+		$this->assertSame( 'chat', $captured_body['feature'] );
+	}
+
 	public function test_build_system_field_returns_plain_string_for_short_system(): void {
 		$provider = new ClaudeProvider( 'sk-ant-test' );
 		$method   = new \ReflectionMethod( $provider, 'build_system_field' );

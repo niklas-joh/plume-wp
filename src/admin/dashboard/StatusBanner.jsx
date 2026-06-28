@@ -6,7 +6,7 @@
  * invalid. Each state surfaces the appropriate CTA links.
  *
  * @param {Object} props
- * @param {string} props.bannerState  Current banner variant: `'none'`, `'free_tier'`, or `'invalid_key'`.
+ * @param {string} props.bannerState  Current banner variant: `'none'`, `'free_tier_low_credits'`, or `'invalid_key'`.
  * @param {Object} props.urls         URL map with at least `settings` and `upgrade` keys.
  * @return {ReactElement|null}
  */

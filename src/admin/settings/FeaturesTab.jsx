@@ -1,65 +1,52 @@
 import { useState } from '@wordpress/element';
 import { ToggleControl, CheckboxControl } from '@wordpress/components';
-import { Lock } from 'lucide-react';
 
 const MODULES = [
 	{
 		slug: 'chat',
 		label: 'Chat',
 		description: 'AI chat assistant panel in the WordPress admin.',
-		isPro: false,
 	},
 	{
 		slug: 'text_rewrite',
 		label: 'Text Rewrite',
 		description: 'Rewrite and improve post content using AI.',
-		isPro: false,
 	},
 	{
 		slug: 'summaries',
 		label: 'Summaries',
 		description: 'Automatically generate post summaries and excerpts.',
-		isPro: false,
 	},
 	{
 		slug: 'seo',
 		label: 'SEO',
 		description:
 			'AI-assisted meta titles, descriptions, and keyword suggestions.',
-		isPro: true,
 	},
 	{
 		slug: 'images',
 		label: 'Images',
 		description: 'Generate and insert AI images directly into posts.',
-		isPro: true,
 	},
 	{
 		slug: 'generator',
 		label: 'Generator',
 		description: 'Full AI-driven post and page generation workflow.',
-		isPro: true,
-	},
-	{
-		slug: 'frontend_widget',
-		label: 'Frontend Widget',
-		description: 'Embed an AI chat widget on the public-facing site.',
-		isPro: true,
 	},
 	{
 		slug: 'usage',
 		label: 'Usage',
 		description: 'Track token consumption and API usage across providers.',
-		isPro: false,
 	},
 ];
 
 /**
  * Settings tab for toggling AI modules and configuring post-type access.
  *
- * Pro-locked modules render as disabled cards; toggling them is a no-op
- * so no Pro-gate error needs to be surfaced separately. Post-type changes
- * and the write-tools toggle are persisted immediately on change.
+ * Every module is available on every tier — credit exhaustion is enforced
+ * by the Worker, not a PHP/JS-side feature gate, so no card is ever locked.
+ * Post-type changes and the write-tools toggle are persisted immediately
+ * on change.
  *
  * @param {Object}   props
  * @param {Object}   props.settings      Full settings object from the REST API.
@@ -68,7 +55,6 @@ const MODULES = [
  */
 export default function FeaturesTab( { settings, saveSettings } ) {
 	const enabledModules = settings?.enabled_modules ?? [];
-	const isPro = settings?.is_pro ?? false;
 
 	const [ allowedPostTypes, setAllowedPostTypes ] = useState(
 		settings?.allowed_post_types ?? [ 'post', 'page' ]
@@ -80,11 +66,7 @@ export default function FeaturesTab( { settings, saveSettings } ) {
 		settings?.enable_write_tools ?? false
 	);
 
-	function handleToggle( slug, isProModule ) {
-		if ( isProModule && ! isPro ) {
-			return;
-		} // locked
-
+	function handleToggle( slug ) {
 		const isEnabled = enabledModules.includes( slug );
 		const updatedArray = isEnabled
 			? enabledModules.filter( ( s ) => s !== slug )
@@ -114,79 +96,45 @@ export default function FeaturesTab( { settings, saveSettings } ) {
 						Enabled Modules
 					</h3>
 					<p className="plume-settings-section-desc">
-						Enable or disable individual AI modules. Pro modules
-						require an active Plume Pro licence.
+						Enable or disable individual AI modules.
 					</p>
 				</div>
 
 				<div className="plume-features-grid">
-					{ MODULES.map(
-						( {
-							slug,
-							label,
-							description,
-							isPro: isProModule,
-						} ) => {
-							const isEnabled = enabledModules.includes( slug );
-							const isLocked = isProModule && ! isPro;
+					{ MODULES.map( ( { slug, label, description } ) => {
+						const isEnabled = enabledModules.includes( slug );
 
-							return (
-								<div
-									key={ slug }
-									className={ `plume-feature-card${
-										isLocked
-											? ' plume-feature-card--locked'
-											: ''
-									}${
-										isEnabled
-											? ' plume-feature-card--enabled'
-											: ''
-									}` }
-								>
-									<div className="plume-feature-card-header">
-										<div className="plume-feature-card-meta">
-											<span className="plume-feature-card-label">
-												{ label }
-											</span>
-											{ isProModule && (
-												<span className="plume-pro-badge">
-													{ isLocked && (
-														<Lock size={ 10 } />
-													) }
-													Pro
-												</span>
-											) }
-										</div>
-
-										<ToggleControl
-											label={ label }
-											checked={ isEnabled }
-											onChange={ () =>
-												handleToggle(
-													slug,
-													isProModule
-												)
-											}
-											disabled={ isLocked }
-											hideLabelFromVision
-											__nextHasNoMarginBottom
-										/>
+						return (
+							<div
+								key={ slug }
+								className={ `plume-feature-card${
+									isEnabled
+										? ' plume-feature-card--enabled'
+										: ''
+								}` }
+							>
+								<div className="plume-feature-card-header">
+									<div className="plume-feature-card-meta">
+										<span className="plume-feature-card-label">
+											{ label }
+										</span>
 									</div>
 
-									<p className="plume-feature-card-desc">
-										{ description }
-									</p>
-
-									{ isLocked && (
-										<p className="plume-feature-card-locked-msg">
-											<Lock size={ 11 } />
-											Requires Plume Pro
-										</p>
-									) }
+									<ToggleControl
+										label={ label }
+										checked={ isEnabled }
+										onChange={ () => handleToggle( slug ) }
+										hideLabelFromVision
+										__nextHasNoMarginBottom
+									/>
 								</div>
-							);
-						}
-					) }
+
+								<p className="plume-feature-card-desc">
+									{ description }
+								</p>
+							</div>
+						);
+					} ) }
 				</div>
 			</section>
 

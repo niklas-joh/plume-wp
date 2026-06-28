@@ -162,7 +162,16 @@ class ToolExecutorTest extends TestCase {
 		$this->assertStringContainsString( 'permissions', strtolower( $result['error'] ) );
 	}
 
-	public function test_generate_seo_meta_returns_post_snippet_for_free_tier(): void {
+	/**
+	 * Free-tier users are no longer short-circuited to a manual-suggestion
+	 * snippet — every tier reaches SeoModule::generate_for_post(); the Worker's
+	 * credit ledger is the only enforcement point now. ToolExecutor has no DI
+	 * seam for SeoModule, so generate_for_post() runs for real and fails on its
+	 * own unmocked dependencies (e.g. ProviderFactory) — the test asserts the
+	 * tier-gate's distinguishing shape (`seo_access`/manual-suggestion note) is
+	 * gone, not that the call fully succeeds end-to-end.
+	 */
+	public function test_generate_seo_meta_reaches_generator_for_free_tier(): void {
 		Functions\when( 'absint' )->alias( static fn( $v ) => (int) abs( $v ) );
 
 		$post               = new \stdClass();
@@ -172,22 +181,27 @@ class ToolExecutorTest extends TestCase {
 
 		Functions\when( 'get_post' )->justReturn( $post );
 		Functions\when( 'user_can' )->justReturn( true );
-		// Return 'free' tier → TierManager::user_can('seo') = false.
-		Functions\when( 'get_user_meta' )->justReturn( 'free' );
+		// Free tier (site option default) — must no longer short-circuit.
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'wp_strip_all_tags' )->alias( fn( $s ) => $s );
-
 		Functions\when( '__' )->alias( fn( $s ) => $s );
+		Functions\when( 'get_post_thumbnail_id' )->justReturn( 0 );
 
 		$executor = $this->make_executor();
 		$result   = $executor->execute( 'generate_seo_meta', [ 'post_id' => 5 ], 1 );
 
-		$this->assertArrayHasKey( 'seo_access', $result );
-		$this->assertFalse( $result['seo_access'] );
-		$this->assertArrayHasKey( 'post_content_snippet', $result );
+		$this->assertArrayNotHasKey( 'seo_access', $result, 'The tier gate must be gone — every tier reaches the generator.' );
+		if ( isset( $result['error'] ) ) {
+			$this->assertStringNotContainsString( 'Pro plan', $result['error'] );
+		}
 	}
 
-	public function test_generate_seo_meta_returns_error_when_usage_limit_exceeded(): void {
+	/**
+	 * A simulated zero-quota free-tier user must still reach
+	 * SeoModule::generate_for_post() — the local WordPress-side quota
+	 * pre-check was deleted; the Worker's KV ledger is the only enforcer.
+	 */
+	public function test_generate_seo_meta_reaches_generator_when_local_usage_meta_is_exhausted(): void {
 		Functions\when( 'absint' )->alias( static fn( $v ) => (int) abs( $v ) );
 
 		$post               = new \stdClass();
@@ -198,11 +212,13 @@ class ToolExecutorTest extends TestCase {
 		Functions\when( 'get_post' )->justReturn( $post );
 		Functions\when( 'user_can' )->justReturn( true );
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
-
 		Functions\when( '__' )->alias( fn( $s ) => $s );
 		Functions\when( 'wp_strip_all_tags' )->alias( fn( $s ) => $s );
+		Functions\when( 'get_post_thumbnail_id' )->justReturn( 0 );
+
 		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
-		// pro_managed is site-level now; usage meta still per-user.
+		// pro_managed is site-level now; usage meta still per-user. Usage is set
+		// far above any historical limit to simulate "exhausted" — must no longer matter.
 		Functions\when( 'get_option' )->alias(
 			fn( $key, $default = false ) =>
 				'plume_site_tier' === $key ? 'pro_managed' : $default
@@ -210,7 +226,7 @@ class ToolExecutorTest extends TestCase {
 		Functions\when( 'get_user_meta' )->alias(
 			function ( int $user_id, string $key, bool $single ) use ( $month_key ): mixed {
 				if ( $month_key === $key ) {
-					return '3000000'; // Exceeds the 2 000 000 pro_managed limit.
+					return '3000000';
 				}
 				return '';
 			}
@@ -219,8 +235,9 @@ class ToolExecutorTest extends TestCase {
 		$executor = $this->make_executor();
 		$result   = $executor->execute( 'generate_seo_meta', [ 'post_id' => 5 ], 1 );
 
-		$this->assertArrayHasKey( 'error', $result );
-		$this->assertStringContainsString( 'limit', strtolower( $result['error'] ) );
+		if ( isset( $result['error'] ) ) {
+			$this->assertStringNotContainsString( 'limit', strtolower( $result['error'] ), 'The local quota pre-check must be gone — only the Worker enforces credits now.' );
+		}
 	}
 
 	// -------------------------------------------------------------------------

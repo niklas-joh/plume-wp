@@ -78,18 +78,16 @@ class UsageWidgetTest extends TestCase {
 		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
 
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
-		// tier meta is called once inside get_usage(); render() reads $usage['tier'] directly
 		Functions\when( 'get_user_meta' )->alias(
 			function ( int $user_id, string $key ) use ( $month_key ): string {
-				if ( 'plume_tier' === $key ) {
-					return 'free';
-				}
 				if ( $month_key === $key ) {
-					return '25000';
+					return '25';
 				}
 				return '';
 			}
 		);
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\when( 'set_transient' )->justReturn( true );
 		Functions\when( 'number_format_i18n' )->alias( fn( $n ) => (string) number_format( (int) $n ) );
 		Functions\when( 'esc_html' )->returnArg();
 		Functions\when( 'esc_attr' )->returnArg();
@@ -101,9 +99,10 @@ class UsageWidgetTest extends TestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Free', $output );
-		$this->assertStringContainsString( '25,000', $output );
-		$this->assertStringContainsString( '50,000', $output );
+		$this->assertStringContainsString( '25', $output );
+		$this->assertStringContainsString( (string) \Plume\Tiers\UsageTracker::FALLBACK_LIMIT, $output );
 		$this->assertStringContainsString( 'plume-progress-track', $output );
+		$this->assertStringContainsString( 'credits', $output );
 	}
 
 	public function test_render_shows_upgrade_notice_when_above_80_percent(): void {
@@ -112,15 +111,15 @@ class UsageWidgetTest extends TestCase {
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_user_meta' )->alias(
 			function ( int $user_id, string $key ) use ( $month_key ): string {
-				if ( 'plume_tier' === $key ) {
-					return 'free'; // limit = 50000
-				}
+				// FALLBACK_LIMIT is 100 — 92 used crosses the 80% threshold.
 				if ( $month_key === $key ) {
-					return '46000'; // 92% used
+					return '92';
 				}
 				return '';
 			}
 		);
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\when( 'set_transient' )->justReturn( true );
 		Functions\when( 'number_format_i18n' )->alias( fn( $n ) => (string) number_format( (int) $n ) );
 		Functions\when( 'esc_html' )->returnArg();
 		Functions\when( 'esc_attr' )->returnArg();
@@ -132,12 +131,13 @@ class UsageWidgetTest extends TestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'Over 80%', $output );
+		$this->assertStringContainsString( 'credits used', $output );
 		$this->assertStringContainsString( 'plume-progress-bar--danger', $output );
 	}
 
 	// ── render() — unlimited tier (pro_byok) ─────────────────────────────────
 
-	public function test_render_shows_unlimited_message_for_pro_byok(): void {
+	public function test_render_shows_no_credit_limit_message_for_pro_byok(): void {
 		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
 
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
@@ -164,7 +164,7 @@ class UsageWidgetTest extends TestCase {
 		UsageWidget::render();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Unlimited', $output );
+		$this->assertStringContainsString( 'No credit limit', $output );
 		$this->assertStringNotContainsString( 'plume-progress-track', $output );
 	}
 }

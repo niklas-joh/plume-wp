@@ -4,8 +4,8 @@
 const React = require( 'react' );
 
 module.exports = {
-	Button: ( { children, onClick, disabled, type, variant, isBusy, style } ) =>
-		React.createElement( 'button', { onClick, disabled, type, style }, children ),
+	Button: ( { children, onClick, disabled, type, variant, isBusy, style, className } ) =>
+		React.createElement( 'button', { onClick, disabled, type, style, className }, children ),
 	SelectControl: ( { label, value, onChange, options = [], disabled } ) =>
 		React.createElement(
 			'select',
@@ -38,4 +38,20 @@ module.exports = {
 		),
 	Notice: ( { children, status, isDismissible, onRemove } ) =>
 		React.createElement( 'div', { role: 'alert', 'data-status': status }, children ),
+	ToggleControl: ( { label, checked, onChange, disabled } ) =>
+		React.createElement( 'input', {
+			type: 'checkbox',
+			'aria-label': label,
+			checked: !! checked,
+			onChange: ( e ) => onChange( e.target.checked ),
+			disabled,
+		} ),
+	CheckboxControl: ( { label, checked, onChange, disabled } ) =>
+		React.createElement( 'input', {
+			type: 'checkbox',
+			'aria-label': label,
+			checked: !! checked,
+			onChange: ( e ) => onChange( e.target.checked ),
+			disabled,
+		} ),
 };

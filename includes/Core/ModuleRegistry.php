@@ -26,14 +26,13 @@ class ModuleRegistry {
 
 	/** Modules that are on by default (no user action required). */
 	private const DEFAULTS = [
-		'chat'            => true,
-		'text_rewrite'    => true,
-		'summaries'       => true,
-		'seo'             => false,
-		'images'          => false,
-		'generator'       => true,
-		'frontend_widget' => false,
-		'usage'           => true,
+		'chat'         => true,
+		'text_rewrite' => true,
+		'summaries'    => true,
+		'seo'          => false,
+		'images'       => false,
+		'generator'    => true,
+		'usage'        => true,
 	];
 
 	/**

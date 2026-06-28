@@ -2,8 +2,15 @@ import { useState, useRef, useEffect } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 import { Loader2 } from 'lucide-react';
 import DOMPurify from 'dompurify';
+import OutOfCreditsNotice from '../shared/OutOfCreditsNotice';
+import { isOutOfCreditsError } from '../shared/credits';
 
-const { nonce, restUrl, adminUrl = '/wp-admin/' } = window.plumeData ?? {};
+const {
+	nonce,
+	restUrl,
+	adminUrl = '/wp-admin/',
+	websiteUrl = 'https://wpaimind.com',
+} = window.plumeData ?? {};
 
 const EMPTY_FIELDS = {
 	meta_title: '',
@@ -33,6 +40,7 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 	const [ generating, setGenerating ] = useState( false );
 	const [ applying, setApplying ] = useState( false );
 	const [ error, setError ] = useState( null );
+	const [ outOfCredits, setOutOfCredits ] = useState( false );
 
 	const yesButtonRef = useRef( null );
 
@@ -78,6 +86,7 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 		setConfirmReplace( false );
 		setGenerating( true );
 		setError( null );
+		setOutOfCredits( false );
 		try {
 			const data = await apiFetch( {
 				url: `${ restUrl }/seo/generate`,
@@ -93,7 +102,11 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 			} );
 			setHasGenerated( true );
 		} catch ( e ) {
-			setError( e.message ?? 'Generation failed.' );
+			if ( isOutOfCreditsError( e ) ) {
+				setOutOfCredits( true );
+			} else {
+				setError( e.message ?? 'Generation failed.' );
+			}
 		} finally {
 			setGenerating( false );
 		}
@@ -257,6 +270,9 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 				</div>
 			</div>
 
+			{ outOfCredits && (
+				<OutOfCreditsNotice websiteUrl={ websiteUrl } />
+			) }
 			{ error && <p className="plume-work-error">{ error }</p> }
 
 			<div className="plume-work-actions">

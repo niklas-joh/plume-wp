@@ -114,15 +114,15 @@ class GeminiProvider extends AbstractProvider {
 		if ( '' !== $this->api_key ) {
 			return true;
 		}
-		$tier = TierManager::get_user_tier( get_current_user_id() );
-		return in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true )
+		$tier = TierManager::get_user_tier();
+		return in_array( $tier, [ 'free', 'pro_managed' ], true )
 			&& SiteRegistration::is_registered();
 	}
 
 	/**
 	 * Route completion by tier:
-	 *   - free / trial / pro_managed → proxy (ProxyClient handles usage logging)
-	 *   - pro_byok                   → direct Gemini API call (AbstractProvider logs usage)
+	 *   - free / pro_managed → proxy (ProxyClient handles usage logging)
+	 *   - pro_byok           → direct Gemini API call (AbstractProvider logs usage)
 	 *
 	 * @since 1.0.0
 	 * @param CompletionRequest $request The completion request.
@@ -130,9 +130,9 @@ class GeminiProvider extends AbstractProvider {
 	 * @throws ProviderException On API or proxy failure.
 	 */
 	protected function do_complete( CompletionRequest $request ): CompletionResponse {
-		$tier = TierManager::get_user_tier( get_current_user_id() );
+		$tier = TierManager::get_user_tier();
 
-		if ( in_array( $tier, [ 'free', 'trial', 'pro_managed' ], true ) ) {
+		if ( in_array( $tier, [ 'free', 'pro_managed' ], true ) ) {
 			return $this->complete_via_proxy( $request );
 		}
 
@@ -198,7 +198,8 @@ class GeminiProvider extends AbstractProvider {
 			// need to re-register on every proxied request (SRP concern, tracked in #485).
 			$options['tools'] = ( new ToolRegistry() )->get_for_provider( 'proxy' );
 		}
-		$result = ProxyClient::chat( $request->messages, $options, 'gemini' );
+		$feature = $request->metadata['feature'] ?? 'chat';
+		$result  = ProxyClient::chat( $request->messages, $feature, $options, 'gemini' );
 
 		if ( is_wp_error( $result ) ) {
 			throw new ProviderException( $result->get_error_message(), 'gemini' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped

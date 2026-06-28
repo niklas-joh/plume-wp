@@ -40,6 +40,8 @@ class UsageModuleTest extends TestCase {
 	public function test_get_usage_returns_expected_shape(): void {
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_user_meta' )->justReturn( '1200' );
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\when( 'set_transient' )->justReturn( true );
 
 		$request  = new \WP_REST_Request();
 		$response = UsageModule::get_usage( $request );

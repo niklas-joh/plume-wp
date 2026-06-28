@@ -42,11 +42,40 @@ class PluginTest extends TestCase {
 
         Functions\when( 'get_option' )->justReturn( false );
         Functions\when( 'update_option' )->justReturn( true );
-        Functions\when( 'wp_next_scheduled' )->justReturn( false );
-        Functions\when( 'wp_schedule_event' )->justReturn( true );
         Functions\when( 'flush_rewrite_rules' )->justReturn( null );
         Functions\when( 'get_users' )->justReturn( [] );
 
         Plugin::activate();
+    }
+
+    /**
+     * The trial tier no longer exists — activate() must not schedule the
+     * plume_trial_check cron event (there is no successor cron event either;
+     * zero production users means no upgrade routine is needed).
+     */
+    public function test_activate_does_not_schedule_trial_check_cron(): void {
+        Functions\expect( 'wp_next_scheduled' )->never();
+        Functions\expect( 'wp_schedule_event' )->never();
+
+        Functions\when( 'get_option' )->justReturn( false );
+        Functions\when( 'add_option' )->justReturn( true );
+        Functions\when( 'update_option' )->justReturn( true );
+        Functions\when( 'flush_rewrite_rules' )->justReturn( null );
+        Functions\when( 'get_users' )->justReturn( [] );
+
+        Plugin::activate();
+        $this->addToAssertionCount( 1 );
+    }
+
+    /**
+     * deactivate() must not fatal now that the plume_trial_check hook is no
+     * longer scheduled by activate() — flush_rewrite_rules() must still run.
+     */
+    public function test_deactivate_does_not_clear_trial_check_cron_and_does_not_fatal(): void {
+        Functions\expect( 'wp_clear_scheduled_hook' )->never();
+        Functions\expect( 'flush_rewrite_rules' )->once();
+
+        Plugin::deactivate();
+        $this->addToAssertionCount( 1 );
     }
 }
