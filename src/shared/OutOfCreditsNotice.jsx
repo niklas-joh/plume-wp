@@ -1,4 +1,5 @@
 import { CircleSlash } from 'lucide-react';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Banner shown when a Worker request fails with a credit-exhaustion error.
@@ -22,13 +23,16 @@ export default function OutOfCreditsNotice( { websiteUrl } ) {
 		<div className="plume-out-of-credits-banner">
 			<CircleSlash size={ 18 } />
 			<span>
-				You&apos;ve used all your credits for this billing period.
+				{ __(
+					'You’ve used all your credits for this billing period.',
+					'plume'
+				) }
 			</span>
 			<a
 				href={ `${ websiteUrl }/pricing` }
 				className="button button-primary"
 			>
-				Get more credits →
+				{ __( 'Get more credits →', 'plume' ) }
 			</a>
 		</div>
 	);

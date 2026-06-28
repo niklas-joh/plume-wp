@@ -37,7 +37,7 @@ class ProxyClient {
 	 *
 	 * @since 1.2.0
 	 * @param array<array{role: string, content: string}> $messages  Chat message history.
-	 * @param string                                      $feature  Feature tag the Worker uses for credit-cost lookup: 'chat', 'generator', 'seo', or 'images'.
+	 * @param string                                      $feature  Feature tag the Worker uses for credit-cost lookup: 'chat', 'generator', or 'seo'. Image generation routes through generate_image() → post() directly and never reaches chat().
 	 * @param array<string, mixed>                        $options   Supports 'model', 'max_tokens', 'system', 'tools'.
 	 * @param string                                      $provider  Provider slug: 'claude', 'openai', or 'gemini'. Defaults to 'claude'.
 	 * @return array<string, mixed>|WP_Error

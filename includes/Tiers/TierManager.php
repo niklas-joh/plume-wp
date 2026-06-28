@@ -16,12 +16,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Manages user tier assignment and trial lifecycle.
+ * Manages site-wide tier assignment.
  *
  * Paid entitlements (Pro Managed, Pro BYOK) live on a site-wide option because a
- * LemonSqueezy subscription is purchased per site, not per user. Per-user meta
- * is reserved for the trial flag, which is the only state that genuinely varies
- * between users on the same install.
+ * LemonSqueezy subscription is purchased per site, not per user.
  *
  * @since 1.2.0
  */
@@ -60,7 +58,7 @@ class TierManager {
 	 * caller, logged in or not, resolves to the same value from the site option.
 	 *
 	 * @since 1.2.0
-	 * @since 1.9.0 Site option now wins over active trial meta for paid tiers.
+	 * @since 1.9.0 Paid tiers resolve from the site-wide option.
 	 * @since NEXT_VERSION Removed the unused $user_id parameter and the trial-meta
 	 *                      fallback now that the trial tier no longer exists.
 	 * @return string Tier slug (e.g. 'free', 'pro_managed', 'pro_byok').
@@ -80,6 +78,11 @@ class TierManager {
 	 * Assigns a tier to a user.
 	 *
 	 * Returns false when $tier is not a recognised tier slug.
+	 *
+	 * Retained despite having no production callers: the backfill migration in
+	 * Plugin::backfill_site_tier_option() still reads the per-user META_KEY this
+	 * method historically wrote, and the unit suite exercises its validation
+	 * contract. No current code path writes the meta.
 	 *
 	 * @since 1.2.0
 	 * @param string   $tier    Tier slug to assign.

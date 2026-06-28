@@ -171,7 +171,7 @@ class GeneratorModule {
 			);
 
 			$response = $provider->complete( $req );
-			// Usage logged by the provider layer: proxy for trial/pro_managed, AbstractProvider::maybe_log() for pro_byok.
+			// Usage logged by the provider layer: proxy for pro_managed, AbstractProvider::maybe_log() for pro_byok.
 			$content = ( new \Plume\Content\ContentNormaliser() )->normalise( $response->content );
 
 			// Create a draft post.

@@ -170,7 +170,7 @@ class SeoModule {
 	 * at minimum.
 	 *
 	 * **Side effects:** On success this method fires a live AI provider request.
-	 * Token usage is logged by the provider layer — the proxy for trial/pro_managed
+	 * Token usage is logged by the provider layer — the proxy for pro_managed
 	 * tiers and AbstractProvider::maybe_log() for pro_byok. Callers MUST NOT call
 	 * UsageTracker::log_usage() after this method; doing so double-counts tokens.
 	 * Callers are responsible for checking usage limits before invoking this method;
