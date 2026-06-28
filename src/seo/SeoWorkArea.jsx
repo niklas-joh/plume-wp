@@ -270,9 +270,7 @@ export default function SeoWorkArea( { post, onClose, onUpdate } ) {
 				</div>
 			</div>
 
-			{ outOfCredits && (
-				<OutOfCreditsNotice websiteUrl={ websiteUrl } />
-			) }
+			{ outOfCredits && <OutOfCreditsNotice websiteUrl={ websiteUrl } /> }
 			{ error && <p className="plume-work-error">{ error }</p> }
 
 			<div className="plume-work-actions">

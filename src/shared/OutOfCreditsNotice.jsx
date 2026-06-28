@@ -21,7 +21,9 @@ export default function OutOfCreditsNotice( { websiteUrl } ) {
 	return (
 		<div className="plume-out-of-credits-banner">
 			<CircleSlash size={ 18 } />
-			<span>You&apos;ve used all your credits for this billing period.</span>
+			<span>
+				You&apos;ve used all your credits for this billing period.
+			</span>
 			<a
 				href={ `${ websiteUrl }/pricing` }
 				className="button button-primary"
