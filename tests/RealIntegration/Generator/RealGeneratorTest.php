@@ -67,7 +67,7 @@ class RealGeneratorTest extends RealIntegrationTestCase {
 		);
 		$this->assertNotEmpty( $data['post_id'] ?? 0, 'Generator must return a post_id.' );
 		$this->assertNotEmpty( $data['content'] ?? '', 'Generator must return non-empty content.' );
-		$this->assertGreaterThan( 0, (int) ( $data['tokens_used'] ?? 0 ), 'Generator must return tokens_used > 0.' );
+		$this->assertArrayHasKey( 'credits_used', $data, 'Generator must return credits_used.' );
 
 		// Verify the draft post actually exists in the database.
 		$post = get_post( (int) $data['post_id'] );

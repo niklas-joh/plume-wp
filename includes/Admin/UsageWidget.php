@@ -1,6 +1,6 @@
 <?php
 /**
- * WordPress admin dashboard widget showing current-user token usage.
+ * WordPress admin dashboard widget showing current-user credit usage.
  *
  * @package Plume
  */
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Dashboard widget showing the current user's tier and token usage.
+ * Dashboard widget showing the current user's tier and credit usage.
  *
  * @since 1.2.0
  */
@@ -70,7 +70,7 @@ class UsageWidget {
 	}
 
 	/**
-	 * Render the widget HTML showing tier label, progress bar, and token counts.
+	 * Render the widget HTML showing tier label, progress bar, and credit counts.
 	 *
 	 * @since 1.2.0
 	 * @return void
@@ -106,15 +106,15 @@ class UsageWidget {
 				'<p class="plume-meta-text">%s / %s %s (%s %s)</p>',
 				esc_html( number_format_i18n( (int) $usage['used'] ) ),
 				esc_html( number_format_i18n( (int) $usage['limit'] ) ),
-				esc_html__( 'tokens', 'plume' ),
+				esc_html__( 'credits', 'plume' ),
 				esc_html( number_format_i18n( (int) $usage['remaining'] ) ),
 				esc_html__( 'remaining', 'plume' )
 			);
 			if ( $pct > 80 ) {
-				echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Over 80% of monthly tokens used. Consider upgrading.', 'plume' ) . '</p></div>';
+				echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Over 80% of monthly credits used. Consider upgrading.', 'plume' ) . '</p></div>';
 			}
 		} else {
-			echo '<p>' . esc_html__( 'Unlimited — using your own API key.', 'plume' ) . '</p>';
+			echo '<p>' . esc_html__( 'No credit limit — using your own API key.', 'plume' ) . '</p>';
 		}
 
 		echo '</div>';

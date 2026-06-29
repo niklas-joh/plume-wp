@@ -40,9 +40,9 @@ class TierStatusPageTest extends TestCase {
 	/**
 	 * Stub get_option and get_user_meta for a given tier and registration state.
 	 *
-	 * @param string $tier       One of: free, trial, pro_managed, pro_byok.
+	 * @param string $tier       One of: free, pro_managed, pro_byok.
 	 * @param bool   $registered Whether the site has a stored token.
-	 * @param int    $used       Tokens used this month (ignored for unlimited tiers).
+	 * @param int    $used       Credits used this month (ignored for unlimited tiers).
 	 */
 	private function stub_tier_and_registration( string $tier, bool $registered, int $used = 0 ): void {
 		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
@@ -51,28 +51,22 @@ class TierStatusPageTest extends TestCase {
 		Functions\when( 'current_user_can' )->justReturn( true );
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_user_meta' )->alias(
-			function ( int $user_id, string $key, bool $single = false ) use ( $tier, $month_key, $used ): string {
-				if ( 'plume_tier' === $key ) {
-					return $tier;
-				}
-				if ( 'plume_trial_started' === $key && 'trial' === $tier ) {
-					return (string) time();
-				}
+			function ( int $user_id, string $key, bool $single = false ) use ( $month_key, $used ): string {
 				if ( $month_key === $key ) {
 					return (string) $used;
 				}
 				return '';
 			}
 		);
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\when( 'set_transient' )->justReturn( true );
 		Functions\when( 'get_option' )->alias(
 			function ( string $key, $default = null ) use ( $token, $tier ) {
 				if ( 'plume_site_token' === $key ) {
 					return $token;
 				}
 				if ( 'plume_site_tier' === $key ) {
-					// Paid tiers are site-wide; trial/free are per-user so leave the
-					// site option at the default and let user meta drive resolution.
-					return ( 'pro_managed' === $tier || 'pro_byok' === $tier ) ? $tier : $default;
+					return $tier;
 				}
 				return $default;
 			}
@@ -153,19 +147,6 @@ class TierStatusPageTest extends TestCase {
 		$this->assertStringContainsString( '1550517', $output );
 	}
 
-	public function test_render_includes_all_three_checkout_urls_for_trial_tier(): void {
-		$this->stub_display_functions();
-		$this->stub_tier_and_registration( 'trial', true, 5000 );
-
-		ob_start();
-		TierStatusPage::render();
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( '1550505', $output );
-		$this->assertStringContainsString( '1550477', $output );
-		$this->assertStringContainsString( '1550517', $output );
-	}
-
 	public function test_render_omits_upgrade_section_for_pro_managed_tier(): void {
 		$this->stub_display_functions();
 		$this->stub_tier_and_registration( 'pro_managed', true, 100000 );
@@ -188,6 +169,45 @@ class TierStatusPageTest extends TestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'test-site-token', $output );
+	}
+
+	// ── Credits copy (renamed from tokens) ────────────────────────────────────
+
+	public function test_render_shows_credits_used_and_remaining_labels_for_limited_tier(): void {
+		$this->stub_display_functions();
+		$this->stub_tier_and_registration( 'free', true, 50 );
+
+		ob_start();
+		TierStatusPage::render();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Credits used this month', $output );
+		$this->assertStringContainsString( 'Credits remaining', $output );
+		$this->assertStringNotContainsString( 'Tokens used', $output );
+		$this->assertStringNotContainsString( 'Tokens remaining', $output );
+	}
+
+	public function test_render_shows_no_credit_limit_copy_for_pro_byok(): void {
+		$this->stub_display_functions();
+		$this->stub_tier_and_registration( 'pro_byok', true );
+
+		ob_start();
+		TierStatusPage::render();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'No credit limit', $output );
+	}
+
+	public function test_render_upgrade_card_uses_credits_copy(): void {
+		$this->stub_display_functions();
+		$this->stub_tier_and_registration( 'free', true, 50 );
+
+		ob_start();
+		TierStatusPage::render();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( '500 credits/month', $output );
+		$this->assertStringContainsString( 'no credit limit', $output );
 	}
 
 	// ── "Manage your API keys" link ───────────────────────────────────────────

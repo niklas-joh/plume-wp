@@ -16,19 +16,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Manages user tier assignment and trial lifecycle.
+ * Manages site-wide tier assignment.
  *
  * Paid entitlements (Pro Managed, Pro BYOK) live on a site-wide option because a
- * LemonSqueezy subscription is purchased per site, not per user. Per-user meta
- * is reserved for the trial flag, which is the only state that genuinely varies
- * between users on the same install.
+ * LemonSqueezy subscription is purchased per site, not per user.
  *
  * @since 1.2.0
  */
 class TierManager {
 
-	public const META_KEY           = 'plume_tier';
-	public const TRIAL_STARTED_META = 'plume_trial_started';
+	public const META_KEY = 'plume_tier';
 
 	/**
 	 * Option key for the site-wide tier (paid entitlement source of truth).
@@ -54,71 +51,27 @@ class TierManager {
 	// ── Tier CRUD ─────────────────────────────────────────────────────────────
 
 	/**
-	 * Returns the current tier slug for a user.
+	 * Returns the current site-wide tier slug.
 	 *
-	 * Resolution order (paid wins over active trial):
-	 *   1. If no user (logged-out REST, cron, CLI): site option, default 'free'.
-	 *   2. Site option, when it is 'pro_managed' or 'pro_byok'.
-	 *   3. User meta 'trial' when the trial is still active.
-	 *   4. Site option, default 'free'.
+	 * Paid status is a site-level fact (a LemonSqueezy subscription is purchased
+	 * per site, not per user), so there is no per-user resolution branch — every
+	 * caller, logged in or not, resolves to the same value from the site option.
 	 *
 	 * @since 1.2.0
-	 * @since 1.9.0 Site option now wins over active trial meta for paid tiers.
-	 * @param int|null $user_id User ID; defaults to the current user.
-	 * @return string Tier slug (e.g. 'free', 'trial', 'pro_managed', 'pro_byok').
+	 * @since 1.9.0 Paid tiers resolve from the site-wide option.
+	 * @since NEXT_VERSION Removed the unused $user_id parameter and the trial-meta
+	 *                      fallback now that the trial tier no longer exists.
+	 * @return string Tier slug (e.g. 'free', 'pro_managed', 'pro_byok').
 	 */
-	public static function get_user_tier( ?int $user_id = null ): string {
-		$user_id = $user_id ?? get_current_user_id();
-
-		// Logged-out REST callers, cron, and CLI have no user context — paid status
-		// is a site-level fact, so consult the site option directly.
-		if ( $user_id <= 0 ) {
-			$site_tier = (string) get_option( self::SITE_OPTION, 'free' );
-			if ( ! in_array( $site_tier, TierConfig::get_valid_tiers(), true ) ) {
-				return 'free';
-			}
-			if ( in_array( $site_tier, [ 'pro_managed', 'pro_byok' ], true ) && ! self::is_site_tier_verified( $site_tier ) ) {
-				return 'free';
-			}
-			return $site_tier;
-		}
-
+	public static function get_user_tier(): string {
 		$site_tier = (string) get_option( self::SITE_OPTION, 'free' );
-		if ( ( 'pro_managed' === $site_tier || 'pro_byok' === $site_tier ) && self::is_site_tier_verified( $site_tier ) ) {
-			return $site_tier;
-		}
-
-		$meta = (string) get_user_meta( $user_id, self::META_KEY, true );
-		if ( 'trial' === $meta && self::is_trial_active( $user_id ) ) {
-			return 'trial';
-		}
-
-		// Treat unknown site_option values as 'free' rather than passing them through
-		// — protects callers from corrupt option rows and gives legacy tests that stub
-		// get_option globally a deterministic floor. Paid tiers that failed signature
-		// verification also fall here; exclude them rather than honouring the tampered value.
-		if ( in_array( $site_tier, [ 'pro_managed', 'pro_byok' ], true ) ) {
+		if ( ! in_array( $site_tier, TierConfig::get_valid_tiers(), true ) ) {
 			return 'free';
 		}
-		return in_array( $site_tier, TierConfig::get_valid_tiers(), true ) ? $site_tier : 'free';
-	}
-
-	/**
-	 * Assigns a tier to a user.
-	 *
-	 * Returns false when $tier is not a recognised tier slug.
-	 *
-	 * @since 1.2.0
-	 * @param string   $tier    Tier slug to assign.
-	 * @param int|null $user_id User ID; defaults to the current user.
-	 * @return bool True on success, false when the tier is invalid or the meta update fails.
-	 */
-	public static function set_user_tier( string $tier, ?int $user_id = null ): bool {
-		if ( ! in_array( $tier, TierConfig::get_valid_tiers(), true ) ) {
-			return false;
+		if ( in_array( $site_tier, [ 'pro_managed', 'pro_byok' ], true ) && ! self::is_site_tier_verified( $site_tier ) ) {
+			return 'free';
 		}
-		$user_id = $user_id ?? get_current_user_id();
-		return (bool) update_user_meta( $user_id, self::META_KEY, $tier );
+		return $site_tier;
 	}
 
 	/**
@@ -164,25 +117,43 @@ class TierManager {
 	/**
 	 * Checks whether a user's current tier grants access to a feature.
 	 *
+	 * Trial removal means every tier now has uniform access to content features
+	 * (chat/generator/seo/images) — credit exhaustion is the Worker's enforcement
+	 * mechanism, not a PHP-side feature gate. Only model_selection and own_api_key
+	 * remain genuinely tier-gated capabilities.
+	 *
 	 * @since 1.2.0
-	 * @param string   $feature Feature key (e.g. 'chat', 'generator', 'own_api_key').
-	 * @param int|null $user_id User ID; defaults to the current user.
-	 * @return bool True when the feature is enabled for the user's tier.
+	 * @since NEXT_VERSION Collapsed to a two-branch match() now that TierConfig::FEATURES
+	 *                      no longer exists. Removed the $user_id parameter entirely —
+	 *                      its only real caller (ToolExecutor's generate_seo_meta() tier
+	 *                      gate) was deleted in the same redesign, leaving zero production
+	 *                      callers that passed a real argument; per the no-legacy-shims
+	 *                      directive a parameter kept only against a hypothetical future
+	 *                      caller is removed rather than left unused.
+	 * @param string $feature Feature key (e.g. 'chat', 'generator', 'own_api_key').
+	 * @return bool True when the feature is enabled for the site's tier.
 	 */
-	public static function user_can( string $feature, ?int $user_id = null ): bool {
-		$tier = self::get_user_tier( $user_id );
-		return TierConfig::get_feature( $tier, $feature );
+	public static function user_can( string $feature ): bool {
+		$tier = self::get_user_tier();
+		return match ( $feature ) {
+			'model_selection' => 'free' !== $tier,
+			'own_api_key'     => 'pro_byok' === $tier,
+			default           => true,
+		};
 	}
 
 	/**
-	 * Returns the monthly token limit for a tier.
+	 * Returns whether the current site is on a paid tier.
 	 *
-	 * @since 1.2.0
-	 * @param string $tier Tier slug.
-	 * @return int|null Token limit, or null for unlimited tiers.
+	 * Centralises the repeated `'free' !== get_user_tier()` computation duplicated
+	 * across admin pages and REST controllers (Domains B/C otherwise reimplement
+	 * this five-plus times).
+	 *
+	 * @since NEXT_VERSION
+	 * @return bool True when the site tier is anything other than 'free'.
 	 */
-	public static function get_monthly_limit( string $tier ): ?int {
-		return TierConfig::get_limit( $tier );
+	public static function is_paid(): bool {
+		return 'free' !== self::get_user_tier();
 	}
 
 	// ── Tier integrity ────────────────────────────────────────────────────────
@@ -228,97 +199,12 @@ class TierManager {
 		}
 		$site_tier = (string) get_option( self::SITE_OPTION, 'free' );
 		if ( ! in_array( $site_tier, [ 'pro_managed', 'pro_byok' ], true ) ) {
-			return false; // Free or trial tier — nothing to verify.
+			return false; // Free tier — nothing to verify.
 		}
 		$stored_sig = (string) get_option( self::SITE_OPTION_SIG, '' );
 		if ( '' === $stored_sig ) {
 			return true;
 		}
 		return ! hash_equals( hash_hmac( 'sha256', $site_tier, $secret ), $stored_sig );
-	}
-
-	// ── Trial management ──────────────────────────────────────────────────────
-
-	/**
-	 * Starts a trial period for a user and records the start timestamp.
-	 *
-	 * @since 1.2.0
-	 * @param int $user_id User ID.
-	 * @return bool True on success, false when the tier update fails.
-	 */
-	public static function start_trial( int $user_id ): bool {
-		if ( ! self::set_user_tier( 'trial', $user_id ) ) {
-			return false;
-		}
-		update_user_meta( $user_id, self::TRIAL_STARTED_META, time() );
-		return true;
-	}
-
-	/**
-	 * Checks whether a user's trial period is still within the allowed window.
-	 *
-	 * Reads the tier meta directly (not via get_user_tier()) to avoid the
-	 * site-option short-circuit — a paid site can still have stale trial meta
-	 * on individual users, and is_trial_active() must reflect that meta alone.
-	 *
-	 * @since 1.2.0
-	 * @param int $user_id User ID.
-	 * @return bool True when the user is on a trial tier and the trial has not expired.
-	 */
-	public static function is_trial_active( int $user_id ): bool {
-		$meta = (string) get_user_meta( $user_id, self::META_KEY, true );
-		if ( 'trial' !== $meta ) {
-			return false;
-		}
-		$started = (int) get_user_meta( $user_id, self::TRIAL_STARTED_META, true );
-		if ( ! $started ) {
-			return false;
-		}
-		return ( time() - $started ) < ( TierConfig::TRIAL_DAYS * DAY_IN_SECONDS );
-	}
-
-	/**
-	 * Demotes expired trial users by clearing their tier meta.
-	 *
-	 * The site option now provides the post-trial floor (typically 'free'), so
-	 * the per-user override is simply removed rather than overwritten. Intended
-	 * to be called by a daily WP-Cron event. Processes users in batches to avoid
-	 * memory exhaustion on sites with large user tables.
-	 *
-	 * Uses meta_value => 'trial' to filter in SQL (one query per batch) rather
-	 * than fetching all meta_key users and re-reading each in PHP. The loop
-	 * self-advances: demoting a user removes them from subsequent queries, so no
-	 * offset is required. The loop stops when a batch yields zero demotions,
-	 * meaning all remaining trial users are still within their trial period.
-	 *
-	 * @since 1.2.0
-	 * @since 1.9.0 Deletes the meta instead of overwriting with 'free'.
-	 * @return void
-	 */
-	public static function maybe_demote_expired_trials(): void {
-		$batch_size = 200;
-
-		do {
-			$users = get_users( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- indexed meta_key; meta_value narrows to trial users only, avoiding a per-row PHP filter.
-				[
-					'meta_key'   => self::META_KEY,
-					'meta_value' => 'trial',
-					'fields'     => 'ID',
-					'number'     => $batch_size,
-					// No offset: demotions remove users from this result set so each
-					// query naturally fetches the next unprocessed batch.
-				]
-			);
-			$found   = count( $users );
-			$demoted = 0;
-
-			foreach ( $users as $user_id ) {
-				if ( ! self::is_trial_active( (int) $user_id ) ) {
-					if ( delete_user_meta( (int) $user_id, self::META_KEY ) ) {
-						++$demoted;
-					}
-				}
-			}
-		} while ( $found === $batch_size && $demoted > 0 );
 	}
 }

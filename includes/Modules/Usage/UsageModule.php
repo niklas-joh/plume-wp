@@ -67,7 +67,7 @@ class UsageModule {
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'plume/v1' ) ),
 				'currentPostId' => 0,
-				'isPro'         => TierManager::user_can( 'generator' ),
+				'isPaid'        => TierManager::is_paid(),
 				'siteTitle'     => \get_bloginfo( 'name' ),
 			]
 		);

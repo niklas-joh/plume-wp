@@ -106,7 +106,7 @@ class DevToolsRestController {
 		if ( null === $usage['limit'] ) {
 			$display = __( 'Unlimited', 'plume' );
 		} else {
-			$display = number_format_i18n( $usage['used'] ) . ' / ' . number_format_i18n( $usage['limit'] ) . ' ' . __( 'tokens', 'plume' );
+			$display = number_format_i18n( $usage['used'] ) . ' / ' . number_format_i18n( $usage['limit'] ) . ' ' . __( 'credits', 'plume' );
 		}
 
 		return new WP_REST_Response(
@@ -159,7 +159,7 @@ class DevToolsRestController {
 	}
 
 	/**
-	 * Reset this month's token counter to zero for the current user.
+	 * Reset this month's credit counter to zero for the current user.
 	 *
 	 * @since 1.11.0
 	 * @return WP_REST_Response
@@ -179,7 +179,7 @@ class DevToolsRestController {
 	}
 
 	/**
-	 * Set this month's token counter to the current tier's monthly ceiling.
+	 * Set this month's credit counter to the current tier's monthly ceiling.
 	 *
 	 * For unlimited tiers (pro_byok) there is no ceiling to set; a descriptive
 	 * message is returned and success is still true.
@@ -189,8 +189,8 @@ class DevToolsRestController {
 	 */
 	public static function handle_set_ceiling(): WP_REST_Response {
 		$user_id = get_current_user_id();
-		$tier    = TierManager::get_user_tier( $user_id );
-		$limit   = TierManager::get_monthly_limit( $tier );
+		$tier    = TierManager::get_user_tier();
+		$limit   = UsageTracker::get_cached_credit_limit( $tier );
 
 		if ( null === $limit ) {
 			return new WP_REST_Response(
@@ -208,8 +208,8 @@ class DevToolsRestController {
 		return new WP_REST_Response(
 			[
 				'success' => true,
-				/* translators: %s: formatted token count e.g. "50,000" */
-				'message' => sprintf( __( 'Usage set to ceiling: %s tokens.', 'plume' ), number_format_i18n( $limit ) ),
+				/* translators: %s: formatted credit count e.g. "100" */
+				'message' => sprintf( __( 'Usage set to ceiling: %s credits.', 'plume' ), number_format_i18n( $limit ) ),
 			],
 			200
 		);

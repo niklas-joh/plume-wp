@@ -27,11 +27,13 @@ jest.mock( '../../src/admin/utils/storage', () => ( {
 	storageSet: jest.fn(),
 } ) );
 
-// Provide the global plumeindData the component reads on initialisation
-// (ChatApp.jsx line 36).
+// Provide the global plumeData the component reads on initialisation
+// (ChatApp.jsx line 36). Note: this previously stubbed window.plumeindData —
+// a typo that never matched the component's actual window.plumeData read, so
+// the isPro/features stub below was silently inert until this fix.
 beforeAll( () => {
-	global.window.plumeindData = {
-		isPro: false,
+	global.window.plumeData = {
+		features: { model_selection: false },
 		defaultProvider: 'claude',
 		restUrl: 'http://localhost/wp-json/plume/v1',
 		nonce: 'test-nonce',
@@ -39,7 +41,7 @@ beforeAll( () => {
 } );
 
 afterAll( () => {
-	delete global.window.plumeindData;
+	delete global.window.plumeData;
 } );
 
 describe( 'ChatApp', () => {
@@ -96,5 +98,27 @@ describe( 'ChatApp', () => {
 
 		// ChatApp.jsx line 301 — <aside className="plume-sidebar">.
 		expect( container.querySelector( '.plume-sidebar' ) ).not.toBeNull();
+	} );
+
+	it( 'renders the full quick-actions list without an isPro split', async () => {
+		await act( async () => {
+			root.render( <ChatApp /> );
+		} );
+
+		const { QUICK_ACTIONS } = require( '../../src/admin/components/Chat/actions' );
+		const buttons = container.querySelectorAll( '.plume-quick-action' );
+		expect( buttons.length ).toBe( QUICK_ACTIONS.length );
+		expect( container.querySelector( '.plume-pro-teaser' ) ).toBeNull();
+	} );
+
+	it( 'disables the model Advanced toggle when features.model_selection is false', async () => {
+		await act( async () => {
+			root.render( <ChatApp /> );
+		} );
+
+		const toggle = container.querySelector(
+			'.plume-model-advanced-toggle'
+		);
+		expect( toggle.disabled ).toBe( true );
 	} );
 } );

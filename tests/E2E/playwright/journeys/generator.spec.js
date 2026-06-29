@@ -25,7 +25,7 @@ test.describe( 'Generator journey', () => {
 							post_id: 42,
 							edit_url: '/wp-admin/post.php?post=42&action=edit',
 							content: 'This is a uniquely identifiable generator test output for validation.',
-							tokens_used: 150,
+							credits_used: 10,
 						} ),
 					} );
 				} else {

@@ -395,8 +395,9 @@ class ToolExecutor {
 	/**
 	 * Generate and apply SEO metadata for a post.
 	 *
-	 * Pro users: calls the AI provider and applies metadata automatically.
-	 * Free-tier users: returns post data for manual suggestion by the AI.
+	 * Available to every tier — calls the AI provider and applies metadata
+	 * automatically regardless of tier. Credit enforcement happens entirely on
+	 * the Worker side (it rejects exhausted requests), not via a local gate here.
 	 *
 	 * @since 1.0.0
 	 * @param array<string,mixed> $args    Tool arguments from the AI provider.
@@ -416,19 +417,6 @@ class ToolExecutor {
 
 		if ( ! \user_can( $user_id, 'edit_post', $post_id ) ) {
 			return [ 'error' => __( 'Insufficient permissions.', 'plume' ) ];
-		}
-
-		if ( ! \Plume\Tiers\TierManager::user_can( 'seo', $user_id ) ) {
-			return [
-				'seo_access'           => false,
-				'post_title'           => \html_entity_decode( $post->post_title, ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
-				'post_content_snippet' => mb_substr( \wp_strip_all_tags( $post->post_content ), 0, 500 ),
-				'note'                 => __( 'SEO auto-generation requires the Pro plan. Use the post data above to suggest appropriate SEO fields manually, and let the user know they can upgrade to Pro for one-click automated SEO optimisation.', 'plume' ),
-			];
-		}
-
-		if ( ! \Plume\Tiers\UsageTracker::check_limit( $user_id ) ) {
-			return [ 'error' => __( 'Monthly usage limit reached. Please upgrade your plan to continue.', 'plume' ) ];
 		}
 
 		$seo_data = \Plume\Modules\Seo\SeoModule::generate_for_post( $post_id, $user_id );

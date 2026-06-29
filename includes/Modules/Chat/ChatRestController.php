@@ -23,7 +23,6 @@ use Plume\Tools\ToolRegistry;
 use Plume\Tools\ToolExecutor;
 use Plume\Voice\VoiceInjector;
 use Plume\Proxy\SiteRegistration;
-use Plume\Tiers\TierConfig;
 use Plume\Tiers\TierManager;
 use Plume\Tiers\UsageTracker;
 
@@ -306,8 +305,7 @@ class ChatRestController {
 			$provider = $factory->make( $provider_slug );
 
 			if ( ! $provider->is_available() ) {
-				$tier          = $this->get_user_tier( $user_id );
-				$is_proxy_tier = ! TierConfig::get_feature( $tier, 'own_api_key' );
+				$is_proxy_tier = ! TierManager::user_can( 'own_api_key' );
 
 				if ( $is_proxy_tier ) {
 					// Site token absent — schedule re-registration so the next page load succeeds.
@@ -427,13 +425,18 @@ class ChatRestController {
 				);
 			}
 
+			// Log the Worker's reported credit cost exactly once per user message, after all
+			// tool-call iterations are complete. ProxyClient skips logging for 'chat' to
+			// prevent per-iteration double-counting in the agentic loop.
+			UsageTracker::log_usage( $final_response->credits_charged, $user_id );
+
 			$store->add_message( $conv_id, 'assistant', $final_response->content, $final_response->model, $final_response->total_tokens );
 
 			return rest_ensure_response(
 				[
 					'content'      => $final_response->content,
 					'model'        => $final_response->model,
-					'tokens'       => $final_response->total_tokens,
+					'credits'      => $final_response->credits_charged,
 					'cost_usd'     => $final_response->cost_usd,
 					'pending_plan' => $pending_plan,
 					'tools_called' => \array_values( \array_unique( $tools_called ) ),
@@ -587,12 +590,14 @@ class ChatRestController {
 	/**
 	 * Checks that the current user may access chat REST endpoints.
 	 *
-	 * Three conditions must all pass: the user must hold the edit_posts capability,
-	 * their tier must include the 'chat' feature, and they must have remaining
-	 * monthly quota. Tier and quota are checked after capability to avoid
-	 * unnecessary DB reads for unauthenticated requests.
+	 * Tier and quota are no longer checked here — the Worker's credit ledger is
+	 * the sole enforcement point now. This collapses to a single capability
+	 * check, identical across every tier.
 	 *
 	 * @since 1.0.0
+	 * @since NEXT_VERSION Removed the tier and quota checks (and the user_can_chat()/
+	 *                      user_within_quota() helper methods entirely) as part of the
+	 *                      credits-based redesign.
 	 * @return bool|\WP_Error True on success; WP_Error with 403 status on failure.
 	 */
 	public function check_permission(): bool|\WP_Error {
@@ -604,67 +609,7 @@ class ChatRestController {
 			);
 		}
 
-		$user_id = get_current_user_id();
-
-		if ( ! $this->user_can_chat( $user_id ) ) {
-			return new \WP_Error(
-				'rest_tier_denied',
-				__( 'Your current plan does not include chat access.', 'plume' ),
-				[ 'status' => 403 ]
-			);
-		}
-
-		if ( ! $this->user_within_quota( $user_id ) ) {
-			return new \WP_Error(
-				'rest_quota_exceeded',
-				__( 'You have reached your monthly usage limit.', 'plume' ),
-				[ 'status' => 403 ]
-			);
-		}
-
 		return true;
-	}
-
-	/**
-	 * Returns whether the user's tier grants chat access.
-	 *
-	 * Isolated as a protected method so tests can override without stubbing
-	 * static calls on TierManager.
-	 *
-	 * @since 1.8.0
-	 * @param int $user_id WordPress user ID.
-	 * @return bool
-	 */
-	protected function user_can_chat( int $user_id ): bool {
-		return TierManager::user_can( 'chat', $user_id );
-	}
-
-	/**
-	 * Returns whether the user is within their monthly quota.
-	 *
-	 * Isolated as a protected method so tests can override without stubbing
-	 * static calls on UsageTracker.
-	 *
-	 * @since 1.8.0
-	 * @param int $user_id WordPress user ID.
-	 * @return bool
-	 */
-	protected function user_within_quota( int $user_id ): bool {
-		return UsageTracker::check_limit( $user_id );
-	}
-
-	/**
-	 * Returns the tier slug for a user.
-	 *
-	 * Isolated as a protected method so tests can override without stubbing
-	 * static calls on TierManager.
-	 *
-	 * @since 1.8.0
-	 * @param int $user_id WordPress user ID.
-	 * @return string Tier slug.
-	 */
-	protected function get_user_tier( int $user_id ): string {
-		return TierManager::get_user_tier( $user_id );
 	}
 
 	// ── Overridable factory methods (for testing) ─────────────────────────────

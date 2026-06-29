@@ -34,26 +34,6 @@ class AdminMenuTest extends TestCase {
 	}
 
 	/**
-	 * Stub TierManager-related WP functions so get_user_tier() returns 'trial'.
-	 */
-	private function stub_trial_tier(): void {
-		Functions\when( 'get_current_user_id' )->justReturn( 1 );
-		Functions\when( 'get_option' )->alias( fn( $key, $default = false ) => $default );
-		Functions\when( 'get_user_meta' )->alias(
-			function ( int $user_id, string $key ): string {
-				if ( 'plume_tier' === $key ) {
-					return 'trial';
-				}
-				if ( 'plume_trial_started' === $key ) {
-					// Trial started 1 second ago — safely within the 30-day window.
-					return (string) ( time() - 1 );
-				}
-				return '';
-			}
-		);
-	}
-
-	/**
 	 * Stub TierManager-related WP functions so get_user_tier() returns 'pro_managed'.
 	 *
 	 * No HMAC secret stored → is_site_tier_verified() returns true for unregistered sites,
@@ -67,6 +47,22 @@ class AdminMenuTest extends TestCase {
 					return 'pro_managed';
 				}
 				return $default; // plume_tier_sync_secret resolves to '' → unregistered path.
+			}
+		);
+		Functions\when( 'get_user_meta' )->justReturn( '' );
+	}
+
+	/**
+	 * Stub TierManager-related WP functions so get_user_tier() returns 'pro_byok'.
+	 */
+	private function stub_pro_byok_tier(): void {
+		Functions\when( 'get_current_user_id' )->justReturn( 1 );
+		Functions\when( 'get_option' )->alias(
+			function ( string $key, $default = false ) {
+				if ( 'plume_site_tier' === $key ) {
+					return 'pro_byok';
+				}
+				return $default;
 			}
 		);
 		Functions\when( 'get_user_meta' )->justReturn( '' );
@@ -149,24 +145,6 @@ class AdminMenuTest extends TestCase {
 		$this->assertTrue( $upgrade_added, 'Upgrade submenu must be registered for free-tier users.' );
 	}
 
-	public function test_register_adds_upgrade_submenu_for_trial_tier(): void {
-		$upgrade_added = false;
-
-		$this->stub_trial_tier();
-		Functions\when( 'add_menu_page' )->justReturn( '' );
-		Functions\when( 'add_submenu_page' )->alias(
-			function ( $parent_slug, $page_title, $menu_title, $capability, $menu_slug ) use ( &$upgrade_added ): void {
-				if ( 'plume-upgrade' === $menu_slug ) {
-					$upgrade_added = true;
-				}
-			}
-		);
-
-		AdminMenu::register();
-
-		$this->assertTrue( $upgrade_added, 'Upgrade submenu must be registered for trial-tier users.' );
-	}
-
 	public function test_register_omits_upgrade_submenu_for_pro_managed_tier(): void {
 		$upgrade_added = false;
 
@@ -183,5 +161,23 @@ class AdminMenuTest extends TestCase {
 		AdminMenu::register();
 
 		$this->assertFalse( $upgrade_added, 'Upgrade submenu must not be registered for pro_managed-tier users.' );
+	}
+
+	public function test_register_omits_upgrade_submenu_for_pro_byok_tier(): void {
+		$upgrade_added = false;
+
+		$this->stub_pro_byok_tier();
+		Functions\when( 'add_menu_page' )->justReturn( '' );
+		Functions\when( 'add_submenu_page' )->alias(
+			function ( $parent_slug, $page_title, $menu_title, $capability, $menu_slug ) use ( &$upgrade_added ): void {
+				if ( 'plume-upgrade' === $menu_slug ) {
+					$upgrade_added = true;
+				}
+			}
+		);
+
+		AdminMenu::register();
+
+		$this->assertFalse( $upgrade_added, 'Upgrade submenu must not be registered for pro_byok-tier users.' );
 	}
 }

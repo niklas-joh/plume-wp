@@ -1,7 +1,13 @@
 <?php
 /**
- * Data-provider-based tests that document and verify every cell in the
- * tier × feature capability matrix defined in TierConfig.
+ * Structural contract tests confirming the trial-tier removal from TierConfig.
+ *
+ * TierConfig no longer owns a feature matrix or token limits — the Worker's
+ * credit ledger is now the sole source of truth for both feature gating
+ * (every tier can use every feature; only model_selection/own_api_key remain
+ * gated, both via TierManager::user_can()) and quota enforcement. This file
+ * asserts those structures were actually removed, not just hardcoded to a
+ * pass-through value, per the no-legacy-users directive.
  *
  * No WordPress functions are called by the class under test, so Brain Monkey
  * bootstrapping is not required here.
@@ -18,156 +24,111 @@ use PHPUnit\Framework\TestCase;
 use Plume\Tiers\TierConfig;
 
 /**
- * Exhaustive matrix tests for TierConfig capability and limit data.
- *
- * Each data-provider method expands the full set of tier × feature
- * combinations so that any change to FEATURES or MONTHLY_LIMITS
- * immediately surfaces as a named, descriptive test failure rather than
- * a silent regression.
+ * Structural contract tests for TierConfig after the trial-tier/credits redesign.
  *
  * @since 1.0.0
  */
 class TierFeatureMatrixTest extends TestCase {
 
-	// ── Tier × feature capability matrix ─────────────────────────────────────
-
 	/**
-	 * Provides every tier × feature combination with its expected boolean value.
-	 *
-	 * Each entry is keyed by a human-readable label so failing test output
-	 * immediately names the offending cell (e.g. "free: generator").
+	 * Asserts that TIERS contains exactly the three post-redesign tier slugs.
 	 *
 	 * @since 1.0.0
-	 * @return array<string, array{string, string, bool}>
 	 */
-	public static function tier_feature_combinations(): array {
-		return [
-			// free tier — only chat is enabled
-			'free: chat'            => [ 'free', 'chat', true ],
-			'free: generator'       => [ 'free', 'generator', false ],
-			'free: seo'             => [ 'free', 'seo', false ],
-			'free: images'          => [ 'free', 'images', false ],
-			'free: model_selection' => [ 'free', 'model_selection', false ],
-			'free: own_api_key'     => [ 'free', 'own_api_key', false ],
-
-			// trial tier — all features except model selection and own API key
-			'trial: chat'            => [ 'trial', 'chat', true ],
-			'trial: generator'       => [ 'trial', 'generator', true ],
-			'trial: seo'             => [ 'trial', 'seo', true ],
-			'trial: images'          => [ 'trial', 'images', true ],
-			'trial: model_selection' => [ 'trial', 'model_selection', false ],
-			'trial: own_api_key'     => [ 'trial', 'own_api_key', false ],
-
-			// pro_managed — all features except own API key
-			'pro_managed: chat'            => [ 'pro_managed', 'chat', true ],
-			'pro_managed: generator'       => [ 'pro_managed', 'generator', true ],
-			'pro_managed: seo'             => [ 'pro_managed', 'seo', true ],
-			'pro_managed: images'          => [ 'pro_managed', 'images', true ],
-			'pro_managed: model_selection' => [ 'pro_managed', 'model_selection', true ],
-			'pro_managed: own_api_key'     => [ 'pro_managed', 'own_api_key', false ],
-
-			// pro_byok — all features enabled
-			'pro_byok: chat'            => [ 'pro_byok', 'chat', true ],
-			'pro_byok: generator'       => [ 'pro_byok', 'generator', true ],
-			'pro_byok: seo'             => [ 'pro_byok', 'seo', true ],
-			'pro_byok: images'          => [ 'pro_byok', 'images', true ],
-			'pro_byok: model_selection' => [ 'pro_byok', 'model_selection', true ],
-			'pro_byok: own_api_key'     => [ 'pro_byok', 'own_api_key', true ],
-		];
-	}
-
-	/**
-	 * Asserts that get_feature() returns the documented capability for every
-	 * tier × feature cell in the matrix.
-	 *
-	 * @since 1.0.0
-	 * @dataProvider tier_feature_combinations
-	 * @param string $tier     Tier slug under test.
-	 * @param string $feature  Feature key under test.
-	 * @param bool   $expected Expected return value of get_feature().
-	 */
-	public function test_get_feature_returns_expected_capability(
-		string $tier,
-		string $feature,
-		bool $expected
-	): void {
+	public function test_tier_config_has_three_tiers(): void {
 		$this->assertSame(
-			$expected,
-			TierConfig::get_feature( $tier, $feature ),
-			"get_feature( '{$tier}', '{$feature}' ) should return " . ( $expected ? 'true' : 'false' ) . '.'
-		);
-	}
-
-	// ── Monthly token limits ──────────────────────────────────────────────────
-
-	/**
-	 * Provides tier → expected monthly token limit pairs for all four tiers.
-	 *
-	 * @since 1.0.0
-	 * @return array<string, array{string, int|null}>
-	 */
-	public static function monthly_limit_cases(): array {
-		return [
-			'free tier limit'        => [ 'free', 50000 ],
-			'trial tier limit'       => [ 'trial', 300000 ],
-			'pro_managed tier limit' => [ 'pro_managed', 2000000 ],
-			// null signals unlimited usage for bring-your-own-key subscribers.
-			'pro_byok tier limit'    => [ 'pro_byok', null ],
-		];
-	}
-
-	/**
-	 * Asserts that get_limit() returns the documented monthly token limit for
-	 * every tier.
-	 *
-	 * @since 1.0.0
-	 * @dataProvider monthly_limit_cases
-	 * @param string   $tier     Tier slug under test.
-	 * @param int|null $expected Expected monthly token limit (null = unlimited).
-	 */
-	public function test_monthly_limit_matches_config( string $tier, ?int $expected ): void {
-		$this->assertSame(
-			$expected,
-			TierConfig::get_limit( $tier ),
-			"get_limit( '{$tier}' ) should return " . ( null === $expected ? 'null' : (string) $expected ) . '.'
-		);
-	}
-
-	// ── Structural contract tests ─────────────────────────────────────────────
-
-	/**
-	 * Asserts that TIERS contains exactly the four documented tier slugs.
-	 *
-	 * Adding a fifth tier without updating this test causes an immediate
-	 * failure, preventing silent capability drift.
-	 *
-	 * @since 1.0.0
-	 */
-	public function test_all_tiers_defined(): void {
-		$this->assertSame(
-			[ 'free', 'trial', 'pro_managed', 'pro_byok' ],
+			[ 'free', 'pro_managed', 'pro_byok' ],
 			TierConfig::TIERS,
-			'TIERS must contain exactly the four canonical slugs in the documented order.'
+			'TIERS must contain exactly the three canonical slugs — trial was removed.'
 		);
 	}
 
 	/**
-	 * Asserts that every tier entry in FEATURES declares all six feature keys.
-	 *
-	 * Catches typos and missing entries when new capabilities are introduced.
+	 * Asserts the FEATURES constant no longer exists — replaced by uniform
+	 * feature access (every tier can use every content feature).
 	 *
 	 * @since 1.0.0
 	 */
-	public function test_all_features_defined(): void {
-		$expected_keys = [ 'chat', 'generator', 'seo', 'images', 'model_selection', 'own_api_key' ];
+	public function test_features_constant_does_not_exist(): void {
+		$this->assertFalse(
+			( new \ReflectionClass( TierConfig::class ) )->hasConstant( 'FEATURES' ),
+			'FEATURES must be removed — feature gating is no longer tier-based.'
+		);
+	}
 
-		foreach ( TierConfig::FEATURES as $tier => $features ) {
-			$actual_keys = array_keys( $features );
-			$this->assertSame(
-				$expected_keys,
-				$actual_keys,
-				"FEATURES['{$tier}'] must declare exactly the six canonical feature keys in the documented order."
-			);
-		}
+	/**
+	 * Asserts the MONTHLY_LIMITS constant no longer exists — credit limits now
+	 * live exclusively in the Worker's KV store, fetched/cached by UsageTracker.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_monthly_limits_constant_does_not_exist(): void {
+		$this->assertFalse(
+			( new \ReflectionClass( TierConfig::class ) )->hasConstant( 'MONTHLY_LIMITS' ),
+			'MONTHLY_LIMITS must be removed — re-adding a hardcoded limits array here would reintroduce the PHP/Worker drift bug.'
+		);
+	}
+
+	/**
+	 * Asserts the TRIAL_DAYS constant no longer exists.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_trial_days_constant_does_not_exist(): void {
+		$this->assertFalse(
+			( new \ReflectionClass( TierConfig::class ) )->hasConstant( 'TRIAL_DAYS' ),
+			'TRIAL_DAYS must be removed — there is no trial tier any more.'
+		);
+	}
+
+	/**
+	 * Asserts get_feature() no longer exists.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_get_feature_method_does_not_exist(): void {
+		$this->assertFalse(
+			method_exists( TierConfig::class, 'get_feature' ),
+			'get_feature() must be removed along with FEATURES.'
+		);
+	}
+
+	/**
+	 * Asserts get_limit() no longer exists — the replacement logic lives in
+	 * UsageTracker, which fetches/caches the real credit limit from the Worker.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_get_limit_method_does_not_exist(): void {
+		$this->assertFalse(
+			method_exists( TierConfig::class, 'get_limit' ),
+			'get_limit() must be removed — UsageTracker now owns credit-limit resolution.'
+		);
+	}
+
+	/**
+	 * Asserts get_tier_labels() no longer carries a 'trial' entry.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_get_tier_labels_has_no_trial_key(): void {
+		\Brain\Monkey\setUp();
+		\Brain\Monkey\Functions\when( '__' )->alias( fn( $s ) => $s );
+
+		$labels = TierConfig::get_tier_labels();
+
+		\Brain\Monkey\tearDown();
+
+		$this->assertArrayNotHasKey( 'trial', $labels );
+		$this->assertSame( [ 'free', 'pro_managed', 'pro_byok' ], array_keys( $labels ) );
+	}
+
+	/**
+	 * Asserts get_valid_tiers() still works and reflects the three-tier set.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_get_valid_tiers_returns_three_tiers(): void {
+		$this->assertSame( [ 'free', 'pro_managed', 'pro_byok' ], TierConfig::get_valid_tiers() );
 	}
 }

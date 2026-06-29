@@ -19,16 +19,30 @@ into your WordPress dashboard, giving you AI assistance without leaving the edit
 
 * **Chat assistant** — Conversational AI with tool support (read posts, search content)
 * **Content generator** — Generate full blog posts with customisable tone and length
-* **Usage tracker** — Monitor API usage and token consumption across providers
-* **Frontend widget** — Embeddable chat widget via `[plume_chat]` shortcode
+* **AI SEO** — Generate meta titles, descriptions, excerpts, and image alt text
+* **AI Images** — Generate and insert featured images directly from a text prompt
+* **Usage tracker** — Monitor credit consumption across providers
 * **Gutenberg integration** — Direct editor sidebar tools
 
 **Free vs Pro:**
 
-* **Free** — Chat assistant (50,000 tokens/month via Plume AI - Write and Design, Claude only)
-* **Trial** — All features for 30 days (300,000 tokens/month via Plume AI - Write and Design)
-* **Pro Managed** — All features, 2,000,000 tokens/month via Plume AI - Write and Design
-* **Pro BYOK** — All features, unlimited tokens, your own API key sent direct to provider
+| | Free | Pro Managed | Pro BYOK |
+|---|---|---|---|
+| **Price** | Free | $79/year | Free (your own API key, billed by your provider) |
+| **Credits/month** | 100 | 500 | No credit limit — billed directly by your provider |
+| **Available models** | Claude Haiku 4.5, GPT-4.1 nano | + Claude Sonnet 4.6, Claude Opus 4.6, GPT-4.1, Gemini 3.1 Pro | Any model your configured provider supports |
+| **Chat, Generator, SEO, Images** | All included | All included | All included |
+| **Your own API key (BYOK)** | — | — | Required |
+
+* **Free** — Chat, Generator, SEO, and Images all included from day one.
+  100 credits/month using Claude Haiku 4.5 or GPT-4.1 nano.
+* **Pro Managed** — Everything in Free, plus 500 credits/month and access
+  to Claude Sonnet 4.6, Claude Opus 4.6, GPT-4.1, and Gemini 3.1 Pro.
+  $79/year.
+* **Pro BYOK** — Everything in Free, with no credit limit and access to
+  any model your configured provider supports. Requires your own API key,
+  sent directly to your chosen provider — never through Plume's managed
+  service.
 
 **Supported AI providers:** Anthropic Claude, OpenAI (GPT-4+), Google Gemini, Ollama (local/self-hosted)
 
@@ -61,7 +75,7 @@ one or more providers and switch between them in the settings.
 
 = Does this plugin store my API keys securely? =
 
-**Free / Trial / Pro Managed tiers:** No API key is required — chat requests are routed
+**Free / Pro Managed tiers:** No API key is required — chat requests are routed
 through Plume AI - Write and Design (see External services above). Your messages are
 forwarded to Claude (Anthropic) on your behalf.
 
@@ -93,6 +107,15 @@ To regenerate compiled assets: install Node.js 18+ and npm, then run:
     npm install && npm run build
 
 == Changelog ==
+
+= NEXT_VERSION =
+* **All features are now available on every tier.** Chat, Generator, SEO, and Images are no longer locked behind Pro — every site gets full access to all four modules from the moment you install or update.
+* **Usage is now measured in credits, not tokens.** Each AI action (a chat turn, a generated draft, an SEO suggestion, an image) costs a small number of credits depending on the model used. Your plan determines how many credits you get each month and which models you can choose from — not which features you can use.
+* **Free** now includes 100 credits/month, with access to Claude Haiku 4.5 and GPT-4.1 nano.
+* **Pro Managed** ($79/year) now includes 500 credits/month, plus access to larger models — Claude Sonnet 4.6, Claude Opus 4.6, GPT-4.1, and Gemini 3.1 Pro — for higher-quality results on demanding tasks.
+* **Pro BYOK** is unchanged: connect your own API key and get unlimited usage with no credit ceiling, billed directly by your provider.
+* The 30-day trial has been removed. There's no longer a time-boxed "all features unlocked" period to track, because every tier already has full feature access — a trial no longer has anything distinct left to offer.
+* Removed: the public-facing `[plume_chat]` shortcode and front-end chat widget module. This does not affect the in-editor SEO panel or admin-side Chat, Generator, Images, or SEO tools, which are unaffected and unlocked for all tiers as above.
 
 = 1.7.1 =
 * Fix chat post content not being read and add post-attach guard for quick actions.

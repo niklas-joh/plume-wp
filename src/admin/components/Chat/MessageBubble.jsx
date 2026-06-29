@@ -25,7 +25,7 @@ const TOOL_LABELS = {
  * @param {string}   props.message.role           Either 'user' or 'assistant'.
  * @param {string}   props.message.content        Message text (Markdown for AI, plain text for user).
  * @param {string}   [props.message.model]        Model slug displayed in the meta line for AI messages.
- * @param {number}   [props.message.tokens]       Token count displayed in the meta line for AI messages.
+ * @param {number}   [props.message.credits] Credit cost displayed in the meta line for AI messages.
  * @param {boolean}  [props.message.isError]      When true, applies the error modifier class.
  * @param {Object}   [props.message.pending_plan] Pending plan data; when present, renders a PlanCard.
  * @param {string[]} [props.message.tools_used]   Tool names called; shown as passive indicator chips.
@@ -64,7 +64,11 @@ export default function MessageBubble( { message } ) {
 				<div className="plume-bubble__meta">
 					<Cpu size={ 10 } strokeWidth={ 1.5 } />
 					<span>{ message.model }</span>
-					{ message.tokens && <span>{ message.tokens } tokens</span> }
+					{ message.credits > 0 && (
+						<span>
+							{ message.credits } { __( 'credits', 'plume' ) }
+						</span>
+					) }
 				</div>
 			) }
 			{ isAI && plan && (

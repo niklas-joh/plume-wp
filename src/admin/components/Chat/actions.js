@@ -10,10 +10,14 @@
  *
  * When `requiresPost` is true the consumer must ensure a post is attached
  * before dispatching the prompt; otherwise the context picker should be opened first.
+ *
+ * Every action is available to every tier — credit exhaustion is enforced
+ * by the Worker, not a tier-based action split, so there is no longer a
+ * Free/Pro distinction here.
  */
 import { FilePenLine, Search, Image } from 'lucide-react';
 
-export const FREE_ACTIONS = [
+export const QUICK_ACTIONS = [
 	{
 		id: 'summarise',
 		label: 'Summarise this post',
@@ -28,9 +32,6 @@ export const FREE_ACTIONS = [
 		icon: FilePenLine,
 		requiresPost: true,
 	},
-];
-
-export const PRO_ACTIONS = [
 	{
 		id: 'write-post',
 		label: 'Write a post',
@@ -63,7 +64,7 @@ export const PRO_ACTIONS = [
 
 /** Actions shown as suggestion chips on the centred launch screen. */
 export const LAUNCH_ACTIONS = [
-	FREE_ACTIONS[ 0 ],
-	FREE_ACTIONS[ 1 ],
-	PRO_ACTIONS[ 0 ],
+	QUICK_ACTIONS[ 0 ],
+	QUICK_ACTIONS[ 1 ],
+	QUICK_ACTIONS[ 2 ],
 ];

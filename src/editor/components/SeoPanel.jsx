@@ -1,7 +1,5 @@
 import { useSelect } from '@wordpress/data';
-import { CheckCircle2, XCircle, AlertCircle, Lock } from 'lucide-react';
-
-const { isPro } = window.plumeData || {};
+import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 function scoreItem( label, pass, tip ) {
 	let Icon;
@@ -38,11 +36,13 @@ function scoreItem( label, pass, tip ) {
 }
 
 /**
- * Live SEO checklist panel in the Block Editor sidebar (Pro only).
+ * Live SEO checklist panel in the Block Editor sidebar.
  *
- * Reads title, content, and excerpt live from `core/editor` state so scores
- * update as the user types without requiring a save. Renders a locked
- * placeholder for free-tier users.
+ * Available to every tier — purely client-side analysis (word count, title
+ * length, excerpt presence) with no Worker call, so there is no credit cost
+ * and no tier gate. Reads title, content, and excerpt live from
+ * `core/editor` state so scores update as the user types without requiring
+ * a save.
  *
  * @return {ReactElement}
  */
@@ -55,17 +55,6 @@ export default function SeoPanel() {
 			excerpt: editor.getEditedPostAttribute( 'excerpt' ) ?? '',
 		};
 	} );
-
-	if ( ! isPro ) {
-		return (
-			<div className="plume-seo-panel plume-seo-panel--locked">
-				<Lock size={ 20 } />
-				<p className="plume-seo-panel__locked-text">
-					SEO analysis requires Plume Pro.
-				</p>
-			</div>
-		);
-	}
 
 	const wordCount = content
 		.replace( /<[^>]+>/g, '' )

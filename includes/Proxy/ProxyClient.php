@@ -31,13 +31,18 @@ class ProxyClient {
 	/**
 	 * Send a chat request through the Cloudflare proxy.
 	 *
+	 * The Worker's KV store is the sole source of truth for credit enforcement —
+	 * there is no local WordPress-side pre-check; a request that has exhausted
+	 * its credits still reaches the Worker and is rejected there with a 429.
+	 *
 	 * @since 1.2.0
 	 * @param array<array{role: string, content: string}> $messages  Chat message history.
+	 * @param string                                      $feature  Feature tag the Worker uses for credit-cost lookup: 'chat', 'generator', or 'seo'. Image generation routes through generate_image() → post() directly and never reaches chat().
 	 * @param array<string, mixed>                        $options   Supports 'model', 'max_tokens', 'system', 'tools'.
 	 * @param string                                      $provider  Provider slug: 'claude', 'openai', or 'gemini'. Defaults to 'claude'.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public static function chat( array $messages, array $options = [], string $provider = 'claude' ): array|WP_Error {
+	public static function chat( array $messages, string $feature, array $options = [], string $provider = 'claude' ): array|WP_Error {
 		$token = SiteRegistration::get_site_token();
 		if ( empty( $token ) ) {
 			// Inline registration risks a loopback deadlock on single-worker setups because
@@ -51,14 +56,10 @@ class ProxyClient {
 
 		$user_id = get_current_user_id();
 
-		// Fail-fast pre-check (WordPress meta). Cloudflare KV is authoritative for enforcement.
-		if ( ! UsageTracker::check_limit( $user_id ) ) {
-			return new WP_Error( 'rate_limit_exceeded', __( 'Monthly usage limit reached.', 'plume' ) );
-		}
-
 		$payload = [
 			'messages' => $messages,
 			'provider' => $provider,
+			'feature'  => $feature,
 		];
 
 		if ( isset( $options['model'] ) ) {
@@ -118,14 +119,10 @@ class ProxyClient {
 			return new WP_Error( 'service_error', $body['error'] ?? sprintf( __( 'Plume AI - Write and Design returned HTTP %d', 'plume' ), $code ) );
 		}
 
-		// Mirror usage locally for dashboard display only — KV is authoritative for quota enforcement.
-		// The proxy stores weighted tokens (raw × model weight), so the KV quota and local counter
-		// will diverge for high-weight models (e.g. Claude Opus at ×15). This is intentional:
-		// the dashboard shows raw API tokens consumed while quota enforcement operates on
-		// weighted tokens in KV to keep billing proportional across providers and models.
-		if ( isset( $body['usage']['input_tokens'], $body['usage']['output_tokens'] ) ) {
-			$tokens = (int) $body['usage']['input_tokens'] + (int) $body['usage']['output_tokens'];
-			UsageTracker::log_usage( $tokens, $user_id );
+		// Chat credits are logged once by ChatRestController after the full agentic loop
+		// completes, so the per-iteration ProxyClient call must not double-count them.
+		if ( isset( $body['credits_charged'] ) && 'chat' !== $feature ) {
+			UsageTracker::log_usage( (int) $body['credits_charged'], $user_id );
 		}
 
 		return $body;

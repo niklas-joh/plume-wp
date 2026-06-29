@@ -80,10 +80,13 @@ class ChatPage {
 				'nonce'             => wp_create_nonce( 'wp_rest' ),
 				'restUrl'           => esc_url_raw( rest_url( 'plume/v1' ) ),
 				'currentPostId'     => 0,
-				'isPro'             => TierManager::user_can( 'chat' ),
+				'isPaid'            => TierManager::is_paid(),
 				'siteTitle'         => get_bloginfo( 'name' ),
 				'defaultModelLabel' => esc_html( $default_model_label ),
 				'defaultProvider'   => $default_slug,
+				'features'          => [
+					'model_selection' => TierManager::user_can( 'model_selection' ),
+				],
 			]
 		);
 

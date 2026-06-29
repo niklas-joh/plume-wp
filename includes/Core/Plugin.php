@@ -99,7 +99,6 @@ class Plugin {
 		add_action( 'admin_init', [ SiteRegistration::class, 'maybe_register' ] );
 		add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
 		add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
-		add_action( 'plume_trial_check', [ \Plume\Tiers\TierManager::class, 'maybe_demote_expired_trials' ] );
 		add_action( 'plume_register_menu', [ \Plume\Admin\AdminMenu::class, 'register' ] );
 		add_action( 'plume_register_rest_routes', [ \Plume\Admin\OnboardingRestController::class, 'register_routes' ] );
 		add_action( 'plume_register_rest_routes', [ \Plume\Admin\TestKeyRestController::class, 'register_routes' ] );
@@ -119,9 +118,6 @@ class Plugin {
 		}
 		if ( $this->modules->is_enabled( 'generator' ) ) {
 			\Plume\Modules\Generator\GeneratorModule::register();
-		}
-		if ( $this->modules->is_enabled( 'frontend_widget' ) ) {
-			\Plume\Modules\Frontend\FrontendWidgetModule::register();
 		}
 		if ( $this->modules->is_enabled( 'usage' ) ) {
 			\Plume\Modules\Usage\UsageModule::register();
@@ -167,9 +163,6 @@ class Plugin {
 		// add_option() is a no-op when the option already exists, so an admin who
 		// has explicitly disabled write tools will not have their preference reset.
 		add_option( 'plume_enable_write_tools', true );
-		if ( ! wp_next_scheduled( 'plume_trial_check' ) ) {
-			wp_schedule_event( time(), 'daily', 'plume_trial_check' );
-		}
 		self::backfill_site_tier_option();
 		flush_rewrite_rules();
 	}
@@ -220,12 +213,19 @@ class Plugin {
 	}
 
 	/**
-	 * Run on plugin deactivation: clear scheduled cron events.
+	 * Run on plugin deactivation: shed the orphaned trial-check cron and flush rewrite rules.
+	 *
+	 * This plugin no longer schedules any cron events — the trial-check cron was
+	 * removed along with the trial tier. The defensive clear below stays so that
+	 * installs upgraded from a version that did schedule `plume_trial_check` shed
+	 * the now-callback-less event on a deactivate/reactivate cycle.
 	 *
 	 * @since 1.0.0
 	 * @return void
 	 */
 	public static function deactivate(): void {
+		// Defensive: shed the orphaned trial-check event left on installs upgraded
+		// from a version that scheduled it; the callback no longer exists.
 		wp_clear_scheduled_hook( 'plume_trial_check' );
 		flush_rewrite_rules();
 	}
