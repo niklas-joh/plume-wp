@@ -825,6 +825,7 @@ async function handleChatProxy(
 		const responseData: Record< string, unknown > = {
 			content: normalized.content,
 			usage: normalized.usage,
+			credits_charged: creditsCharged,
 		};
 		if ( normalized.tool_call ) {
 			responseData.tool_call = normalized.tool_call;
