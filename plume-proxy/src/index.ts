@@ -812,7 +812,9 @@ async function handleChatProxy(
 		// Intermediate tool-use steps are not billed; only the final response is.
 		// The final call's usage.input_tokens naturally encompasses all prior context,
 		// so total token cost is captured without needing cross-request accumulation.
-		const isToolUseStep = !! normalized.tool_call;
+		// Scoped to 'chat' so flat-rate features are never silently zeroed if they
+		// ever gain tool support in future.
+		const isToolUseStep = feature === 'chat' && !! normalized.tool_call;
 
 		let creditsCharged: number;
 		if ( isToolUseStep ) {
@@ -837,7 +839,7 @@ async function handleChatProxy(
 			usage: normalized.usage,
 			credits_charged: creditsCharged,
 		};
-		if ( normalized.tool_call ) {
+		if ( isToolUseStep ) {
 			responseData.tool_call = normalized.tool_call;
 		}
 		return jsonResponse( responseData );
