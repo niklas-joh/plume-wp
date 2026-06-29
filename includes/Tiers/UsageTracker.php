@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Tracks per-user monthly token consumption.
+ * Tracks per-user monthly credit consumption.
  *
  * @since 1.2.0
  */
@@ -36,10 +36,10 @@ class UsageTracker {
 	 * only this method needs updating.
 	 *
 	 * @since 1.11.0
-	 * @return string Meta key in the form plume_usage_YYYY_MM.
+	 * @return string Meta key in the form plume_credits_YYYY_MM.
 	 */
 	public static function get_current_month_key(): string {
-		return 'plume_usage_' . gmdate( 'Y_m' );
+		return 'plume_credits_' . gmdate( 'Y_m' );
 	}
 
 	/**
@@ -124,16 +124,16 @@ class UsageTracker {
 	}
 
 	/**
-	 * Increments the current month's token counter for a user.
+	 * Increments the current month's credit counter for a user.
 	 *
 	 * Uses an atomic SQL UPDATE to avoid a read-modify-write race condition under concurrency.
 	 *
 	 * @since 1.2.0
-	 * @param int      $tokens  Number of tokens to add.
+	 * @param int      $credits Number of credits to add.
 	 * @param int|null $user_id User ID; defaults to the current user.
 	 * @return void
 	 */
-	public static function log_usage( int $tokens, ?int $user_id = null ): void {
+	public static function log_usage( int $credits, ?int $user_id = null ): void {
 		global $wpdb;
 		$user_id = $user_id ?? get_current_user_id();
 		$key     = self::get_current_month_key();
@@ -143,13 +143,13 @@ class UsageTracker {
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				"UPDATE {$wpdb->usermeta} SET meta_value = meta_value + %d WHERE user_id = %d AND meta_key = %s",
-				$tokens,
+				$credits,
 				$user_id,
 				$key
 			)
 		);
 		if ( ! $wpdb->rows_affected ) {
-			add_user_meta( $user_id, $key, $tokens, true );
+			add_user_meta( $user_id, $key, $credits, true );
 		}
 	}
 }

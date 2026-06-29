@@ -27,7 +27,7 @@ class UsageTrackerTest extends TestCase {
 	}
 
 	public function test_get_usage_returns_correct_structure_for_free_user(): void {
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_user_meta' )
@@ -48,7 +48,7 @@ class UsageTrackerTest extends TestCase {
 	public function test_get_usage_can_use_is_always_true(): void {
 		// can_use is hardcoded true — the Worker's KV ledger is the sole enforcement
 		// point now; the local mirror is for dashboard display only.
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		Functions\expect( 'get_user_meta' )
 			->once()->with( 2, $month_key, true )->andReturn( '999999999' );
@@ -60,7 +60,7 @@ class UsageTrackerTest extends TestCase {
 	}
 
 	public function test_get_usage_pro_byok_is_always_unlimited(): void {
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		// pro_byok lives on the site option.
 		Functions\when( 'get_option' )->alias(
@@ -78,7 +78,7 @@ class UsageTrackerTest extends TestCase {
 
 	public function test_log_usage_performs_atomic_sql_increment(): void {
 		global $wpdb;
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		$wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		$wpdb->usermeta      = 'wp_usermeta';
@@ -96,7 +96,7 @@ class UsageTrackerTest extends TestCase {
 
 	public function test_log_usage_falls_back_to_insert_when_no_row_exists(): void {
 		global $wpdb;
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		$wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		$wpdb->usermeta      = 'wp_usermeta';
@@ -119,8 +119,8 @@ class UsageTrackerTest extends TestCase {
 	public function test_get_current_month_key_returns_expected_format(): void {
 		$key = UsageTracker::get_current_month_key();
 
-		$this->assertMatchesRegularExpression( '/^plume_usage_\d{4}_\d{2}$/', $key );
-		$this->assertSame( 'plume_usage_' . gmdate( 'Y_m' ), $key );
+		$this->assertMatchesRegularExpression( '/^plume_credits_\d{4}_\d{2}$/', $key );
+		$this->assertSame( 'plume_credits_' . gmdate( 'Y_m' ), $key );
 	}
 
 	// ── check_limit() removed entirely — no replacement method, no stub ───────
