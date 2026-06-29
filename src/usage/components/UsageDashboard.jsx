@@ -115,7 +115,9 @@ export default function UsageDashboard() {
 					<div className="plume-usage__stat-value">
 						{ hasLimit ? limit.toLocaleString() : '∞' }
 					</div>
-					<div className="plume-usage__stat-label">{ __( 'Monthly limit (credits)', 'plume' ) }</div>
+					<div className="plume-usage__stat-label">
+						{ __( 'Monthly limit (credits)', 'plume' ) }
+					</div>
 				</div>
 			</div>
 

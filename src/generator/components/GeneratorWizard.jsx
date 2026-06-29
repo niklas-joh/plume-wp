@@ -98,7 +98,8 @@ export default function GeneratorWizard() {
 						Post Generated!
 					</h2>
 					<p style={ { color: 'var(--color-text-muted)' } }>
-						{ result.credits_used } { __( 'credits used', 'plume' ) }
+						{ result.credits_used }{ ' ' }
+						{ __( 'credits used', 'plume' ) }
 					</p>
 					<a
 						href={ result.edit_url }

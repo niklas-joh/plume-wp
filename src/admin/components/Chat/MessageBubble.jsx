@@ -64,7 +64,11 @@ export default function MessageBubble( { message } ) {
 				<div className="plume-bubble__meta">
 					<Cpu size={ 10 } strokeWidth={ 1.5 } />
 					<span>{ message.model }</span>
-					{ message.credits && <span>{ message.credits } { __( 'credits', 'plume' ) }</span> }
+					{ message.credits && (
+						<span>
+							{ message.credits } { __( 'credits', 'plume' ) }
+						</span>
+					) }
 				</div>
 			) }
 			{ isAI && plan && (
