@@ -187,6 +187,7 @@ class ImagesModule {
 			);
 		}
 
+		// 15 credits per image — matches IMAGE_CREDITS in plume-proxy/src/credits.ts.
 		UsageTracker::log_usage( count( $images ) * 15 );
 		$status = empty( $errors ) ? 201 : 207;
 
