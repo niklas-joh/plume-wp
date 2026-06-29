@@ -201,8 +201,9 @@ class ProxyClientTest extends TestCase {
 		$this->assertSame( [ 'post_id' => 42 ], $result['tool_call']['arguments'] );
 	}
 
-	public function test_chat_logs_credits_charged_when_present(): void {
-		$body = json_encode( [ 'content' => 'hello', 'credits_charged' => 3 ] );
+	public function test_chat_logs_credits_charged_for_non_chat_features(): void {
+		// Non-chat features (generator, seo, image) must still be logged by ProxyClient.
+		$body = json_encode( [ 'content' => 'hello', 'credits_charged' => 10 ] );
 
 		Functions\expect( 'get_option' )
 			->with( SiteRegistration::OPTION_TOKEN, '' )
@@ -221,6 +222,32 @@ class ProxyClientTest extends TestCase {
 		$wpdb->rows_affected = 1;
 		$wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing( fn( $sql ) => $sql );
 		$wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+
+		ProxyClient::chat( [ [ 'role' => 'user', 'content' => 'hi' ] ], 'generator' );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_chat_skips_credit_logging_for_chat_feature(): void {
+		// Chat credits are logged once by ChatRestController after the full agentic loop,
+		// so ProxyClient must not call log_usage() for feature='chat'.
+		$body = json_encode( [ 'content' => 'hello', 'credits_charged' => 3 ] );
+
+		Functions\expect( 'get_option' )
+			->with( SiteRegistration::OPTION_TOKEN, '' )
+			->andReturn( 'test-token' );
+		Functions\expect( 'get_current_user_id' )->andReturn( 1 );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_remote_post' )->justReturn( [] );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		Functions\when( '__' )->alias( fn( $s ) => $s );
+
+		global $wpdb;
+		$wpdb           = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$wpdb->usermeta = 'wp_usermeta';
+		$wpdb->shouldReceive( 'query' )->never();
 
 		ProxyClient::chat( [ [ 'role' => 'user', 'content' => 'hi' ] ], 'chat' );
 
