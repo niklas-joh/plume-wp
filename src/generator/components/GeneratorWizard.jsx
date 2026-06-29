@@ -1,4 +1,5 @@
 import { useState } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { TextControl, SelectControl, Button } from '@wordpress/components';
 import { Wand2, Loader2, CheckCircle2, ExternalLink } from 'lucide-react';
 import apiFetch from '@wordpress/api-fetch';
@@ -33,7 +34,7 @@ export default function GeneratorWizard() {
 		tone: 'professional',
 		length: 'medium',
 	} );
-	const [ result, setResult ] = useState( null ); // { post_id, edit_url, content, tokens_used }
+	const [ result, setResult ] = useState( null ); // { post_id, edit_url, content, credits_used }
 	const [ error, setError ] = useState( null );
 
 	function update( field, value ) {
@@ -97,7 +98,7 @@ export default function GeneratorWizard() {
 						Post Generated!
 					</h2>
 					<p style={ { color: 'var(--color-text-muted)' } }>
-						{ result.tokens_used } tokens used
+						{ result.credits_used } { __( 'credits used', 'plume' ) }
 					</p>
 					<a
 						href={ result.edit_url }

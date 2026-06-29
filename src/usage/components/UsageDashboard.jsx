@@ -1,9 +1,10 @@
 import { useState, useEffect } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { BarChart2, Zap, Loader2 } from 'lucide-react';
 import apiFetch from '@wordpress/api-fetch';
 
 /**
- * Admin page showing token/request usage stats fetched from the REST API.
+ * Admin page showing monthly credit usage stats fetched from the REST API.
  *
  * Displays used, remaining, and monthly limit counts with a proportional
  * progress bar. When no limit applies (unlimited tier), the bar is hidden
@@ -114,7 +115,7 @@ export default function UsageDashboard() {
 					<div className="plume-usage__stat-value">
 						{ hasLimit ? limit.toLocaleString() : '∞' }
 					</div>
-					<div className="plume-usage__stat-label">Monthly limit</div>
+					<div className="plume-usage__stat-label">{ __( 'Monthly limit (credits)', 'plume' ) }</div>
 				</div>
 			</div>
 
