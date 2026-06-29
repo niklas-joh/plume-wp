@@ -153,17 +153,17 @@ class UsageTrackerTest extends TestCase {
 		$this->assertSame( 100, UsageTracker::get_cached_credit_limit( 'free' ) );
 	}
 
-	public function test_get_cached_credit_limit_caches_fallback_limit_on_cache_miss(): void {
+	public function test_get_cached_credit_limit_caches_per_tier_limit_on_cache_miss(): void {
 		Functions\expect( 'get_transient' )
 			->once()
 			->with( 'plume_credit_limit_pro_managed' )
 			->andReturn( false );
 		Functions\expect( 'set_transient' )
 			->once()
-			->with( 'plume_credit_limit_pro_managed', UsageTracker::FALLBACK_LIMIT, \DAY_IN_SECONDS )
+			->with( 'plume_credit_limit_pro_managed', UsageTracker::PRO_MANAGED_CREDITS, \DAY_IN_SECONDS )
 			->andReturn( true );
 
-		$this->assertSame( UsageTracker::FALLBACK_LIMIT, UsageTracker::get_cached_credit_limit( 'pro_managed' ) );
+		$this->assertSame( UsageTracker::PRO_MANAGED_CREDITS, UsageTracker::get_cached_credit_limit( 'pro_managed' ) );
 	}
 
 	public function test_get_cached_credit_limit_returns_null_for_pro_byok(): void {

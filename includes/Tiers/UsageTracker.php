@@ -21,12 +21,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 class UsageTracker {
 
 	/**
-	 * Fallback monthly credit limit used when the real per-tier limit cannot be
-	 * resolved (transient cache miss with no successful Worker fetch).
+	 * Monthly credit allowance for the free tier.
+	 *
+	 * Mirrors MONTHLY_CREDIT_LIMITS.free in plume-proxy/src/index.ts.
 	 *
 	 * @since NEXT_VERSION
 	 */
-	public const FALLBACK_LIMIT = 100;
+	public const FREE_CREDITS = 100;
+
+	/**
+	 * Monthly credit allowance for the pro_managed tier.
+	 *
+	 * Mirrors MONTHLY_CREDIT_LIMITS.pro_managed in plume-proxy/src/index.ts.
+	 *
+	 * @since NEXT_VERSION
+	 */
+	public const PRO_MANAGED_CREDITS = 500;
+
+	/**
+	 * Fallback monthly credit limit used when the tier is unrecognised.
+	 *
+	 * @since NEXT_VERSION
+	 * @deprecated Use FREE_CREDITS or PRO_MANAGED_CREDITS directly.
+	 */
+	public const FALLBACK_LIMIT = self::FREE_CREDITS;
 
 	/**
 	 * Returns the wp_usermeta key for the current calendar month's token counter.
@@ -118,7 +136,11 @@ class UsageTracker {
 		}
 
 		// TODO: fetch the real limit from the Worker once it exposes one (see PHPDoc above).
-		$limit = self::FALLBACK_LIMIT;
+		$tier_limits = [
+			'free'        => self::FREE_CREDITS,
+			'pro_managed' => self::PRO_MANAGED_CREDITS,
+		];
+		$limit       = $tier_limits[ $tier ] ?? self::FALLBACK_LIMIT;
 		set_transient( $transient_key, $limit, DAY_IN_SECONDS );
 		return $limit;
 	}
