@@ -159,7 +159,7 @@ class DevToolsRestController {
 	}
 
 	/**
-	 * Reset this month's token counter to zero for the current user.
+	 * Reset this month's credit counter to zero for the current user.
 	 *
 	 * @since 1.11.0
 	 * @return WP_REST_Response
@@ -179,7 +179,7 @@ class DevToolsRestController {
 	}
 
 	/**
-	 * Set this month's token counter to the current tier's monthly ceiling.
+	 * Set this month's credit counter to the current tier's monthly ceiling.
 	 *
 	 * For unlimited tiers (pro_byok) there is no ceiling to set; a descriptive
 	 * message is returned and success is still true.

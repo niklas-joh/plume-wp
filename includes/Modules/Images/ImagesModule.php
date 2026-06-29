@@ -26,6 +26,9 @@ use Plume\Tiers\UsageTracker;
  */
 class ImagesModule {
 
+	/** Credits deducted per generated image — mirrors IMAGE_CREDITS in plume-proxy/src/credits.ts. */
+	private const IMAGE_CREDITS = 15;
+
 	/**
 	 * Register WordPress hooks for this module.
 	 *
@@ -187,8 +190,7 @@ class ImagesModule {
 			);
 		}
 
-		// 15 credits per image — matches IMAGE_CREDITS in plume-proxy/src/credits.ts.
-		UsageTracker::log_usage( count( $images ) * 15 );
+		UsageTracker::log_usage( count( $images ) * self::IMAGE_CREDITS );
 		$status = empty( $errors ) ? 201 : 207;
 
 		return new \WP_REST_Response(

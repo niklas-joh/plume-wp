@@ -12,8 +12,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Plume\Tiers\UsageTracker;
-
 /**
  * Provides retry logic, usage logging, and media-library image saving for concrete providers.
  *
