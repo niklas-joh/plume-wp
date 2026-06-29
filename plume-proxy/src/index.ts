@@ -809,8 +809,17 @@ async function handleChatProxy(
 			);
 		}
 
+		// Intermediate tool-use steps are not billed; only the final response is.
+		// The final call's usage.input_tokens naturally encompasses all prior context,
+		// so total token cost is captured without needing cross-request accumulation.
+		// Scoped to 'chat' so flat-rate features are never silently zeroed if they
+		// ever gain tool support in future.
+		const isToolUseStep = feature === 'chat' && !! normalized.tool_call;
+
 		let creditsCharged: number;
-		if ( feature === 'chat' ) {
+		if ( isToolUseStep ) {
+			creditsCharged = 0;
+		} else if ( feature === 'chat' ) {
 			const weight = tokenWeights[ selectedModel ] ?? 1;
 			creditsCharged = chatCredits(
 				normalized.usage.input_tokens,
@@ -820,14 +829,17 @@ async function handleChatProxy(
 		} else {
 			creditsCharged = FLAT_FEATURE_CREDITS[ feature ];
 		}
-		await updateUsage( siteToken, creditsCharged, env );
+
+		if ( ! isToolUseStep ) {
+			await updateUsage( siteToken, creditsCharged, env );
+		}
 
 		const responseData: Record< string, unknown > = {
 			content: normalized.content,
 			usage: normalized.usage,
 			credits_charged: creditsCharged,
 		};
-		if ( normalized.tool_call ) {
+		if ( isToolUseStep ) {
 			responseData.tool_call = normalized.tool_call;
 		}
 		return jsonResponse( responseData );
