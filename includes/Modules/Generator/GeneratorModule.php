@@ -192,9 +192,9 @@ class GeneratorModule {
 
 			return new \WP_REST_Response(
 				[
-					'post_id'     => $post_id,
-					'edit_url'    => \get_edit_post_link( $post_id, 'raw' ),
-					'content'     => $content,
+					'post_id'      => $post_id,
+					'edit_url'     => \get_edit_post_link( $post_id, 'raw' ),
+					'content'      => $content,
 					'credits_used' => $response->credits_charged,
 				],
 				201
