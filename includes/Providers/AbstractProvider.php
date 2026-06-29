@@ -163,14 +163,19 @@ abstract class AbstractProvider implements ProviderInterface {
 	}
 
 	/**
-	 * Log token usage for the current user if the response contains a token count.
+	 * No-op for the BYOK tier, which bypasses the proxy and has no credit limit.
+	 *
+	 * Child providers (ClaudeProvider, OpenAIProvider, GeminiProvider) override this
+	 * method and call parent only when proxy_logged is false (the BYOK path). BYOK
+	 * users see "Unlimited" in the dashboard, so storing a raw token count against
+	 * a null limit has no value.
 	 *
 	 * @since 1.0.0
-	 * @param CompletionRequest  $request  The originating request (unused here, available to subclasses).
-	 * @param CompletionResponse $response The completed response.
+	 * @param CompletionRequest  $request  Originating request.
+	 * @param CompletionResponse $response Completed response.
 	 * @return void
 	 */
 	protected function maybe_log( CompletionRequest $request, CompletionResponse $response ): void {
-		UsageTracker::log_usage( $response->total_tokens );
+		// Intentional no-op: BYOK users have no credit limit and "Unlimited" is shown in the UI.
 	}
 }

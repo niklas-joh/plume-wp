@@ -187,7 +187,7 @@ class ImagesModule {
 			);
 		}
 
-		UsageTracker::log_usage( count( $images ) );
+		UsageTracker::log_usage( count( $images ) * 15 );
 		$status = empty( $errors ) ? 201 : 207;
 
 		return new \WP_REST_Response(
