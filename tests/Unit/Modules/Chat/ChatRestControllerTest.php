@@ -1546,13 +1546,19 @@ class ChatRestControllerTest extends TestCase {
         $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
         $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
 
-        // Use a Mockery $wpdb to assert exactly one DB write for credits.
+        // Use a Mockery $wpdb to assert exactly one DB write for credits and capture the value.
         global $wpdb;
         $original_wpdb       = $wpdb;
+        $captured_credits    = null;
         $wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
         $wpdb->usermeta      = 'wp_usermeta';
         $wpdb->rows_affected = 1;
-        $wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing( fn( $sql ) => $sql );
+        $wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing(
+            function ( $sql, $credits ) use ( &$captured_credits ) {
+                $captured_credits = $credits;
+                return $sql;
+            }
+        );
         $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
 
         $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
@@ -1567,6 +1573,7 @@ class ChatRestControllerTest extends TestCase {
 
         $this->assertSame( 200, $response->get_status() );
         $this->assertSame( 3, $response->data['credits'], 'credits field must reflect final_response->credits_charged.' );
+        $this->assertSame( 3, $captured_credits, 'log_usage must write final_response->credits_charged (3) to usermeta.' );
     }
 
     // ── search_posts ──────────────────────────────────────────────────────────
