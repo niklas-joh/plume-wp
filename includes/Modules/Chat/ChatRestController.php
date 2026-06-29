@@ -430,7 +430,7 @@ class ChatRestController {
 				[
 					'content'      => $final_response->content,
 					'model'        => $final_response->model,
-					'tokens'       => $final_response->total_tokens,
+					'credits'      => $final_response->credits_charged,
 					'cost_usd'     => $final_response->cost_usd,
 					'pending_plan' => $pending_plan,
 					'tools_called' => \array_values( \array_unique( $tools_called ) ),

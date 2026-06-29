@@ -106,7 +106,7 @@ class DevToolsRestController {
 		if ( null === $usage['limit'] ) {
 			$display = __( 'Unlimited', 'plume' );
 		} else {
-			$display = number_format_i18n( $usage['used'] ) . ' / ' . number_format_i18n( $usage['limit'] ) . ' ' . __( 'tokens', 'plume' );
+			$display = number_format_i18n( $usage['used'] ) . ' / ' . number_format_i18n( $usage['limit'] ) . ' ' . __( 'credits', 'plume' );
 		}
 
 		return new WP_REST_Response(

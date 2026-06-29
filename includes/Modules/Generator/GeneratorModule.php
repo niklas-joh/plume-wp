@@ -125,7 +125,7 @@ class GeneratorModule {
 	 *
 	 * @since 1.0.0
 	 * @param \WP_REST_Request $request Incoming REST request.
-	 * @return \WP_REST_Response 201 on success with post_id, edit_url, content, tokens_used; 500 on error.
+	 * @return \WP_REST_Response 201 on success with post_id, edit_url, content, credits_used; 500 on error.
 	 */
 	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
 		$title    = $request->get_param( 'title' );
@@ -195,7 +195,7 @@ class GeneratorModule {
 					'post_id'     => $post_id,
 					'edit_url'    => \get_edit_post_link( $post_id, 'raw' ),
 					'content'     => $content,
-					'tokens_used' => $response->total_tokens,
+					'credits_used' => $response->credits_charged,
 				],
 				201
 			);
