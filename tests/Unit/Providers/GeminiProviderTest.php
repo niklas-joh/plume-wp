@@ -305,8 +305,9 @@ class GeminiProviderTest extends TestCase {
 		Functions\when( 'wp_remote_post' )->justReturn( [
 			'response' => [ 'code' => 200 ],
 			'body'     => json_encode( [
-				'content' => 'ok',
-				'usage'   => [ 'input_tokens' => 2, 'output_tokens' => 1 ],
+				'content'         => 'ok',
+				'usage'           => [ 'input_tokens' => 2, 'output_tokens' => 1 ],
+				'credits_charged' => 1,
 			] ),
 		] );
 		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
