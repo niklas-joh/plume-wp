@@ -54,7 +54,7 @@ abstract class RealIntegrationTestCase extends IntegrationTestCase {
 	 * is_site_tier_verified() passes for this unregistered test install, stores
 	 * the CLAUDE_API_KEY env var via ProviderSettings so the Claude provider can
 	 * make live API calls, and applies the matching user-level tier meta so the
-	 * per-user tier resolution is consistent with activate_trial_tier / activate_free_tier.
+	 * per-user tier resolution is consistent with activate_free_tier.
 	 *
 	 * @since 1.8.0
 	 * @param int $user_id WordPress user ID.
@@ -69,16 +69,6 @@ abstract class RealIntegrationTestCase extends IntegrationTestCase {
 		delete_option( SiteRegistration::OPTION_SECRET );
 		// Store the real API key so the Claude provider can call the Anthropic API directly.
 		( new ProviderSettings() )->set_api_key( 'claude', getenv( 'CLAUDE_API_KEY' ) ?: '' );
-	}
-
-	/**
-	 * Configure a user for the trial tier (routes AI calls through the proxy).
-	 *
-	 * @since 1.8.0
-	 * @param int $user_id WordPress user ID.
-	 */
-	protected function activate_trial_tier( int $user_id ): void {
-		$this->set_user_tier( $user_id, 'trial' );
 	}
 
 	/**

@@ -206,6 +206,57 @@ class GeminiProviderTest extends TestCase {
 		$this->assertSame( [ 'count' => 3 ], $response->tool_call['arguments'] );
 	}
 
+	public function test_complete_via_proxy_forwards_feature_from_request_metadata(): void {
+		$this->mock_free_tier_proxy();
+		$captured_body = null;
+		Functions\when( 'wp_remote_post' )->alias( function ( $url, $args ) use ( &$captured_body ) {
+			$captured_body = json_decode( $args['body'], true );
+			return [
+				'response' => [ 'code' => 200 ],
+				'body'     => json_encode( [
+					'content' => 'ok',
+					'usage'   => [ 'input_tokens' => 1, 'output_tokens' => 1 ],
+				] ),
+			];
+		} );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
+
+		$provider = new GeminiProvider( '' );
+		$request  = new CompletionRequest(
+			messages: [ [ 'role' => 'user', 'content' => 'Write a post' ] ],
+			metadata: [ 'feature' => 'generator' ],
+		);
+		$provider->complete( $request );
+
+		$this->assertNotNull( $captured_body );
+		$this->assertSame( 'generator', $captured_body['feature'] );
+	}
+
+	public function test_complete_via_proxy_defaults_feature_to_chat_when_metadata_absent(): void {
+		$this->mock_free_tier_proxy();
+		$captured_body = null;
+		Functions\when( 'wp_remote_post' )->alias( function ( $url, $args ) use ( &$captured_body ) {
+			$captured_body = json_decode( $args['body'], true );
+			return [
+				'response' => [ 'code' => 200 ],
+				'body'     => json_encode( [
+					'content' => 'ok',
+					'usage'   => [ 'input_tokens' => 1, 'output_tokens' => 1 ],
+				] ),
+			];
+		} );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
+
+		$provider = new GeminiProvider( '' );
+		$request  = new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ] );
+		$provider->complete( $request );
+
+		$this->assertNotNull( $captured_body );
+		$this->assertSame( 'chat', $captured_body['feature'] );
+	}
+
 	public function test_complete_via_proxy_wp_error_throws_provider_exception(): void {
 		global $wpdb;
 		$wpdb = new class extends \stdClass {
@@ -254,18 +305,21 @@ class GeminiProviderTest extends TestCase {
 		Functions\when( 'wp_remote_post' )->justReturn( [
 			'response' => [ 'code' => 200 ],
 			'body'     => json_encode( [
-				'content' => 'ok',
-				'usage'   => [ 'input_tokens' => 2, 'output_tokens' => 1 ],
+				'content'         => 'ok',
+				'usage'           => [ 'input_tokens' => 2, 'output_tokens' => 1 ],
+				'credits_charged' => 1,
 			] ),
 		] );
 		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
 		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
 
 		$provider = new GeminiProvider( '' );
-		$provider->complete( new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ] ) );
+		// Use a non-chat feature so ProxyClient logs the credit; the proxy_logged flag must
+		// then prevent maybe_log() from issuing a second query (chat credits skip ProxyClient
+		// logging and are recorded once by ChatRestController instead).
+		$provider->complete( new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ], metadata: [ 'feature' => 'seo' ] ) );
 
-		// ProxyClient::chat() logs usage once (one wpdb->query call).
-		// proxy_logged flag must prevent parent::maybe_log() from logging a second time.
+		// ProxyClient::chat() logs once; proxy_logged suppresses the parent maybe_log() call.
 		$this->assertSame( 1, $wpdb->query_calls );
 	}
 

@@ -18,7 +18,6 @@ use Plume\Providers\CompletionRequest;
 use Plume\Providers\ProviderException;
 use Plume\Settings\ProviderSettings;
 use Plume\Tiers\TierManager;
-use Plume\Tiers\UsageTracker;
 
 /**
  * Registers the SEO module admin assets, REST routes, and the plume_seo_status REST field.
@@ -76,7 +75,7 @@ class SeoModule {
 			[
 				'nonce'      => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'    => \esc_url_raw( \rest_url( 'plume/v1' ) ),
-				'isPro'      => TierManager::user_can( 'seo' ),
+				'isPaid'     => TierManager::is_paid(),
 				'adminUrl'   => \esc_url_raw( \admin_url() ),
 				'websiteUrl' => PLUME_WEBSITE_URL,
 			]
@@ -104,8 +103,7 @@ class SeoModule {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => [ self::class, 'handle_generate' ],
 				'permission_callback' => function () {
-						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'seo', $user_id ) && UsageTracker::check_limit( $user_id );
+					return \current_user_can( 'edit_posts' );
 				},
 				'args'                => [
 					'post_id' => [
@@ -124,8 +122,7 @@ class SeoModule {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => [ self::class, 'handle_apply' ],
 				'permission_callback' => function () {
-						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'seo', $user_id ) && UsageTracker::check_limit( $user_id );
+					return \current_user_can( 'edit_posts' );
 				},
 				'args'                => [
 					'post_id'        => [
@@ -163,7 +160,6 @@ class SeoModule {
 	 *
 	 * Returns an associative array with keys meta_title, og_description, excerpt,
 	 * alt_text, and tokens_used. Returns WP_Error on provider or parsing failure.
-	 * Token usage is NOT logged here — callers must call UsageTracker::log_usage() after a successful return.
 	 *
 	 * **Authorization:** This method performs a post-level capability check.
 	 * It verifies that $user_id holds 'edit_post' for $post_id and returns a
@@ -172,11 +168,12 @@ class SeoModule {
 	 * at minimum.
 	 *
 	 * **Side effects:** On success this method fires a live AI provider request.
-	 * Token usage is logged by the provider layer — the proxy for trial/pro_managed
-	 * tiers and AbstractProvider::maybe_log() for pro_byok. Callers MUST NOT call
-	 * UsageTracker::log_usage() after this method; doing so double-counts tokens.
-	 * Callers are responsible for checking usage limits before invoking this method;
-	 * the token spend is not reversible if the result is discarded.
+	 * Credit usage is logged by the proxy layer for the pro_managed tier; BYOK
+	 * (pro_byok) tiers are unlimited and credit usage is not tracked locally.
+	 * Callers MUST NOT call UsageTracker::log_usage() after this method; doing
+	 * so double-counts credits. Callers are responsible for checking usage limits
+	 * before invoking this method; the credit spend is not reversible if the
+	 * result is discarded.
 	 *
 	 * @since 1.0.0
 	 * @param int $post_id Post ID to generate metadata for.

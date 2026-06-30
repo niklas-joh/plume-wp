@@ -189,9 +189,10 @@ class SiteRegistrationTest extends TestCase {
 		$bodyCallNum = 0;
 		Functions\when( 'wp_remote_retrieve_body' )->alias(
 			function () use ( &$bodyCallNum, $challenge, $token ): string {
+				// 'free' — the Worker's VALID_TIERS no longer includes 'trial'.
 				return 1 === ++$bodyCallNum
 					? '{"challenge":"' . $challenge . '"}'
-					: '{"token":"' . $token . '","tier":"trial"}';
+					: '{"token":"' . $token . '","tier":"free"}';
 			}
 		);
 		Functions\when( 'sanitize_text_field' )->returnArg();

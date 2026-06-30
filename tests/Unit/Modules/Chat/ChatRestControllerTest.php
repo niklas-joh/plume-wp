@@ -10,6 +10,7 @@ use Plume\Modules\Chat\ChatRestController;
 use Plume\Tools\ToolRegistry;
 use Plume\Tools\ToolExecutor;
 use Plume\Providers\CompletionResponse;
+use Plume\Tests\Helpers\WpdbStubFactory;
 use PHPUnit\Framework\TestCase;
 
 class ChatRestControllerTest extends TestCase {
@@ -22,9 +23,15 @@ class ChatRestControllerTest extends TestCase {
         Monkey\setUp();
         $this->tool_registry = $this->createMock( ToolRegistry::class );
         $this->tool_executor = $this->createMock( ToolExecutor::class );
+        // Ensure a valid $wpdb stub is always present — other test classes (e.g.
+        // AbstractProviderTest) replace it with a bare stdClass without restoring it.
+        global $wpdb;
+        $wpdb = WpdbStubFactory::create(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
     }
 
     protected function tearDown(): void {
+        global $wpdb;
+        $wpdb = WpdbStubFactory::create(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
         Monkey\tearDown();
         parent::tearDown();
     }
@@ -386,59 +393,16 @@ class ChatRestControllerTest extends TestCase {
     }
 
     // ── Permission check ───────────────────────────────────────────────────────
-
-    /**
-     * Helper: build a ChatRestController subclass with both tier and quota checks stubbed to pass.
-     *
-     * @since 1.8.0
-     * @return ChatRestController
-     */
-    private function make_controller_passing_gates(): ChatRestController {
-        return new class( $this->tool_registry, $this->tool_executor ) extends ChatRestController {
-            protected function user_can_chat( int $user_id ): bool {
-                return true;
-            }
-            protected function user_within_quota( int $user_id ): bool {
-                return true;
-            }
-        };
-    }
-
-    /**
-     * Helper: build a ChatRestController subclass with tier check stubbed to fail.
-     *
-     * @since 1.8.0
-     * @return ChatRestController
-     */
-    private function make_controller_tier_denied(): ChatRestController {
-        return new class( $this->tool_registry, $this->tool_executor ) extends ChatRestController {
-            protected function user_can_chat( int $user_id ): bool {
-                return false;
-            }
-        };
-    }
-
-    /**
-     * Helper: build a ChatRestController subclass with quota check stubbed to fail.
-     *
-     * @since 1.8.0
-     * @return ChatRestController
-     */
-    private function make_controller_quota_exhausted(): ChatRestController {
-        return new class( $this->tool_registry, $this->tool_executor ) extends ChatRestController {
-            protected function user_can_chat( int $user_id ): bool {
-                return true;
-            }
-            protected function user_within_quota( int $user_id ): bool {
-                return false;
-            }
-        };
-    }
+    //
+    // check_permission() no longer checks tier or quota — credit enforcement
+    // happens entirely on the Worker side. It now collapses to a single
+    // current_user_can('edit_posts') check, identical across every tier.
+    // user_can_chat()/user_within_quota() were deleted entirely (not left as
+    // dead code) to prevent a future regression re-wiring them back in.
 
     public function test_permission_check_returns_true_for_editors(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        $controller = $this->make_controller_passing_gates();
+        $controller = new ChatRestController( $this->tool_registry, $this->tool_executor );
 
         $result = $controller->check_permission();
         $this->assertTrue( $result );
@@ -463,48 +427,28 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 403, $result->get_error_data()['status'] );
     }
 
-    public function test_permission_check_fails_when_tier_denies_chat(): void {
+    public function test_permission_check_ignores_tier_entirely(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( '__' )->alias( fn( $s ) => $s );
-        $controller = $this->make_controller_tier_denied();
+        $controller = new ChatRestController( $this->tool_registry, $this->tool_executor );
 
-        $result = $controller->check_permission();
-        $this->assertInstanceOf( \WP_Error::class, $result );
-        $this->assertSame( 'rest_tier_denied', $result->get_error_code() );
+        foreach ( [ 'free', 'pro_managed', 'pro_byok' ] as $tier ) {
+            Functions\when( 'get_option' )->justReturn( $tier );
+            $this->assertTrue( $controller->check_permission(), "check_permission() must return true for tier '{$tier}'." );
+        }
     }
 
-    public function test_permission_check_tier_error_has_403_status(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( '__' )->alias( fn( $s ) => $s );
-        $controller = $this->make_controller_tier_denied();
-
-        $result = $controller->check_permission();
-        $this->assertInstanceOf( \WP_Error::class, $result );
-        $this->assertSame( 403, $result->get_error_data()['status'] );
+    public function test_user_can_chat_method_does_not_exist(): void {
+        $this->assertFalse(
+            method_exists( ChatRestController::class, 'user_can_chat' ),
+            'user_can_chat() must be deleted entirely, not left as dead code.'
+        );
     }
 
-    public function test_permission_check_fails_when_quota_exhausted(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( '__' )->alias( fn( $s ) => $s );
-        $controller = $this->make_controller_quota_exhausted();
-
-        $result = $controller->check_permission();
-        $this->assertInstanceOf( \WP_Error::class, $result );
-        $this->assertSame( 'rest_quota_exceeded', $result->get_error_code() );
-    }
-
-    public function test_permission_check_quota_error_has_403_status(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( '__' )->alias( fn( $s ) => $s );
-        $controller = $this->make_controller_quota_exhausted();
-
-        $result = $controller->check_permission();
-        $this->assertInstanceOf( \WP_Error::class, $result );
-        $this->assertSame( 403, $result->get_error_data()['status'] );
+    public function test_user_within_quota_method_does_not_exist(): void {
+        $this->assertFalse(
+            method_exists( ChatRestController::class, 'user_within_quota' ),
+            'user_within_quota() must be deleted entirely, not left as dead code.'
+        );
     }
 
     // ── Ownership guard ────────────────────────────────────────────────────────
@@ -750,46 +694,45 @@ class ChatRestControllerTest extends TestCase {
     // ── Provider unavailability — 503 / 422 branching ─────────────────────────
 
     /**
-     * Helper: extend make_controller() with a fixed tier for the unavailability branch.
+     * Helper: extend make_controller() for the unavailability branch.
+     *
+     * Tier is no longer read via an overridable controller method — is_proxy_tier
+     * now calls TierManager::user_can('own_api_key') directly, which resolves the
+     * tier from the site option. Tests control the tier by stubbing get_option()
+     * for TierManager::SITE_OPTION before constructing the controller.
      *
      * @param \Plume\DB\ConversationStore    $store
      * @param \Plume\Providers\ProviderFactory $factory
      * @param \Plume\Voice\VoiceInjector      $voice
-     * @param string                           $tier    Tier slug returned by get_user_tier().
      * @return ChatRestController
      */
     private function make_controller_with_tier(
         \Plume\DB\ConversationStore $store,
         \Plume\Providers\ProviderFactory $factory,
-        \Plume\Voice\VoiceInjector $voice,
-        string $tier
+        \Plume\Voice\VoiceInjector $voice
     ): ChatRestController {
         return new class(
             $this->tool_registry,
             $this->tool_executor,
             $store,
             $factory,
-            $voice,
-            $tier
+            $voice
         ) extends ChatRestController {
             private \Plume\DB\ConversationStore $store_override;
             private \Plume\Providers\ProviderFactory $factory_override;
             private \Plume\Voice\VoiceInjector $voice_override;
-            private string $tier_override;
 
             public function __construct(
                 ToolRegistry $tr,
                 ToolExecutor $te,
                 \Plume\DB\ConversationStore $store,
                 \Plume\Providers\ProviderFactory $factory,
-                \Plume\Voice\VoiceInjector $voice,
-                string $tier
+                \Plume\Voice\VoiceInjector $voice
             ) {
                 parent::__construct( $tr, $te );
                 $this->store_override   = $store;
                 $this->factory_override = $factory;
                 $this->voice_override   = $voice;
-                $this->tier_override    = $tier;
             }
             protected function make_store(): \Plume\DB\ConversationStore {
                 return $this->store_override;
@@ -800,9 +743,6 @@ class ChatRestControllerTest extends TestCase {
             protected function make_voice_injector(): \Plume\Voice\VoiceInjector {
                 return $this->voice_override;
             }
-            protected function get_user_tier( int $user_id ): string {
-                return $this->tier_override;
-            }
         };
     }
 
@@ -812,10 +752,20 @@ class ChatRestControllerTest extends TestCase {
     public function test_send_message_returns_503_for_proxy_tier_when_provider_unavailable(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
-        Functions\when( 'get_option' )->justReturn( 'claude' );
         Functions\when( '__' )->alias( fn( $s ) => $s );
         Functions\when( 'has_action' )->justReturn( false );
         Functions\when( 'add_action' )->justReturn( null );
+        Functions\when( 'get_option' )->alias(
+            function ( $key, $default = false ) {
+                if ( 'plume_site_tier' === $key ) {
+                    return 'free';
+                }
+                if ( \Plume\Payments\TierUpdateWebhookController::OPTION_SECRET === $key ) {
+                    return ''; // No sync secret — is_site_tier_verified() short-circuits to true.
+                }
+                return 'claude' === $default ? 'claude' : $default;
+            }
+        );
 
         $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
         $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
@@ -830,7 +780,7 @@ class ChatRestControllerTest extends TestCase {
         $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
         $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
 
-        $controller = $this->make_controller_with_tier( $store_mock, $factory_mock, $voice_mock, 'free' );
+        $controller = $this->make_controller_with_tier( $store_mock, $factory_mock, $voice_mock );
 
         $request = new \WP_REST_Request( 'POST' );
         $request->set_url_params( [ 'id' => '1' ] );
@@ -851,10 +801,20 @@ class ChatRestControllerTest extends TestCase {
     public function test_send_message_schedules_registration_on_shutdown_for_proxy_tier(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
-        Functions\when( 'get_option' )->justReturn( 'claude' );
         Functions\when( '__' )->alias( fn( $s ) => $s );
         // has_action returns false — hook has not been registered yet this request.
         Functions\when( 'has_action' )->justReturn( false );
+        Functions\when( 'get_option' )->alias(
+            function ( $key, $default = false ) {
+                if ( 'plume_site_tier' === $key ) {
+                    return 'free';
+                }
+                if ( \Plume\Payments\TierUpdateWebhookController::OPTION_SECRET === $key ) {
+                    return '';
+                }
+                return 'claude' === $default ? 'claude' : $default;
+            }
+        );
 
         $add_action_calls = 0;
         Functions\when( 'add_action' )->alias(
@@ -878,7 +838,7 @@ class ChatRestControllerTest extends TestCase {
         $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
         $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
 
-        $controller = $this->make_controller_with_tier( $store_mock, $factory_mock, $voice_mock, 'free' );
+        $controller = $this->make_controller_with_tier( $store_mock, $factory_mock, $voice_mock );
 
         $request = new \WP_REST_Request( 'POST' );
         $request->set_url_params( [ 'id' => '1' ] );
@@ -895,8 +855,18 @@ class ChatRestControllerTest extends TestCase {
     public function test_send_message_returns_422_for_byok_tier_when_provider_unavailable(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
-        Functions\when( 'get_option' )->justReturn( 'claude' );
         Functions\when( '__' )->alias( fn( $s ) => $s );
+        Functions\when( 'get_option' )->alias(
+            function ( $key, $default = false ) {
+                if ( 'plume_site_tier' === $key ) {
+                    return 'pro_byok';
+                }
+                if ( \Plume\Payments\TierUpdateWebhookController::OPTION_SECRET === $key ) {
+                    return '';
+                }
+                return 'claude' === $default ? 'claude' : $default;
+            }
+        );
 
         $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
         $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
@@ -911,7 +881,7 @@ class ChatRestControllerTest extends TestCase {
         $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
         $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
 
-        $controller = $this->make_controller_with_tier( $store_mock, $factory_mock, $voice_mock, 'pro_byok' );
+        $controller = $this->make_controller_with_tier( $store_mock, $factory_mock, $voice_mock );
 
         $request = new \WP_REST_Request( 'POST' );
         $request->set_url_params( [ 'id' => '1' ] );
@@ -1520,6 +1490,173 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( "I've prepared the changes for your review.", $response->data['content'] );
         $this->assertSame( $pending, $response->data['pending_plan'], 'pending_plan must be surfaced in the REST response' );
         $this->assertContains( 'plan_post', $response->data['tools_called'] );
+    }
+
+    // ── Credit logging ────────────────────────────────────────────────────────
+
+    public function test_send_message_logs_credits_once_after_loop(): void {
+        // Verifies the single UsageTracker::log_usage() call added after the while loop.
+        // A two-iteration exchange (tool call → final answer) must produce exactly one
+        // DB write for credits, reflecting the final response's credits_charged value.
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->alias( fn( $key, $default = '' ) => match ( $key ) {
+            'plume_default_provider' => 'claude',
+            default                  => $default,
+        } );
+        Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+        $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [
+            [ 'role' => 'user', 'content' => 'Hello' ],
+        ] );
+
+        // Iteration 1: tool call (3 credits from Worker, but ProxyClient skips logging).
+        $tool_response = new CompletionResponse(
+            content:           '',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     10,
+            completion_tokens: 5,
+            raw:               [ 'content' => [] ],
+            tool_call:         [ 'id' => 'tc_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+            credits_charged:   3,
+        );
+
+        // Iteration 2: final answer (3 more credits — controller logs this value once).
+        $final_response = new CompletionResponse(
+            content:           'Final answer',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     20,
+            completion_tokens: 15,
+            credits_charged:   3,
+        );
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [] );
+        $this->tool_executor->method( 'execute' )->willReturn( [ 'posts' => [] ] );
+
+        $provider_mock = $this->createMock( \Plume\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( true );
+        $provider_mock->method( 'complete' )->willReturnOnConsecutiveCalls( $tool_response, $final_response );
+
+        $factory_mock = $this->createMock( \Plume\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        // Use a Mockery $wpdb to assert exactly one DB write for credits and capture the value.
+        global $wpdb;
+        $original_wpdb       = $wpdb;
+        $captured_credits    = null;
+        $wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+        $wpdb->usermeta      = 'wp_usermeta';
+        $wpdb->rows_affected = 1;
+        // Capture the first prepared argument (the credit amount) so the test pins the
+        // actual value written, not merely that a single query was issued.
+        $wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing(
+            function ( $sql, $credits ) use ( &$captured_credits ) {
+                $captured_credits = $credits;
+                return $sql;
+            }
+        );
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '42' ] );
+        $request->set_body_params( [ 'content' => 'Hello', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $wpdb = $original_wpdb; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( 3, $response->data['credits'], 'credits field must reflect final_response->credits_charged.' );
+        $this->assertSame( 3, $captured_credits, 'log_usage must write final_response->credits_charged (3) to usermeta.' );
+    }
+
+    public function test_send_message_logs_only_final_iteration_credits_when_amounts_differ(): void {
+        // Locks down the accounting rule (relates to #880): when intermediate and final
+        // iterations charge different amounts, the controller must log exactly the final
+        // response's credits_charged once — never the intermediate value, a sum, or 0.
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->alias( fn( $key, $default = '' ) => match ( $key ) {
+            'plume_default_provider' => 'claude',
+            default                  => $default,
+        } );
+        Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+        $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [
+            [ 'role' => 'user', 'content' => 'Hello' ],
+        ] );
+
+        // Iteration 1: tool call charging 3 credits — ProxyClient skips logging for chat.
+        $tool_response = new CompletionResponse(
+            content:           '',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     10,
+            completion_tokens: 5,
+            raw:               [ 'content' => [] ],
+            tool_call:         [ 'id' => 'tc_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+            credits_charged:   3,
+        );
+
+        // Iteration 2: final answer charging a DIFFERENT amount (7) — only this is logged.
+        $final_response = new CompletionResponse(
+            content:           'Final answer',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     20,
+            completion_tokens: 15,
+            credits_charged:   7,
+        );
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [] );
+        $this->tool_executor->method( 'execute' )->willReturn( [ 'posts' => [] ] );
+
+        $provider_mock = $this->createMock( \Plume\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( true );
+        $provider_mock->method( 'complete' )->willReturnOnConsecutiveCalls( $tool_response, $final_response );
+
+        $factory_mock = $this->createMock( \Plume\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        global $wpdb;
+        $original_wpdb       = $wpdb;
+        $wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+        $wpdb->usermeta      = 'wp_usermeta';
+        $wpdb->rows_affected = 1;
+        $logged_credits      = null;
+        $wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing(
+            function ( $sql, $credits = null ) use ( &$logged_credits ) {
+                $logged_credits = $credits;
+                return $sql;
+            }
+        );
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '42' ] );
+        $request->set_body_params( [ 'content' => 'Hello', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $wpdb = $original_wpdb; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( 7, $response->data['credits'], 'credits field must reflect the final iteration, not the intermediate 3.' );
+        $this->assertSame( 7, $logged_credits, 'usermeta must record the final iteration amount (7), not the intermediate 3, their sum (10), or 0.' );
     }
 
     // ── search_posts ──────────────────────────────────────────────────────────

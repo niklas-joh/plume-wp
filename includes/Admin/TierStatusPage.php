@@ -97,7 +97,7 @@ class TierStatusPage {
 				</tr>
 				<?php if ( null !== $usage['limit'] ) : ?>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Tokens used this month', 'plume' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Credits used this month', 'plume' ); ?></th>
 					<td>
 						<?php
 						echo esc_html(
@@ -113,21 +113,21 @@ class TierStatusPage {
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Tokens remaining', 'plume' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Credits remaining', 'plume' ); ?></th>
 					<td><?php echo esc_html( number_format_i18n( $usage['remaining'] ?? 0 ) ); ?></td>
 				</tr>
 				<?php else : ?>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Token usage', 'plume' ); ?></th>
-					<td><?php esc_html_e( 'Unlimited (your API key, your cost)', 'plume' ); ?></td>
+					<th scope="row"><?php esc_html_e( 'Credit usage', 'plume' ); ?></th>
+					<td><?php esc_html_e( 'No credit limit (your API key, your cost)', 'plume' ); ?></td>
 				</tr>
 				<?php endif; ?>
 			</table>
 
-			<?php if ( 'free' === $tier || 'trial' === $tier ) : ?>
+			<?php if ( 'free' === $tier ) : ?>
 			<div class="card plume-upgrade-card">
 				<h2><?php esc_html_e( 'Upgrade your plan', 'plume' ); ?></h2>
-				<p><?php esc_html_e( 'Pro Managed gives you 2M tokens/month with model selection. Pro BYOK gives you unlimited usage with your own API key.', 'plume' ); ?></p>
+				<p><?php esc_html_e( 'Pro Managed gives you 500 credits/month and access to more models. Pro BYOK gives you no credit limit, using your own API key.', 'plume' ); ?></p>
 				<div class="plume-upgrade-actions">
 					<a href="<?php echo esc_url( SiteRegistration::checkout_url_pro_managed_monthly() ); ?>" class="button button-primary">
 						<?php esc_html_e( 'Pro Managed — Monthly', 'plume' ); ?>

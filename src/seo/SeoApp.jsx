@@ -1,9 +1,6 @@
-import { Lock } from 'lucide-react';
 import PostListTable from '../shared/PostListTable';
 import SeoBadge, { getSeoStatus } from './SeoBadge';
 import SeoWorkArea from './SeoWorkArea';
-
-const { isPro, websiteUrl = 'https://wpaimind.com' } = window.plumeData ?? {};
 
 const SEO_TABS = [
 	{ id: 'all', label: 'All', filter: () => true },
@@ -33,43 +30,22 @@ const SEO_COLUMNS = [
 ];
 
 /**
- * Root page component for the AI SEO admin screen (Pro only).
+ * Root page component for the AI SEO admin screen.
  *
- * Shows a Pro-gate placeholder for free-tier users. Pro users see a
- * PostListTable filtered by SEO completion status, with SeoWorkArea
- * as the expanded row work area.
+ * Available to every tier — credit exhaustion is surfaced inline by
+ * SeoWorkArea via OutOfCreditsNotice when a generation request fails, not
+ * by gating the whole screen up front.
  *
  * @return {ReactElement}
  */
 export default function SeoApp() {
-	if ( ! isPro ) {
-		return (
-			<div className="plume-pro-gate">
-				<Lock size={ 32 } />
-				<h2>AI SEO requires Plume Pro</h2>
-				<p>
-					Automatically generate meta titles, OG descriptions,
-					excerpts, and image alt text for every post — in one click.
-				</p>
-				<a
-					href={ `${ websiteUrl }/pricing` }
-					className="button button-primary button-large"
-				>
-					Upgrade to Pro →
-				</a>
-			</div>
-		);
-	}
-
 	return (
 		<div className="plume-page">
 			<div className="plume-page-header">
-				<h1>
-					SEO <span className="plume-pro-badge">PRO</span>
-				</h1>
+				<h1>SEO</h1>
 				<p>
-					Generate and apply AI-written SEO metadata for your posts
-					and pages.
+					Automatically generate meta titles, OG descriptions,
+					excerpts, and image alt text for every post — in one click.
 				</p>
 			</div>
 			<PostListTable

@@ -60,10 +60,10 @@ export default function UsageWidget( { usage } ) {
 			</div>
 
 			{ hasLimit && (
-				<div className="plume-usage-widget__token-count">
+				<div className="plume-usage-widget__credit-count">
 					{ sprintf(
-						/* translators: 1: used tokens, 2: limit tokens */
-						__( '%1$s / %2$s tokens', 'plume' ),
+						/* translators: 1: credits used, 2: monthly credit limit */
+						__( '%1$s / %2$s credits', 'plume' ),
 						used.toLocaleString(),
 						limit.toLocaleString()
 					) }

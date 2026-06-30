@@ -42,11 +42,41 @@ class PluginTest extends TestCase {
 
         Functions\when( 'get_option' )->justReturn( false );
         Functions\when( 'update_option' )->justReturn( true );
-        Functions\when( 'wp_next_scheduled' )->justReturn( false );
-        Functions\when( 'wp_schedule_event' )->justReturn( true );
         Functions\when( 'flush_rewrite_rules' )->justReturn( null );
         Functions\when( 'get_users' )->justReturn( [] );
 
         Plugin::activate();
+    }
+
+    /**
+     * The trial tier no longer exists — activate() must not schedule the
+     * plume_trial_check cron event (there is no successor cron event either;
+     * zero production users means no upgrade routine is needed).
+     */
+    public function test_activate_does_not_schedule_trial_check_cron(): void {
+        Functions\expect( 'wp_next_scheduled' )->never();
+        Functions\expect( 'wp_schedule_event' )->never();
+
+        Functions\when( 'get_option' )->justReturn( false );
+        Functions\when( 'add_option' )->justReturn( true );
+        Functions\when( 'update_option' )->justReturn( true );
+        Functions\when( 'flush_rewrite_rules' )->justReturn( null );
+        Functions\when( 'get_users' )->justReturn( [] );
+
+        Plugin::activate();
+        $this->addToAssertionCount( 1 );
+    }
+
+    /**
+     * activate() no longer schedules plume_trial_check, but deactivate() must
+     * still defensively clear it so installs upgraded from a version that did
+     * schedule it shed the now-callback-less orphaned event.
+     */
+    public function test_deactivate_clears_orphaned_trial_check_cron_and_does_not_fatal(): void {
+        Functions\expect( 'wp_clear_scheduled_hook' )->once()->with( 'plume_trial_check' );
+        Functions\expect( 'flush_rewrite_rules' )->once();
+
+        Plugin::deactivate();
+        $this->addToAssertionCount( 1 );
     }
 }

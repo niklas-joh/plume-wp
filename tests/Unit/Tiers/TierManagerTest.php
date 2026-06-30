@@ -25,19 +25,39 @@ class TierManagerTest extends TestCase {
 		parent::tearDown();
 	}
 
-	// ── get_user_tier resolution order (paid > active trial > site default) ──
+	// ── get_user_tier resolution order (paid > site default; no per-user trial) ──
 
-	public function test_get_user_tier_defaults_to_free_when_no_meta_and_no_site_option(): void {
-		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
+	/**
+	 * get_user_tier() takes no parameters — paid status is a site-level fact and
+	 * there is no longer a per-user trial state to resolve, so $user_id (which was
+	 * never actually consumed by the resolution logic) was removed entirely rather
+	 * than kept unused for call-site compatibility.
+	 */
+	/**
+	 * user_can()'s $user_id parameter was kept during planning "for callers that
+	 * pass a specific user's ID" — but every such caller (ToolExecutor.php's
+	 * generate_seo_meta() gate) was deleted in Phase 1.5, and zero production
+	 * call sites pass a real argument any more. Per the no-legacy-shims
+	 * directive, a parameter kept only against a hypothetical future caller
+	 * is removed rather than left unused.
+	 */
+	public function test_user_can_has_no_user_id_parameter(): void {
+		$method = new \ReflectionMethod( TierManager::class, 'user_can' );
+		$this->assertCount( 1, $method->getParameters(), 'user_can() must take only $feature — the unused $user_id parameter was removed.' );
+	}
+
+	public function test_get_user_tier_has_no_parameters(): void {
+		$method = new \ReflectionMethod( TierManager::class, 'get_user_tier' );
+		$this->assertCount( 0, $method->getParameters() );
+	}
+
+	public function test_get_user_tier_defaults_to_free_when_no_site_option(): void {
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
-		Functions\expect( 'get_user_meta' )->once()->with( 1, 'plume_tier', true )->andReturn( '' );
 
 		$this->assertSame( 'free', TierManager::get_user_tier() );
 	}
 
 	public function test_get_user_tier_returns_site_option_when_site_is_pro_managed(): void {
-		// Site option wins over trial meta — paid status is per-site, not per-user.
-		Functions\expect( 'get_current_user_id' )->once()->andReturn( 5 );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
 		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
 
@@ -45,70 +65,10 @@ class TierManagerTest extends TestCase {
 	}
 
 	public function test_get_user_tier_returns_site_option_when_site_is_pro_byok(): void {
-		Functions\expect( 'get_current_user_id' )->once()->andReturn( 5 );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_byok' );
 		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
 
 		$this->assertSame( 'pro_byok', TierManager::get_user_tier() );
-	}
-
-	public function test_get_user_tier_returns_trial_when_meta_is_trial_and_active_and_site_is_free(): void {
-		$started = (string) time();
-		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
-		// get_user_tier reads meta once; is_trial_active reads it twice more.
-		Functions\when( 'get_user_meta' )->alias(
-			function ( $uid, $key ) use ( $started ) {
-				if ( 'plume_tier' === $key ) {
-					return 'trial';
-				}
-				return $started;
-			}
-		);
-
-		$this->assertSame( 'trial', TierManager::get_user_tier( 6 ) );
-	}
-
-	public function test_get_user_tier_returns_site_option_when_meta_is_trial_but_expired(): void {
-		$expired = (string) ( time() - ( 31 * DAY_IN_SECONDS ) );
-		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
-		Functions\when( 'get_user_meta' )->alias(
-			function ( $uid, $key ) use ( $expired ) {
-				if ( 'plume_tier' === $key ) {
-					return 'trial';
-				}
-				return $expired;
-			}
-		);
-
-		$this->assertSame( 'free', TierManager::get_user_tier( 6 ) );
-	}
-
-	public function test_get_user_tier_short_circuits_to_site_option_when_no_user(): void {
-		// $user_id <= 0 path: skip meta entirely, consult site option directly.
-		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
-		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
-		Functions\expect( 'get_user_meta' )->never();
-
-		$this->assertSame( 'pro_managed', TierManager::get_user_tier( 0 ) );
-	}
-
-	public function test_get_user_tier_returns_free_when_no_user_and_no_site_option(): void {
-		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
-		Functions\expect( 'get_user_meta' )->never();
-
-		$this->assertSame( 'free', TierManager::get_user_tier( 0 ) );
-	}
-
-	// ── set_user_tier ────────────────────────────────────────────────────────
-
-	public function test_set_user_tier_rejects_invalid_tier(): void {
-		$this->assertFalse( TierManager::set_user_tier( 'enterprise', 1 ) );
-	}
-
-	public function test_set_user_tier_stores_valid_tier(): void {
-		Functions\expect( 'update_user_meta' )->once()->with( 3, 'plume_tier', 'pro_managed' )->andReturn( true );
-
-		$this->assertTrue( TierManager::set_user_tier( 'pro_managed', 3 ) );
 	}
 
 	// ── set_site_tier ────────────────────────────────────────────────────────
@@ -116,6 +76,11 @@ class TierManagerTest extends TestCase {
 	public function test_set_site_tier_rejects_invalid_tier(): void {
 		Functions\expect( 'update_option' )->never();
 		$this->assertFalse( TierManager::set_site_tier( 'enterprise' ) );
+	}
+
+	public function test_set_site_tier_rejects_trial_tier(): void {
+		Functions\expect( 'update_option' )->never();
+		$this->assertFalse( TierManager::set_site_tier( 'trial' ) );
 	}
 
 	public function test_set_site_tier_stores_valid_tier_with_autoload_false(): void {
@@ -148,25 +113,23 @@ class TierManagerTest extends TestCase {
 	// ── user_can — exercised against the get_user_tier resolution path ──────
 
 	public function test_free_user_can_chat_but_not_model_selection(): void {
-		Functions\expect( 'get_current_user_id' )->twice()->andReturn( 1 );
 		Functions\expect( 'get_option' )->twice()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
-		Functions\expect( 'get_user_meta' )->twice()->with( 1, 'plume_tier', true )->andReturn( '' );
 
 		$this->assertTrue( TierManager::user_can( 'chat' ) );
 		$this->assertFalse( TierManager::user_can( 'model_selection' ) );
 	}
 
-	public function test_pro_managed_site_grants_model_selection(): void {
-		Functions\expect( 'get_current_user_id' )->twice()->andReturn( 2 );
-		Functions\expect( 'get_option' )->twice()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
-		Functions\expect( 'get_option' )->twice()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
+	public function test_pro_managed_site_grants_model_selection_but_not_own_api_key(): void {
+		Functions\expect( 'get_option' )->times( 3 )->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->times( 3 )->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
 
 		$this->assertTrue( TierManager::user_can( 'chat' ) );
 		$this->assertTrue( TierManager::user_can( 'model_selection' ) );
+		// own_api_key remains gated to pro_byok only — Pro Managed users do not bring their own key.
+		$this->assertFalse( TierManager::user_can( 'own_api_key' ) );
 	}
 
 	public function test_pro_byok_site_grants_all_features(): void {
-		Functions\expect( 'get_current_user_id' )->times( 6 )->andReturn( 7 );
 		Functions\expect( 'get_option' )->times( 6 )->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_byok' );
 		Functions\expect( 'get_option' )->times( 6 )->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
 
@@ -178,18 +141,17 @@ class TierManagerTest extends TestCase {
 		$this->assertTrue( TierManager::user_can( 'images' ) );
 	}
 
-	public function test_free_user_cannot_use_content_features(): void {
-		Functions\expect( 'get_current_user_id' )->times( 3 )->andReturn( 1 );
+	public function test_free_user_can_use_content_features(): void {
+		// Trial removal means free tier now has uniform access to chat/generator/seo/images —
+		// only model_selection and own_api_key remain genuinely tier-gated.
 		Functions\expect( 'get_option' )->times( 3 )->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
-		Functions\expect( 'get_user_meta' )->times( 3 )->with( 1, 'plume_tier', true )->andReturn( '' );
 
-		$this->assertFalse( TierManager::user_can( 'generator' ) );
-		$this->assertFalse( TierManager::user_can( 'seo' ) );
-		$this->assertFalse( TierManager::user_can( 'images' ) );
+		$this->assertTrue( TierManager::user_can( 'generator' ) );
+		$this->assertTrue( TierManager::user_can( 'seo' ) );
+		$this->assertTrue( TierManager::user_can( 'images' ) );
 	}
 
 	public function test_pro_managed_site_can_use_content_features(): void {
-		Functions\expect( 'get_current_user_id' )->times( 3 )->andReturn( 2 );
 		Functions\expect( 'get_option' )->times( 3 )->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
 		Functions\expect( 'get_option' )->times( 3 )->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
 
@@ -198,173 +160,66 @@ class TierManagerTest extends TestCase {
 		$this->assertTrue( TierManager::user_can( 'images' ) );
 	}
 
-	// ── Monthly limit helpers ───────────────────────────────────────────────
-
-	public function test_trial_tier_monthly_limit(): void {
-		$this->assertSame( 300000, TierManager::get_monthly_limit( 'trial' ) );
-	}
-
-	public function test_get_monthly_limit_returns_null_for_pro_byok(): void {
-		$this->assertNull( TierManager::get_monthly_limit( 'pro_byok' ) );
-	}
-
-	public function test_get_monthly_limit_returns_correct_values(): void {
-		$this->assertSame( 50000, TierManager::get_monthly_limit( 'free' ) );
-		$this->assertSame( 300000, TierManager::get_monthly_limit( 'trial' ) );
-		$this->assertSame( 2000000, TierManager::get_monthly_limit( 'pro_managed' ) );
-	}
-
-	// ── Trial management ───────────────────────────────────────────────────
-
-	public function test_start_trial_sets_tier_and_timestamp(): void {
-		Functions\expect( 'update_user_meta' )
-			->once()->with( 4, 'plume_tier', 'trial' )->andReturn( true );
-		Functions\expect( 'update_user_meta' )
-			->once()->with( 4, 'plume_trial_started', \Mockery::type( 'int' ) )->andReturn( true );
-
-		$this->assertTrue( TierManager::start_trial( 4 ) );
-	}
-
-	public function test_is_trial_active_returns_false_for_non_trial_tier(): void {
-		// is_trial_active() reads meta directly, not via get_user_tier.
-		Functions\expect( 'get_user_meta' )->once()->with( 5, 'plume_tier', true )->andReturn( 'free' );
-
-		$this->assertFalse( TierManager::is_trial_active( 5 ) );
-	}
-
-	public function test_is_trial_active_returns_true_within_window(): void {
-		Functions\expect( 'get_user_meta' )->once()->with( 6, 'plume_tier', true )->andReturn( 'trial' );
-		Functions\expect( 'get_user_meta' )->once()->with( 6, 'plume_trial_started', true )->andReturn( (string) time() );
-
-		$this->assertTrue( TierManager::is_trial_active( 6 ) );
-	}
-
-	public function test_is_trial_active_returns_false_after_thirty_days(): void {
-		$started = time() - ( 31 * DAY_IN_SECONDS );
-		Functions\expect( 'get_user_meta' )->once()->with( 6, 'plume_tier', true )->andReturn( 'trial' );
-		Functions\expect( 'get_user_meta' )->once()->with( 6, 'plume_trial_started', true )->andReturn( (string) $started );
-
-		$this->assertFalse( TierManager::is_trial_active( 6 ) );
-	}
-
-	public function test_is_trial_active_returns_true_within_thirty_days(): void {
-		$started = time() - ( 29 * DAY_IN_SECONDS );
-		Functions\expect( 'get_user_meta' )->once()->with( 6, 'plume_tier', true )->andReturn( 'trial' );
-		Functions\expect( 'get_user_meta' )->once()->with( 6, 'plume_trial_started', true )->andReturn( (string) $started );
-
-		$this->assertTrue( TierManager::is_trial_active( 6 ) );
-	}
-
-	// ── maybe_demote_expired_trials — now deletes meta instead of overwriting ─
-
 	/**
-	 * Verifies that the loop exits after one pass when a full batch yields zero successful demotions.
-	 *
-	 * @since 1.1.0
+	 * Covers the match()'s `default => true` arm directly — any feature key other
+	 * than 'model_selection'/'own_api_key' is uniformly allowed regardless of tier.
 	 */
-	public function test_maybe_demote_expired_trials_exits_when_no_demotions_in_full_batch(): void {
-		// 200 trial users, all still active — loop must exit after one pass (no progress).
-		$user_ids   = range( 1, 200 );
-		$started_at = (string) time(); // all trials started now, so none are expired.
+	public function test_user_can_default_branch_allows_unknown_feature_keys_uniformly(): void {
+		Functions\expect( 'get_option' )->times( 2 )->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
 
-		Functions\expect( 'get_users' )
-			->once()
-			->andReturn( $user_ids );
-
-		// is_trial_active() calls get_user_meta twice per user: once for tier, once for trial_started.
-		Functions\expect( 'get_user_meta' )
-			->times( 400 )
-			->andReturnUsing(
-				function ( $uid, $key ) use ( $started_at ) {
-					if ( 'plume_tier' === $key ) {
-						return 'trial';
-					}
-					return $started_at;
-				}
-			);
-
-		// delete_user_meta must NOT be called — no users are demoted.
-		Functions\expect( 'delete_user_meta' )->never();
-
-		TierManager::maybe_demote_expired_trials();
-		$this->addToAssertionCount( 1 ); // loop exited without infinite loop
+		$this->assertTrue( TierManager::user_can( 'chat' ) );
+		$this->assertTrue( TierManager::user_can( 'some_future_feature' ) );
 	}
 
-	/**
-	 * Verifies that all expired-trial users are demoted across multiple batches and the loop terminates.
-	 *
-	 * @since 1.1.0
-	 */
-	public function test_maybe_demote_expired_trials_demotes_expired_users_and_continues(): void {
-		$expired_start = time() - ( 31 * DAY_IN_SECONDS );
+	public function test_is_paid_returns_false_for_free_tier(): void {
+		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'free' );
 
-		Functions\expect( 'get_users' )
-			->twice()
-			->andReturn( range( 1, 200 ), range( 201, 210 ) );
-
-		Functions\expect( 'get_user_meta' )
-			->andReturnUsing(
-				function ( $uid, $key ) use ( $expired_start ) {
-					if ( 'plume_tier' === $key ) {
-						return 'trial';
-					}
-					return (string) $expired_start;
-				}
-			);
-
-		// delete_user_meta called once per expired user (210 total).
-		Functions\expect( 'delete_user_meta' )
-			->times( 210 )
-			->with( \Mockery::type( 'int' ), 'plume_tier' )
-			->andReturn( true );
-
-		TierManager::maybe_demote_expired_trials();
-		$this->addToAssertionCount( 1 );
+		$this->assertFalse( TierManager::is_paid() );
 	}
 
-	/**
-	 * Verifies that the loop continues when a full batch contains a mix of expired and active
-	 * trials, and terminates once a subsequent batch is smaller than the batch size.
-	 *
-	 * @since 1.1.0
-	 */
-	public function test_maybe_demote_expired_trials_continues_while_partial_batch_demoted(): void {
-		$expired_start = time() - ( 31 * DAY_IN_SECONDS );
-		$active_start  = (string) time();
+	public function test_is_paid_returns_true_for_pro_managed(): void {
+		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
+		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
 
-		Functions\expect( 'get_users' )
-			->twice()
-			->andReturn( range( 1, 200 ), range( 201, 210 ) );
-
-		Functions\expect( 'get_user_meta' )
-			->andReturnUsing(
-				function ( $uid, $key ) use ( $expired_start, $active_start ) {
-					if ( 'plume_tier' === $key ) {
-						return 'trial';
-					}
-					if ( $uid >= 101 && $uid <= 200 ) {
-						return $active_start;
-					}
-					return (string) $expired_start;
-				}
-			);
-
-		// delete_user_meta called once per expired user: 100 from batch 1 + 10 from batch 2.
-		Functions\expect( 'delete_user_meta' )
-			->times( 110 )
-			->with( \Mockery::type( 'int' ), 'plume_tier' )
-			->andReturn( true );
-
-		TierManager::maybe_demote_expired_trials();
-		$this->addToAssertionCount( 1 );
+		$this->assertTrue( TierManager::is_paid() );
 	}
 
-	public function test_tier_config_has_four_tiers(): void {
+	public function test_tier_config_has_three_tiers(): void {
 		$this->assertContains( 'free', TierConfig::get_valid_tiers() );
-		$this->assertContains( 'trial', TierConfig::get_valid_tiers() );
 		$this->assertContains( 'pro_managed', TierConfig::get_valid_tiers() );
 		$this->assertContains( 'pro_byok', TierConfig::get_valid_tiers() );
-		$this->assertCount( 4, TierConfig::get_valid_tiers() );
+		$this->assertNotContains( 'trial', TierConfig::get_valid_tiers() );
+		$this->assertCount( 3, TierConfig::get_valid_tiers() );
+	}
+
+	// ── Trial lifecycle methods removed entirely — no successor methods ──────
+
+	public function test_start_trial_method_does_not_exist(): void {
+		$this->assertFalse( method_exists( TierManager::class, 'start_trial' ) );
+	}
+
+	public function test_is_trial_active_method_does_not_exist(): void {
+		$this->assertFalse( method_exists( TierManager::class, 'is_trial_active' ) );
+	}
+
+	public function test_maybe_demote_expired_trials_method_does_not_exist(): void {
+		$this->assertFalse( method_exists( TierManager::class, 'maybe_demote_expired_trials' ) );
+	}
+
+	public function test_get_monthly_limit_method_does_not_exist(): void {
+		$this->assertFalse( method_exists( TierManager::class, 'get_monthly_limit' ) );
+	}
+
+	public function test_set_user_tier_method_does_not_exist(): void {
+		// Zero production callers once the trial tier (its only per-user write
+		// path) was removed — deleted outright rather than kept "just in case".
+		$this->assertFalse( method_exists( TierManager::class, 'set_user_tier' ) );
+	}
+
+	public function test_trial_started_meta_constant_does_not_exist(): void {
+		$this->assertFalse(
+			( new \ReflectionClass( TierManager::class ) )->hasConstant( 'TRIAL_STARTED_META' )
+		);
 	}
 
 	// ── Tier integrity (HMAC signature verification) ──────────────────────────
@@ -377,7 +232,6 @@ class TierManagerTest extends TestCase {
 		$tier   = 'pro_byok';
 		$sig    = hash_hmac( 'sha256', $tier, $secret );
 
-		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( $tier );
 		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( $secret );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION_SIG, '' )->andReturn( $sig );
@@ -386,32 +240,34 @@ class TierManagerTest extends TestCase {
 	}
 
 	/**
+	 * Rewritten for the no-trial-meta body: a wrong signature falls straight through
+	 * to 'free' (no more "fall through to trial check" branch to fall through to).
+	 *
 	 * @since 1.10.0
 	 */
 	public function test_get_user_tier_returns_free_when_signature_is_wrong(): void {
 		$secret = 'test-secret';
 		$tier   = 'pro_byok';
 
-		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( $tier );
 		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( $secret );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION_SIG, '' )->andReturn( 'tampered-value' );
-		// Verification failure falls through to trial check; no trial meta present.
-		Functions\expect( 'get_user_meta' )->once()->with( 1, TierManager::META_KEY, true )->andReturn( '' );
+		Functions\expect( 'get_user_meta' )->never();
 
 		$this->assertSame( 'free', TierManager::get_user_tier() );
 	}
 
 	/**
+	 * Rewritten for the no-trial-meta body: an absent signature falls straight
+	 * through to 'free'.
+	 *
 	 * @since 1.10.0
 	 */
 	public function test_get_user_tier_returns_free_when_signature_is_absent_but_secret_exists(): void {
-		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
 		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( 'some-secret' );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION_SIG, '' )->andReturn( '' );
-		// Verification failure falls through to trial check; no trial meta present.
-		Functions\expect( 'get_user_meta' )->once()->with( 1, TierManager::META_KEY, true )->andReturn( '' );
+		Functions\expect( 'get_user_meta' )->never();
 
 		$this->assertSame( 'free', TierManager::get_user_tier() );
 	}
@@ -421,7 +277,6 @@ class TierManagerTest extends TestCase {
 	 */
 	public function test_get_user_tier_trusts_paid_tier_when_no_secret_exists(): void {
 		// Unregistered site — no secret means no verification; stored value is trusted.
-		Functions\expect( 'get_current_user_id' )->once()->andReturn( 1 );
 		Functions\expect( 'get_option' )->once()->with( TierManager::SITE_OPTION, 'free' )->andReturn( 'pro_managed' );
 		Functions\expect( 'get_option' )->once()->with( TierUpdateWebhookController::OPTION_SECRET, '' )->andReturn( '' );
 

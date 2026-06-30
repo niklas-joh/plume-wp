@@ -59,9 +59,8 @@ class SettingsRestController {
 	/**
 	 * Returns all plugin settings. API key values are masked if set.
 	 *
-	 * Response includes `is_pro` (bool) indicating whether the Pro licence is
-	 * active. Added alongside the `isPro` JS field rename so both layers stay
-	 * consistent.
+	 * Response includes `is_paid` (bool) indicating whether the site tier is
+	 * anything other than free.
 	 *
 	 * @param \WP_REST_Request $request Incoming REST request.
 	 * @return \WP_REST_Response
@@ -83,8 +82,8 @@ class SettingsRestController {
 			'allowed_post_types'   => \get_option( 'plume_allowed_post_types', [ 'post', 'page' ] ),
 			'available_post_types' => $this->get_public_post_types(),
 			'enable_write_tools'   => (bool) \get_option( 'plume_enable_write_tools', true ),
-			// Note: intentionally snake_case to match WP REST convention; JS reads this as `settings.is_pro` (see FeaturesTab.jsx).
-			'is_pro'               => TierManager::user_can( 'generator' ),
+			// Note: intentionally snake_case to match WP REST convention; JS reads this as `settings.is_paid`.
+			'is_paid'              => TierManager::is_paid(),
 		];
 
 		return rest_ensure_response( $data );

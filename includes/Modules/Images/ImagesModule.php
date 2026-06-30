@@ -26,6 +26,9 @@ use Plume\Tiers\UsageTracker;
  */
 class ImagesModule {
 
+	/** Credits deducted per generated image — mirrors IMAGE_CREDITS in plume-proxy/src/credits.ts. */
+	private const IMAGE_CREDITS = 15;
+
 	/**
 	 * Register WordPress hooks for this module.
 	 *
@@ -73,7 +76,7 @@ class ImagesModule {
 			[
 				'nonce'      => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'    => \esc_url_raw( \rest_url( 'plume/v1' ) ),
-				'isPro'      => TierManager::user_can( 'images' ),
+				'isPaid'     => TierManager::is_paid(),
 				'adminUrl'   => \esc_url_raw( \admin_url() ),
 				'websiteUrl' => PLUME_WEBSITE_URL,
 			]
@@ -101,8 +104,7 @@ class ImagesModule {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => [ self::class, 'handle_generate' ],
 				'permission_callback' => function () {
-						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'images', $user_id ) && UsageTracker::check_limit( $user_id );
+					return \current_user_can( 'edit_posts' );
 				},
 				'args'                => [
 					'prompt'       => [
@@ -188,7 +190,7 @@ class ImagesModule {
 			);
 		}
 
-		UsageTracker::log_usage( count( $images ) );
+		UsageTracker::log_usage( count( $images ) * self::IMAGE_CREDITS );
 		$status = empty( $errors ) ? 201 : 207;
 
 		return new \WP_REST_Response(

@@ -42,30 +42,45 @@ class SeoGenerateTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * Verify that an editor on the free tier cannot access the generate endpoint.
+	 * Verify that an editor on the free tier CAN access the generate endpoint.
 	 *
-	 * The free tier has seo=false in TierConfig::FEATURES, so the
-	 * permission_callback must reject with 403 even though the user has edit_posts.
+	 * The permission_callback no longer checks tier or quota — credit
+	 * enforcement happens entirely on the Worker side. A free-tier editor
+	 * with edit_posts must reach the handler, not be blocked with 403.
 	 *
 	 * @since 1.0.0
 	 * @return void
 	 */
-	public function test_generate_blocked_for_free_tier(): void {
+	public function test_generate_allowed_for_free_tier(): void {
 		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
 		$post_id = self::factory()->post->create( [ 'post_status' => 'publish' ] );
 
+		$this->mock_http_with_claude_fixture(
+			[
+				'content' => wp_json_encode(
+					[
+						'meta_title'     => 'Test AI Title',
+						'og_description' => 'Test AI Desc',
+						'excerpt'        => 'Test Excerpt',
+						'alt_text'       => 'Test Alt',
+					]
+				),
+				'usage'   => [ 'input_tokens' => 10, 'output_tokens' => 10 ],
+			]
+		);
+
 		$response = $this->rest_do( 'POST', '/plume/v1/seo/generate', [ 'post_id' => $post_id ] );
 
-		$this->assertSame( 403, $response->get_status() );
+		$this->assertNotSame( 403, $response->get_status(), 'Free-tier editors must not be blocked by the permission_callback.' );
 	}
 
 	/**
 	 * Verify that the SEO generate endpoint injects the post title and content
 	 * into the AI provider request and returns a 200 with meta_title.
 	 *
-	 * A trial-tier editor creates a post with a known title and content string.
+	 * A free-tier editor creates a post with a known title and content string.
 	 * The HTTP fixture intercepts the outbound request. The test asserts that
 	 * the captured request body contains both strings and that the response
 	 * carries the expected meta_title from the fixture.
@@ -74,7 +89,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 	 * @return void
 	 */
 	public function test_generate_injects_post_title_and_content_into_ai_request(): void {
-		$this->set_user_tier( self::$editor_user_id, 'trial' );
+		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
 		$post_id = self::factory()->post->create(
@@ -108,7 +123,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 
 		$response = $this->rest_do( 'POST', '/plume/v1/seo/generate', [ 'post_id' => $post_id ] );
 
-		$this->assertSame( 200, $response->get_status(), 'Expected 200 from generate endpoint for trial user.' );
+		$this->assertSame( 200, $response->get_status(), 'Expected 200 from generate endpoint for free-tier user.' );
 
 		// The provider serialises the CompletionRequest to JSON; the body is
 		// in $this->last_http_args['body'].
@@ -135,7 +150,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 	 * Verify that calling the apply endpoint with SEO field values returns 200
 	 * and persists all three fields to the database.
 	 *
-	 * A trial-tier editor creates a post and submits meta_title, og_description,
+	 * A free-tier editor creates a post and submits meta_title, og_description,
 	 * and excerpt. The handler writes the values via apply_for_post(): meta_title
 	 * and og_description go to both the Yoast and Rank Math meta keys; excerpt is
 	 * written to post_excerpt via wp_update_post(). All three writes are verified
@@ -145,7 +160,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 	 * @return void
 	 */
 	public function test_apply_persists_seo_data_to_post(): void {
-		$this->set_user_tier( self::$editor_user_id, 'trial' );
+		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
 		$post_id = self::factory()->post->create(
@@ -166,7 +181,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 			]
 		);
 
-		$this->assertSame( 200, $response->get_status(), 'Apply endpoint must return 200 for a valid trial-tier editor.' );
+		$this->assertSame( 200, $response->get_status(), 'Apply endpoint must return 200 for a valid free-tier editor.' );
 
 		// Dual-write means both meta keys must be set; assert each individually.
 		$this->assertSame(
@@ -210,7 +225,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 	 * @return void
 	 */
 	public function test_apply_persists_alt_text_to_featured_image(): void {
-		$this->set_user_tier( self::$editor_user_id, 'trial' );
+		$this->set_user_tier( self::$editor_user_id, 'free' );
 		wp_set_current_user( self::$editor_user_id );
 
 		$post_id = self::factory()->post->create(
@@ -240,7 +255,7 @@ class SeoGenerateTest extends IntegrationTestCase {
 			]
 		);
 
-		$this->assertSame( 200, $response->get_status(), 'Apply endpoint must return 200 for a valid trial-tier editor' );
+		$this->assertSame( 200, $response->get_status(), 'Apply endpoint must return 200 for a valid free-tier editor' );
 		$this->assertSame(
 			'Integration Alt Text',
 			get_post_meta( $thumb_id, '_wp_attachment_image_alt', true ),

@@ -3,7 +3,9 @@
  * Integration-layer tier × feature matrix tests.
  *
  * Makes real REST requests and asserts on HTTP status codes to verify that
- * tier gates allow or block access exactly as defined in TierConfig::FEATURES.
+ * every tier × feature combination is now uniformly allowed — the
+ * permission_callback no longer checks tier or quota; credit enforcement
+ * happens entirely on the Worker side.
  *
  * @package Plume\Tests\Integration
  */
@@ -13,10 +15,11 @@ declare( strict_types=1 );
 namespace Plume\Tests\Integration;
 
 /**
- * Parametrised integration tests covering all tier × feature × expected-status combinations.
+ * Parametrised integration tests covering all tier × feature combinations.
  *
- * Free tier: chat=allowed, seo/images/generator=blocked (403).
- * Trial tier: all features allowed (2xx).
+ * Every tier (free, pro_managed, pro_byok) is permitted to use every
+ * feature (chat, seo, generator, images) — the only remaining gate is
+ * the edit_posts capability, covered separately.
  *
  * @since 1.0.0
  */
@@ -25,48 +28,41 @@ class TierFeatureMatrixTest extends IntegrationTestCase {
 	// ── Data provider ─────────────────────────────────────────────────────────
 
 	/**
-	 * Return all tier × feature × expected-status rows to drive the matrix test.
+	 * Return all tier × feature rows to drive the matrix test.
 	 *
-	 * Each row: [ tier, feature, expected_status ].
-	 * expected_status is the HTTP status that the permission gate produces:
-	 * 403 = blocked; 0 = allowed (any 2xx is accepted, since endpoint success
-	 * codes vary: chat=200, seo=200, generator=201, images=201/207).
+	 * Each row: [ tier, feature ]. Every combination must be allowed (2xx) —
+	 * there is no longer a blocked combination, so unlike the pre-redesign
+	 * version of this test, expected_status is not a parameter.
 	 *
 	 * @since 1.0.0
-	 * @return array<string, array{string, string, int}>
+	 * @return array<string, array{string, string}>
 	 */
 	public static function tier_feature_matrix(): array {
 		return [
-			// Free tier — only chat is permitted.
-			'free/chat'      => [ 'free', 'chat', 0 ],
-			'free/seo'       => [ 'free', 'seo', 403 ],
-			'free/generator' => [ 'free', 'generator', 403 ],
-			'free/images'    => [ 'free', 'images', 403 ],
+			'free/chat'             => [ 'free', 'chat' ],
+			'free/seo'              => [ 'free', 'seo' ],
+			'free/generator'        => [ 'free', 'generator' ],
+			'free/images'           => [ 'free', 'images' ],
 
-			// Trial tier — all features are permitted.
-			'trial/chat'      => [ 'trial', 'chat', 0 ],
-			'trial/seo'       => [ 'trial', 'seo', 0 ],
-			'trial/generator' => [ 'trial', 'generator', 0 ],
-			'trial/images'    => [ 'trial', 'images', 0 ],
+			'pro_managed/chat'      => [ 'pro_managed', 'chat' ],
+			'pro_managed/seo'       => [ 'pro_managed', 'seo' ],
+			'pro_managed/generator' => [ 'pro_managed', 'generator' ],
+			'pro_managed/images'    => [ 'pro_managed', 'images' ],
 		];
 	}
 
 	// ── Test ──────────────────────────────────────────────────────────────────
 
 	/**
-	 * Verify that each tier × feature combination produces the expected HTTP status.
-	 *
-	 * When expected_status is 403, the test asserts the permission gate blocked access.
-	 * When expected_status is 0, the test asserts the gate allowed access (any 2xx).
+	 * Verify that every tier × feature combination is allowed (2xx, never 403).
 	 *
 	 * @since 1.0.0
 	 * @dataProvider tier_feature_matrix
-	 * @param string $tier            Tier slug to assign to the test user.
-	 * @param string $feature         Feature slug under test ('chat', 'seo', 'generator', 'images').
-	 * @param int    $expected_status 403 = must be blocked; 0 = must be allowed (2xx).
+	 * @param string $tier    Tier slug to assign to the test user.
+	 * @param string $feature Feature slug under test ('chat', 'seo', 'generator', 'images').
 	 * @return void
 	 */
-	public function test_tier_feature_gate( string $tier, string $feature, int $expected_status ): void {
+	public function test_tier_feature_gate_allows_every_combination( string $tier, string $feature ): void {
 		// Create a fresh editor user per row to avoid state leaking between iterations.
 		$user_id = self::factory()->user->create(
 			[
@@ -77,32 +73,26 @@ class TierFeatureMatrixTest extends IntegrationTestCase {
 		$this->set_user_tier( $user_id, $tier );
 		wp_set_current_user( $user_id );
 
-		// When expecting success, install an HTTP mock before calling the endpoint.
-		if ( 0 === $expected_status ) {
-			$this->install_mock_for_feature( $feature );
-		}
+		$this->install_mock_for_feature( $feature );
 
 		$response = $this->call_feature_endpoint( $feature, $user_id );
 		$status   = $response->get_status();
 
-		if ( 403 === $expected_status ) {
-			$this->assertSame(
-				403,
-				$status,
-				"Expected tier '{$tier}' to block feature '{$feature}' with 403, got {$status}."
-			);
-		} else {
-			$this->assertGreaterThanOrEqual(
-				200,
-				$status,
-				"Expected tier '{$tier}' to allow feature '{$feature}', got {$status}."
-			);
-			$this->assertLessThan(
-				400,
-				$status,
-				"Expected tier '{$tier}' to allow feature '{$feature}' with a 2xx, got {$status}."
-			);
-		}
+		$this->assertNotSame(
+			403,
+			$status,
+			"Expected tier '{$tier}' to be allowed to use feature '{$feature}' (permission_callback no longer tier-gates), got 403."
+		);
+		$this->assertGreaterThanOrEqual(
+			200,
+			$status,
+			"Expected tier '{$tier}' to successfully reach feature '{$feature}', got {$status}."
+		);
+		$this->assertLessThan(
+			400,
+			$status,
+			"Expected tier '{$tier}' to reach feature '{$feature}' with a 2xx, got {$status}."
+		);
 	}
 
 	/**
@@ -177,8 +167,8 @@ class TierFeatureMatrixTest extends IntegrationTestCase {
 		}
 
 		// The proxy normalises responses to a plain string content field; chat, seo,
-		// and generator all route through the proxy for trial-tier users.
-		// ProxyResponse::from_array() adapts the string to Claude wire format before
+		// and generator all route through the proxy. ProxyResponse::from_array()
+		// adapts the string to Claude wire format before
 		// ClaudeProvider::parse_response() is called, so the fixture matches proxy output.
 		$text = 'seo' === $feature
 			? wp_json_encode(
@@ -230,9 +220,9 @@ class TierFeatureMatrixTest extends IntegrationTestCase {
 	 * Dispatch the appropriate REST request for a feature and return the response.
 	 *
 	 * For chat, first creates a conversation and then posts a message (the message
-	 * endpoint is where the tier gate would apply in a full system, but the
-	 * conversation endpoint itself is gated only on edit_posts, not tier — so we
-	 * test conversation creation as the representative chat gate).
+	 * endpoint is where a tier gate would historically apply, but the conversation
+	 * endpoint itself is gated only on edit_posts, not tier — so we test
+	 * conversation creation as the representative chat gate).
 	 *
 	 * @since 1.0.0
 	 * @param string $feature Feature slug under test.
@@ -269,8 +259,6 @@ class TierFeatureMatrixTest extends IntegrationTestCase {
 	 *
 	 * The chat permission_callback checks only edit_posts (no tier gate), so a
 	 * conversation creation reaching the handler means the permission gate passed.
-	 * For free-tier users this returns 201 (allowed); the matrix row for
-	 * free/chat sets expected_status=0 (allowed), consistent with the tier config.
 	 *
 	 * When a mock is installed, also send a message to exercise the full AI turn.
 	 *

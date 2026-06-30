@@ -24,51 +24,19 @@ test.describe( 'Tier gating', () => {
 		).toBeVisible();
 	} );
 
-	test( 'REST API returns 403 for seo/generate when mocked as free tier', async ( { page } ) => {
-		// Intercept the seo/generate endpoint and respond with a 403.
-		// URL predicate matches both /wp-json/.../seo/generate (pretty) and
-		// ?rest_route=.../seo/generate (plain) without glob ambiguity.
-		await page.route( ( url ) => url.href.includes( 'seo/generate' ), async ( route ) => {
-			await route.fulfill( {
-				status: 403,
-				contentType: 'application/json',
-				body: JSON.stringify( {
-					code: 'rest_forbidden',
-					message: 'Feature not available on your plan.',
-				} ),
-			} );
-		} );
-
-		// Navigate into the admin so the browser context is initialised with
-		// the authenticated session from beforeEach.
-		await page.goto( '/wp-admin/admin.php?page=plume-seo' );
-
-		// Trigger the fetch from the page (browser) context so page.route()
-		// intercepts it. page.request bypasses route intercepts entirely.
-		const status = await page.evaluate( async () => {
-			const response = await fetch(
-				'/wp-json/plume/v1/seo/generate',
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify( { post_id: 1 } ),
-				}
-			);
-			return response.status;
-		} );
-		expect( status ).toBe( 403 );
-	} );
-
-	test( 'SEO page shows Pro-gate upgrade link for free-tier users', async ( { page } ) => {
-		// Override window.plumeData to simulate free tier before React boots.
-		// A getter/setter proxy is used so PHP's inline `var plumeData = {...}`
-		// triggers the setter and gets isPro forced to false, while still receiving
-		// the real restUrl, nonce, and other values from the server.
+	test( 'SEO page renders full UI for free-tier users, no Pro-gate', async ( { page } ) => {
+		// Credits-based redesign: every tier reaches the full SEO screen now —
+		// credit exhaustion is surfaced inline by SeoWorkArea via
+		// OutOfCreditsNotice on a failed generate call, not by gating the
+		// whole page up front (SeoApp.jsx docblock). Override window.plumeData
+		// to simulate free tier before React boots, via a getter/setter proxy
+		// so PHP's inline `var plumeData = {...}` still supplies the real
+		// restUrl/nonce while we force isPaid: false.
 		await page.addInitScript( () => {
 			let _data = {};
 			Object.defineProperty( window, 'plumeData', {
 				get() { return _data; },
-				set( val ) { _data = { ...val, isPro: false }; },
+				set( val ) { _data = { ...val, isPaid: false }; },
 				configurable: false,
 			} );
 		} );
@@ -76,11 +44,11 @@ test.describe( 'Tier gating', () => {
 		await page.goto( '/wp-admin/admin.php?page=plume-seo' );
 		await page.waitForSelector( '#plume-seo', { timeout: 10000 } );
 
-		// Free-tier renders .plume-pro-gate with an upgrade link (SeoApp.jsx line 47).
-		await expect( page.locator( '.plume-pro-gate' ) ).toBeVisible( { timeout: 10000 } );
-		await expect(
-			page.locator( '.plume-pro-gate a[href*="pricing"]' )
-		).toBeVisible();
+		// Full page header and post list render for free tier — no gate.
+		await expect( page.locator( '.plume-page-header h1' ) ).toHaveText( 'SEO' );
+		await expect( page.locator( '.plume-post-list' ) ).toBeVisible();
+		await expect( page.locator( '.plume-pro-gate' ) ).toHaveCount( 0 );
+		await expect( page.locator( '.plume-pro-badge' ) ).toHaveCount( 0 );
 	} );
 
 	test( 'settings page shows provider configuration options', async ( { page } ) => {

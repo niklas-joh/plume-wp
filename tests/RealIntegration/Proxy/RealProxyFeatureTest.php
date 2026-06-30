@@ -43,7 +43,7 @@ class RealProxyFeatureTest extends RealIntegrationTestCase {
 		}
 
 		// Use trial tier — all features enabled, routes via proxy.
-		$this->activate_trial_tier( self::$editor_user_id );
+		$this->activate_free_tier( self::$editor_user_id );
 	}
 
 	/**

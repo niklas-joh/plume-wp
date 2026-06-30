@@ -202,6 +202,7 @@ describe( 'handleChatProxy', () => {
 		const json = ( await response.json() ) as {
 			content: string;
 			usage: { input_tokens: number; output_tokens: number };
+			credits_charged: number;
 			tool_call?: {
 				id: string;
 				name: string;
@@ -215,6 +216,9 @@ describe( 'handleChatProxy', () => {
 			arguments: { post_id: 42 },
 		} );
 		expect( json.usage ).toEqual( { input_tokens: 20, output_tokens: 10 } );
+		// Intermediate tool-use steps must not be billed.
+		expect( json.credits_charged ).toBe( 0 );
+		expect( await getStoredUsage( env ) ).toBe( 0 );
 	} );
 
 	it( 'Claude adapter: returns text-only response when no tool_use block is present', async () => {
@@ -633,9 +637,11 @@ describe( 'handleChatProxy', () => {
 		const response = await worker.fetch( makeChatRequest(), env );
 		expect( response.status ).toBe( 200 );
 
+		const json = ( await response.json() ) as { credits_charged: number };
 		const stored = await getStoredUsage( env );
 		expect( stored ).toBe( chatCredits( 1000, 1000, 1 ) );
 		expect( stored ).toBe( 1 );
+		expect( json.credits_charged ).toBe( 1 );
 	} );
 
 	it( 'chat credits: Math.ceil rounding applies when (input+output)*weight is not a multiple of 2000', async () => {
@@ -658,9 +664,11 @@ describe( 'handleChatProxy', () => {
 		const response = await worker.fetch( makeChatRequest(), env );
 		expect( response.status ).toBe( 200 );
 
+		const json = ( await response.json() ) as { credits_charged: number };
 		const stored = await getStoredUsage( env );
 		expect( stored ).toBe( chatCredits( 100, 1, 1 ) );
 		expect( stored ).toBe( 1 );
+		expect( json.credits_charged ).toBe( 1 );
 	} );
 
 	it( 'chat credits: no spurious rounding when (input+output)*weight is an exact multiple of 2000', async () => {
@@ -683,9 +691,11 @@ describe( 'handleChatProxy', () => {
 		const response = await worker.fetch( makeChatRequest(), env );
 		expect( response.status ).toBe( 200 );
 
+		const json = ( await response.json() ) as { credits_charged: number };
 		const stored = await getStoredUsage( env );
 		expect( stored ).toBe( chatCredits( 2000, 2000, 1 ) );
 		expect( stored ).toBe( 2 );
+		expect( json.credits_charged ).toBe( 2 );
 	} );
 
 	it.each( [
@@ -768,6 +778,74 @@ describe( 'handleChatProxy', () => {
 			used: 500,
 			limit: 500,
 		} );
+	} );
+
+	it( 'tool-use step: credits_charged is 0 in response and KV is not updated', async () => {
+		const env = await makeEnvWithSiteToken( 'free' );
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation( async () => {
+				return new Response(
+					JSON.stringify( {
+						content: [
+							{
+								type: 'text',
+								text: "I'll look that up.",
+							},
+							{
+								type: 'tool_use',
+								id: 'toolu_02',
+								name: 'get_post_content',
+								input: { post_id: 7 },
+							},
+						],
+						usage: { input_tokens: 200, output_tokens: 50 },
+					} ),
+					{ status: 200 }
+				);
+			} )
+		);
+
+		const body = JSON.stringify( {
+			messages: [ { role: 'user', content: 'Get post 7' } ],
+			provider: 'claude',
+			tools: [ mockTool ],
+			feature: 'chat',
+		} );
+
+		const response = await worker.fetch( makeChatRequest( body ), env );
+		expect( response.status ).toBe( 200 );
+
+		const json = ( await response.json() ) as { credits_charged: number };
+		expect( json.credits_charged ).toBe( 0 );
+		expect( await getStoredUsage( env ) ).toBe( 0 );
+	} );
+
+	it( 'final chat response: credits_charged in response body matches KV and chatCredits()', async () => {
+		const env = await makeEnvWithSiteToken( 'free' );
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation( async () => {
+				return new Response(
+					JSON.stringify( {
+						content: [ { type: 'text', text: 'Here is the answer.' } ],
+						usage: { input_tokens: 500, output_tokens: 500 },
+					} ),
+					{ status: 200 }
+				);
+			} )
+		);
+
+		const response = await worker.fetch( makeChatRequest(), env );
+		expect( response.status ).toBe( 200 );
+
+		// weight=1, raw=1000 → ceil(1000/2000) = 1 credit.
+		const expected = chatCredits( 500, 500, 1 );
+		const json = ( await response.json() ) as { credits_charged: number };
+		expect( json.credits_charged ).toBe( expected );
+		expect( await getStoredUsage( env ) ).toBe( expected );
 	} );
 
 	it( 'allows a request at used = limit-1, then blocks the next one at used = limit', async () => {

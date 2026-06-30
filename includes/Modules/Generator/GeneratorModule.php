@@ -15,7 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 use Plume\Providers\ProviderFactory;
 use Plume\Settings\ProviderSettings;
 use Plume\Tiers\TierManager;
-use Plume\Tiers\UsageTracker;
 
 /**
  * Registers the post-generator admin assets and REST route.
@@ -69,7 +68,7 @@ class GeneratorModule {
 				'nonce'         => \wp_create_nonce( 'wp_rest' ),
 				'restUrl'       => \esc_url_raw( \rest_url( 'plume/v1' ) ),
 				'currentPostId' => 0,
-				'isPro'         => TierManager::user_can( 'generator' ),
+				'isPaid'        => TierManager::is_paid(),
 				'siteTitle'     => \get_bloginfo( 'name' ),
 			]
 		);
@@ -89,8 +88,7 @@ class GeneratorModule {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => [ self::class, 'handle_generate' ],
 				'permission_callback' => function () {
-						$user_id = \get_current_user_id();
-						return \current_user_can( 'edit_posts' ) && TierManager::user_can( 'generator', $user_id ) && UsageTracker::check_limit( $user_id );
+					return \current_user_can( 'edit_posts' );
 				},
 				'args'                => [
 					'title'    => [
@@ -127,7 +125,7 @@ class GeneratorModule {
 	 *
 	 * @since 1.0.0
 	 * @param \WP_REST_Request $request Incoming REST request.
-	 * @return \WP_REST_Response 201 on success with post_id, edit_url, content, tokens_used; 500 on error.
+	 * @return \WP_REST_Response 201 on success with post_id, edit_url, content, credits_used; 500 on error.
 	 */
 	public static function handle_generate( \WP_REST_Request $request ): \WP_REST_Response {
 		$title    = $request->get_param( 'title' );
@@ -173,7 +171,7 @@ class GeneratorModule {
 			);
 
 			$response = $provider->complete( $req );
-			// Usage logged by the provider layer: proxy for trial/pro_managed, AbstractProvider::maybe_log() for pro_byok.
+			// Usage logged by the provider layer: proxy for pro_managed, AbstractProvider::maybe_log() for pro_byok.
 			$content = ( new \Plume\Content\ContentNormaliser() )->normalise( $response->content );
 
 			// Create a draft post.
@@ -194,10 +192,10 @@ class GeneratorModule {
 
 			return new \WP_REST_Response(
 				[
-					'post_id'     => $post_id,
-					'edit_url'    => \get_edit_post_link( $post_id, 'raw' ),
-					'content'     => $content,
-					'tokens_used' => $response->total_tokens,
+					'post_id'      => $post_id,
+					'edit_url'     => \get_edit_post_link( $post_id, 'raw' ),
+					'content'      => $content,
+					'credits_used' => $response->credits_charged,
 				],
 				201
 			);

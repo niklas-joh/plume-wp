@@ -142,21 +142,20 @@ abstract class IntegrationTestCase extends \WP_UnitTestCase {
 	/**
 	 * Assign a tier to a user via the canonical TierManager meta key.
 	 *
-	 * For the 'trial' tier this also writes a fresh trial-started timestamp so
-	 * is_trial_active() considers the trial valid for the duration of the test.
+	 * 'trial' is not a recognised tier slug — TierConfig::get_valid_tiers() no
+	 * longer includes it, so passing it here is a caller bug, not a supported input.
 	 *
 	 * @since 1.0.0
 	 * @param int    $user_id WordPress user ID.
-	 * @param string $tier    Tier slug — one of 'free', 'trial', 'pro_managed', 'pro_byok'.
+	 * @param string $tier    Tier slug — one of 'free', 'pro_managed', 'pro_byok'.
 	 * @return void
 	 */
 	protected function set_user_tier( int $user_id, string $tier ): void {
-		update_user_meta( $user_id, TierManager::META_KEY, $tier );
-
 		if ( 'trial' === $tier ) {
-			// Record the trial start as now so is_trial_active() returns true.
-			update_user_meta( $user_id, TierManager::TRIAL_STARTED_META, time() );
+			throw new \InvalidArgumentException( "'trial' is not a valid tier — the trial tier was removed in the credits-based redesign." );
 		}
+
+		update_user_meta( $user_id, TierManager::META_KEY, $tier );
 
 		// Ensure the site-level option does not shadow the user meta for the
 		// tiers under test — reset it to 'free' so paid-tier short-circuit in

@@ -66,7 +66,7 @@ class SettingsPage {
 				'restUrl'       => esc_url_raw( rest_url( 'plume/v1' ) ),
 				'upgradeUrl'    => esc_url( admin_url( 'admin.php?page=plume-upgrade' ) ),
 				'currentPostId' => 0,
-				'isPro'         => TierManager::user_can( 'generator' ),
+				'isPaid'        => TierManager::is_paid(),
 				'siteTitle'     => get_bloginfo( 'name' ),
 				'tier'          => TierManager::get_user_tier(),
 				'features'      => [

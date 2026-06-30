@@ -4,7 +4,11 @@
  *
  * Exercises the full WordPress REST permission system without any HTTP mocking.
  * Rejections happen before any AI call, so no secrets are needed.
- * Covers all 4 tiers × gated features from TierConfig::FEATURES.
+ *
+ * The permission_callback no longer checks tier or quota — credit
+ * enforcement happens entirely on the Worker side — so every tier is
+ * uniformly permitted to reach every feature endpoint. The only remaining
+ * gate is the edit_posts capability (and conversation ownership).
  *
  * @package Plume\Tests\RealIntegration\TierGating
  */
@@ -20,7 +24,7 @@ use Plume\Tests\RealIntegration\RealIntegrationTestCase;
  */
 class RealTierGatingTest extends RealIntegrationTestCase {
 
-	// ── Free tier — only chat is accessible
+	// ── Free tier — every feature is now accessible
 
 	/**
 	 * Free tier: conversation creation (chat gateway) is permitted.
@@ -43,43 +47,58 @@ class RealTierGatingTest extends RealIntegrationTestCase {
 	}
 
 	/**
-	 * Free tier: generator endpoint returns 403.
+	 * Free tier: generator endpoint is accessible (permission check passes).
+	 *
+	 * No AI call happens — the endpoint will return 422 (missing API key) or
+	 * similar once past the gate. Any non-403 status confirms the gate opened.
 	 *
 	 * @since 1.8.0
 	 */
-	public function test_free_tier_generator_is_blocked(): void {
+	public function test_free_tier_generator_is_accessible(): void {
 		$this->activate_free_tier( self::$editor_user_id );
 		wp_set_current_user( self::$editor_user_id );
 
 		$response = $this->rest_do( 'POST', '/plume/v1/generate', [ 'title' => 'test' ] );
-		$this->assertSame( 403, $response->get_status(), 'Free tier must receive 403 from the generator endpoint.' );
+		$this->assertNotSame(
+			403,
+			$response->get_status(),
+			'Free tier must not receive 403 from the generator endpoint — the permission_callback no longer tier-gates.'
+		);
 	}
 
 	/**
-	 * Free tier: SEO generate endpoint returns 403.
+	 * Free tier: SEO generate endpoint is accessible.
 	 *
 	 * @since 1.8.0
 	 */
-	public function test_free_tier_seo_is_blocked(): void {
+	public function test_free_tier_seo_is_accessible(): void {
 		$this->activate_free_tier( self::$editor_user_id );
 		wp_set_current_user( self::$editor_user_id );
 
 		$post_id  = self::factory()->post->create( [ 'post_status' => 'draft', 'post_author' => self::$editor_user_id ] );
 		$response = $this->rest_do( 'POST', '/plume/v1/seo/generate', [ 'post_id' => $post_id ] );
-		$this->assertSame( 403, $response->get_status(), 'Free tier must receive 403 from the SEO endpoint.' );
+		$this->assertNotSame(
+			403,
+			$response->get_status(),
+			'Free tier must not receive 403 from the SEO endpoint — the permission_callback no longer tier-gates.'
+		);
 	}
 
 	/**
-	 * Free tier: images generate endpoint returns 403.
+	 * Free tier: images generate endpoint is accessible.
 	 *
 	 * @since 1.8.0
 	 */
-	public function test_free_tier_images_is_blocked(): void {
+	public function test_free_tier_images_is_accessible(): void {
 		$this->activate_free_tier( self::$editor_user_id );
 		wp_set_current_user( self::$editor_user_id );
 
 		$response = $this->rest_do( 'POST', '/plume/v1/images/generate', [ 'prompt' => 'test' ] );
-		$this->assertSame( 403, $response->get_status(), 'Free tier must receive 403 from the images endpoint.' );
+		$this->assertNotSame(
+			403,
+			$response->get_status(),
+			'Free tier must not receive 403 from the images endpoint — the permission_callback no longer tier-gates.'
+		);
 	}
 
 	/**
@@ -91,71 +110,14 @@ class RealTierGatingTest extends RealIntegrationTestCase {
 	 * @since 1.8.0
 	 */
 	public function test_subscriber_role_is_blocked_from_chat(): void {
-		$this->activate_trial_tier( self::$subscriber_user_id );
+		$this->activate_free_tier( self::$subscriber_user_id );
 		wp_set_current_user( self::$subscriber_user_id );
 
 		$response = $this->rest_do( 'POST', '/plume/v1/conversations', [ 'title' => 'Subscriber Test' ] );
 		$this->assertSame(
 			403,
 			$response->get_status(),
-			'Subscribers (no edit_posts) must receive 403 even on trial tier.'
-		);
-	}
-
-	// ── Trial tier — all features accessible
-
-	/**
-	 * Trial tier: generator endpoint is accessible (permission check passes).
-	 *
-	 * No AI call happens — the endpoint will return 422 (missing API key) or
-	 * similar once past the gate. Any non-403 status confirms the gate opened.
-	 *
-	 * @since 1.8.0
-	 */
-	public function test_trial_tier_generator_is_accessible(): void {
-		$this->activate_trial_tier( self::$editor_user_id );
-		wp_set_current_user( self::$editor_user_id );
-
-		$response = $this->rest_do( 'POST', '/plume/v1/generate', [ 'title' => 'test' ] );
-		$this->assertNotSame(
-			403,
-			$response->get_status(),
-			'Trial tier must not receive 403 from the generator endpoint.'
-		);
-	}
-
-	/**
-	 * Trial tier: SEO endpoint is accessible.
-	 *
-	 * @since 1.8.0
-	 */
-	public function test_trial_tier_seo_is_accessible(): void {
-		$this->activate_trial_tier( self::$editor_user_id );
-		wp_set_current_user( self::$editor_user_id );
-
-		$post_id  = self::factory()->post->create( [ 'post_status' => 'draft', 'post_author' => self::$editor_user_id ] );
-		$response = $this->rest_do( 'POST', '/plume/v1/seo/generate', [ 'post_id' => $post_id ] );
-		$this->assertNotSame(
-			403,
-			$response->get_status(),
-			'Trial tier must not receive 403 from the SEO endpoint.'
-		);
-	}
-
-	/**
-	 * Trial tier: images endpoint is accessible.
-	 *
-	 * @since 1.8.0
-	 */
-	public function test_trial_tier_images_is_accessible(): void {
-		$this->activate_trial_tier( self::$editor_user_id );
-		wp_set_current_user( self::$editor_user_id );
-
-		$response = $this->rest_do( 'POST', '/plume/v1/images/generate', [ 'prompt' => 'test' ] );
-		$this->assertNotSame(
-			403,
-			$response->get_status(),
-			'Trial tier must not receive 403 from the images endpoint.'
+			'Subscribers (no edit_posts) must receive 403 regardless of tier.'
 		);
 	}
 
@@ -168,14 +130,14 @@ class RealTierGatingTest extends RealIntegrationTestCase {
 	 */
 	public function test_cross_user_conversation_access_blocked(): void {
 		// Owner creates a conversation.
-		$this->activate_trial_tier( self::$editor_user_id );
+		$this->activate_free_tier( self::$editor_user_id );
 		wp_set_current_user( self::$editor_user_id );
 		$create  = $this->rest_do( 'POST', '/plume/v1/conversations', [ 'title' => 'Owner Convo' ] );
 		$conv_id = $create->get_data()['id'];
 
 		// A different user tries to post into it.
 		$other_user = self::factory()->user->create( [ 'role' => 'editor' ] );
-		$this->activate_trial_tier( $other_user );
+		$this->activate_free_tier( $other_user );
 		wp_set_current_user( $other_user );
 
 		$response = $this->rest_do(
