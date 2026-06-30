@@ -83,6 +83,21 @@ class TierSyncBackfillNotice {
 	}
 
 	/**
+	 * Returns true when the current admin screen is a Plume plugin page.
+	 *
+	 * Limits notices to Plume pages so WP.org Guideline 11 is satisfied — plugin
+	 * notices must not appear on unrelated admin screens.
+	 *
+	 * @since NEXT_VERSION
+	 * @return bool True when the URL carries a `page` param starting with 'plume'.
+	 */
+	private static function is_plume_admin_page(): bool {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page detection, no state change.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		return str_starts_with( $page, 'plume' );
+	}
+
+	/**
 	 * Returns true when the current user may see a tier notice.
 	 *
 	 * Shared preamble for maybe_display() and maybe_display_sig_mismatch() so the
@@ -93,6 +108,9 @@ class TierSyncBackfillNotice {
 	 */
 	private static function can_show_tier_notice(): bool {
 		if ( ! \current_user_can( 'manage_options' ) ) {
+			return false;
+		}
+		if ( ! self::is_plume_admin_page() ) {
 			return false;
 		}
 		return SiteRegistration::is_registered();
@@ -207,6 +225,9 @@ class TierSyncBackfillNotice {
 	 */
 	public static function maybe_display_result(): void {
 		if ( ! \current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! self::is_plume_admin_page() ) {
 			return;
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display of redirect result.
