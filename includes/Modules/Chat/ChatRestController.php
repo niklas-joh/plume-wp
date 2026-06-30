@@ -688,25 +688,19 @@ class ChatRestController {
 			}
 		}
 
-		// Fall back to the tool_call(s) extracted by the provider if raw parsing found nothing.
+		// Fall back to the normalised proxy tool call(s) if raw parsing found nothing.
+		// CompletionResponse::tool_calls_from_proxy() handles the tool_calls (plural) / tool_call
+		// (singular) contract; older responses expose only the singular tool_call property.
 		if ( empty( $tool_uses ) ) {
-			$raw = $response->raw;
-			// New Worker shape: tool_calls (plural array); fall back to tool_call (singular) for
-			// backward-compat with any in-flight requests using the old shape.
-			if ( ! empty( $raw['tool_calls'] ) && \is_array( $raw['tool_calls'] ) ) {
-				foreach ( $raw['tool_calls'] as $tc ) {
-					$tool_uses[] = [
-						'id'    => $tc['id'],
-						'name'  => $tc['name'],
-						'input' => $tc['arguments'] ?? [],
-					];
-				}
-			} elseif ( ! empty( $response->tool_call ) ) {
-				$tool_call   = $response->tool_call;
+			[ , $all_tool_calls ] = CompletionResponse::tool_calls_from_proxy( $response->raw );
+			if ( empty( $all_tool_calls ) && null !== $response->tool_call ) {
+				$all_tool_calls = [ $response->tool_call ];
+			}
+			foreach ( $all_tool_calls as $tc ) {
 				$tool_uses[] = [
-					'id'    => $tool_call['id'],
-					'name'  => $tool_call['name'],
-					'input' => $tool_call['arguments'] ?? [],
+					'id'    => $tc['id'] ?? '',
+					'name'  => $tc['name'] ?? '',
+					'input' => $tc['arguments'] ?? [],
 				];
 			}
 		}
