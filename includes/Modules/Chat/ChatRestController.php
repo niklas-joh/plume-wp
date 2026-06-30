@@ -670,7 +670,7 @@ class ChatRestController {
 	 * @return array<int, array<string, mixed>> Filtered tool list.
 	 */
 	private function strip_single_use_tools( array $tools, string $provider_slug, array $tools_called ): array {
-		$single_use = array_intersect( [ 'plan_post', 'plan_update' ], $tools_called );
+		$single_use = array_intersect( \Plume\Tools\ToolRegistry::SINGLE_USE_TOOLS, $tools_called );
 		if ( empty( $single_use ) || empty( $tools ) ) {
 			return $tools;
 		}
