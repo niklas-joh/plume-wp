@@ -1250,6 +1250,34 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 'get_site_info', $calls[0]['name'] );
     }
 
+    public function test_extract_tool_calls_returns_all_proxy_tool_calls(): void {
+        // Proxy responses set raw['content'] to a string and carry every tool call in the
+        // tool_calls (plural) array — all of them must execute in a single turn (#887).
+        $response = new CompletionResponse(
+            content: '',
+            model: 'gpt-4o',
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            raw: [
+                'content'    => '',
+                'tool_calls' => [
+                    [ 'id' => 'call_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+                    [ 'id' => 'call_2', 'name' => 'get_site_info', 'arguments' => [] ],
+                ],
+            ],
+            tool_call: [ 'id' => 'call_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+        );
+
+        $calls = $this->call_extract_tool_calls( $response, 'openai' );
+
+        $this->assertCount( 2, $calls, 'Both proxy tool_calls must be extracted for execution' );
+        $this->assertSame( 'call_1', $calls[0]['id'] );
+        $this->assertSame( 'get_recent_posts', $calls[0]['name'] );
+        $this->assertSame( [ 'count' => 3 ], $calls[0]['input'] );
+        $this->assertSame( 'call_2', $calls[1]['id'] );
+        $this->assertSame( 'get_site_info', $calls[1]['name'] );
+    }
+
     public function test_extract_tool_calls_returns_all_claude_tool_use_blocks(): void {
         $response = new CompletionResponse(
             content: '',
