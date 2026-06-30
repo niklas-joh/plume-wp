@@ -211,7 +211,7 @@ class ToolRegistry {
 
 		$this->tools[] = new ToolDefinition(
 			name:                'plan_update',
-			description:         'Propose an update to an existing WordPress post for user approval. Call this tool whenever the user asks you to edit, update, revise, improve, or change a post. First retrieve the post content with get_post_content. Before calling plan_update, call chat_response to share your review findings with the user — describe what you noticed in the current post and what specific changes you are proposing. Then call plan_update with a human-readable summary of changes AND the full updated content that will be applied when the user approves. After plan_update returns, the update is queued for user approval — immediately call chat_response to tell the user it is ready. Do not call plan_update again.',
+			description:         'Propose an update to an existing WordPress post for user approval. Call this tool whenever the user asks you to edit, update, revise, improve, or change a post. First retrieve the post content with get_post_content. Before calling plan_update, call chat_response to briefly share your review findings — what you noticed and what you are about to change. Then call plan_update immediately. Do NOT ask the user for further confirmation before calling plan_update — the user\'s request to update is sufficient. Provide a human-readable summary of changes AND the full updated content that will be applied when the user approves. After plan_update returns, the update is queued for user approval — immediately call chat_response to tell the user it is ready. Do not call plan_update again.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [
