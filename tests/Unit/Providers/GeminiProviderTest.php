@@ -314,10 +314,12 @@ class GeminiProviderTest extends TestCase {
 		Functions\when( 'wp_remote_retrieve_body' )->alias( fn( $r ) => $r['body'] );
 
 		$provider = new GeminiProvider( '' );
-		$provider->complete( new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ] ) );
+		// Use a non-chat feature so ProxyClient logs the credit; the proxy_logged flag must
+		// then prevent maybe_log() from issuing a second query (chat credits skip ProxyClient
+		// logging and are recorded once by ChatRestController instead).
+		$provider->complete( new CompletionRequest( [ [ 'role' => 'user', 'content' => 'hi' ] ], metadata: [ 'feature' => 'seo' ] ) );
 
-		// ProxyClient::chat() logs usage once (one wpdb->query call).
-		// proxy_logged flag must prevent parent::maybe_log() from logging a second time.
+		// ProxyClient::chat() logs once; proxy_logged suppresses the parent maybe_log() call.
 		$this->assertSame( 1, $wpdb->query_calls );
 	}
 

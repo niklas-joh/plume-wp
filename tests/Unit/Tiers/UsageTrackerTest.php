@@ -116,6 +116,18 @@ class UsageTrackerTest extends TestCase {
 		$this->addToAssertionCount( 1 );
 	}
 
+	public function test_log_usage_skips_db_write_when_credits_are_zero(): void {
+		// BYOK users bypass the Worker — credits_charged is always 0 for them.
+		// Ensure no DB write occurs to avoid a no-op UPDATE on every chat message.
+		global $wpdb;
+		$wpdb           = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$wpdb->usermeta = 'wp_usermeta';
+		$wpdb->shouldReceive( 'query' )->never();
+
+		UsageTracker::log_usage( 0 );
+		$this->addToAssertionCount( 1 );
+	}
+
 	public function test_get_current_month_key_returns_expected_format(): void {
 		$key = UsageTracker::get_current_month_key();
 

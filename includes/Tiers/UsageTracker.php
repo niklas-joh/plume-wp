@@ -156,6 +156,11 @@ class UsageTracker {
 	 * @return void
 	 */
 	public static function log_usage( int $credits, ?int $user_id = null ): void {
+		// BYOK users bypass the Worker entirely and have no credit limit; credits_charged is
+		// always 0 for them. Skip the DB write to avoid a no-op UPDATE on every chat message.
+		if ( $credits <= 0 ) {
+			return;
+		}
 		global $wpdb;
 		$user_id = $user_id ?? get_current_user_id();
 		$key     = self::get_current_month_key();
