@@ -225,32 +225,9 @@ class OpenAIProvider extends AbstractProvider {
 		$pricing      = self::PRICING[ $model ] ?? self::PRICING[ self::DEFAULT_MODEL ];
 		$cost         = ( $in_tokens / 1_000_000 * $pricing['in'] ) + ( $out_tokens / 1_000_000 * $pricing['out'] );
 
-		// Worker now sends tool_calls (plural array). tool_calls_from_proxy() centralises the
-		// plural/singular contract shared with Claude and Gemini to prevent drift (see #893).
-		[ $first_tool_call ] = CompletionResponse::tool_calls_from_proxy( $result );
-
-		if ( null !== $first_tool_call ) {
-			return new CompletionResponse(
-				content:           $result['content'] ?? '',
-				model:             $model,
-				prompt_tokens:     $in_tokens,
-				completion_tokens: $out_tokens,
-				cost_usd:          $cost,
-				raw:               $result,
-				tool_call:         $first_tool_call,
-				credits_charged:   (int) ( $result['credits_charged'] ?? 0 ),
-			);
-		}
-
-		return new CompletionResponse(
-			content:           $result['content'] ?? '',
-			model:             $model,
-			prompt_tokens:     $in_tokens,
-			completion_tokens: $out_tokens,
-			cost_usd:          $cost,
-			raw:               $result,
-			credits_charged:   (int) ( $result['credits_charged'] ?? 0 ),
-		);
+		// Worker sends tool_calls (plural array); build_proxy_response() centralises the plural/singular
+		// contract and response assembly shared with Claude and Gemini to prevent drift (see #893).
+		return $this->build_proxy_response( $result, $model, $cost );
 	}
 
 	/**

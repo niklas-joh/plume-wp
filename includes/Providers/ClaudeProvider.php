@@ -214,33 +214,10 @@ class ClaudeProvider extends AbstractProvider {
 		$out_tokens   = (int) ( $result['usage']['output_tokens'] ?? 0 );
 		$cost         = $this->calculate_cost( $model, $in_tokens, $out_tokens );
 
-		// Detect a tool-call response. tool_calls_from_proxy() centralises the plural/singular
-		// contract so the three providers cannot drift apart. The full array is preserved in `raw`
-		// for extract_tool_calls(); `tool_call` holds the first entry so is_tool_call() stays a null-check.
-		[ $first_tool_call ] = CompletionResponse::tool_calls_from_proxy( $result );
-
-		if ( null !== $first_tool_call ) {
-			return new CompletionResponse(
-				content:          $result['content'] ?? '',
-				model:            $model,
-				prompt_tokens:    $in_tokens,
-				completion_tokens: $out_tokens,
-				cost_usd:         $cost,
-				raw:              $result,
-				tool_call:        $first_tool_call,
-				credits_charged:  (int) ( $result['credits_charged'] ?? 0 ),
-			);
-		}
-
-		return new CompletionResponse(
-			content:          $result['content'] ?? '',
-			model:            $model,
-			prompt_tokens:    $in_tokens,
-			completion_tokens: $out_tokens,
-			cost_usd:         $cost,
-			raw:              $result,
-			credits_charged:  (int) ( $result['credits_charged'] ?? 0 ),
-		);
+		// Detect a tool-call response. build_proxy_response() centralises the plural/singular contract
+		// and response assembly so the three providers cannot drift apart: the full array is preserved
+		// in `raw` for extract_tool_calls() and `tool_call` holds the first entry (null-check friendly).
+		return $this->build_proxy_response( $result, $model, $cost );
 	}
 
 	/**

@@ -78,7 +78,7 @@ final class CompletionResponse {
 	 * @param mixed $result Normalised proxy response; non-array input yields no calls.
 	 * @return array{0: array|null, 1: array<int, array>} [first_tool_call_or_null, all_tool_calls].
 	 */
-	public static function tool_calls_from_proxy( mixed $result ): array {
+	public static function first_and_all_tool_calls_from_proxy( mixed $result ): array {
 		if ( ! \is_array( $result ) ) {
 			return [ null, [] ];
 		}

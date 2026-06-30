@@ -689,10 +689,10 @@ class ChatRestController {
 		}
 
 		// Fall back to the normalised proxy tool call(s) if raw parsing found nothing.
-		// CompletionResponse::tool_calls_from_proxy() handles the tool_calls (plural) / tool_call
-		// (singular) contract; older responses expose only the singular tool_call property.
+		// CompletionResponse::first_and_all_tool_calls_from_proxy() handles the tool_calls (plural) /
+		// tool_call (singular) contract; older responses expose only the singular tool_call property.
 		if ( empty( $tool_uses ) ) {
-			[ , $all_tool_calls ] = CompletionResponse::tool_calls_from_proxy( $response->raw );
+			[ , $all_tool_calls ] = CompletionResponse::first_and_all_tool_calls_from_proxy( $response->raw );
 			if ( empty( $all_tool_calls ) && null !== $response->tool_call ) {
 				$all_tool_calls = [ $response->tool_call ];
 			}
