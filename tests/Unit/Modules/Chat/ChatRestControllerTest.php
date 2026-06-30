@@ -1187,6 +1187,90 @@ class ChatRestControllerTest extends TestCase {
         $this->assertInstanceOf( \stdClass::class, $user_parts[1]['functionResponse']['response'] );
     }
 
+    // ── append_tool_exchange: OpenAI/Grok & Claude proxy writeback (#898/#899) ──
+
+    public function test_openai_append_tool_exchange_writes_back_all_tool_calls(): void {
+        // Proxy responses set raw['content'] to a string and carry every call in tool_calls (plural).
+        $response = new CompletionResponse(
+            content: '',
+            model: 'gpt-4o',
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            raw: [
+                'content'    => '',
+                'tool_calls' => [
+                    [ 'id' => 'call_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+                    [ 'id' => 'call_2', 'name' => 'get_site_info', 'arguments' => [] ],
+                ],
+            ],
+            tool_call: [ 'id' => 'call_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+        );
+
+        $messages = $this->call_append_tool_exchange( [], 'openai', $response, [
+            'call_1' => [ 'posts' => [] ],
+            'call_2' => [ 'name' => 'Plume AI' ],
+        ] );
+
+        // One assistant turn carrying both calls + one tool result message per id.
+        $this->assertCount( 3, $messages );
+        $this->assertSame( 'assistant', $messages[0]['role'] );
+        $this->assertCount( 2, $messages[0]['tool_calls'], 'Assistant turn must declare both parallel tool calls' );
+        $this->assertSame( 'call_1', $messages[0]['tool_calls'][0]['id'] );
+        $this->assertSame( 'get_recent_posts', $messages[0]['tool_calls'][0]['function']['name'] );
+        $this->assertSame( 'call_2', $messages[0]['tool_calls'][1]['id'] );
+        $this->assertSame( 'get_site_info', $messages[0]['tool_calls'][1]['function']['name'] );
+
+        $this->assertSame( 'tool', $messages[1]['role'] );
+        $this->assertSame( 'call_1', $messages[1]['tool_call_id'] );
+        $this->assertSame( \wp_json_encode( [ 'posts' => [] ] ), $messages[1]['content'] );
+        $this->assertSame( 'tool', $messages[2]['role'] );
+        $this->assertSame( 'call_2', $messages[2]['tool_call_id'] );
+        $this->assertSame( \wp_json_encode( [ 'name' => 'Plume AI' ] ), $messages[2]['content'] );
+    }
+
+    public function test_claude_proxy_append_tool_exchange_reconstructs_all_tool_use_blocks(): void {
+        // Proxy normalises raw['content'] to a flat string, so the tool_use blocks must be
+        // reconstructed from the plural tool_calls array — one per executed call (#898).
+        $response = new CompletionResponse(
+            content: '',
+            model: 'claude-3-5-sonnet',
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            raw: [
+                'content'    => '',
+                'tool_calls' => [
+                    [ 'id' => 'tu_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+                    [ 'id' => 'tu_2', 'name' => 'get_site_info', 'arguments' => [] ],
+                ],
+            ],
+            tool_call: [ 'id' => 'tu_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+        );
+
+        $messages = $this->call_append_tool_exchange( [], 'claude', $response, [
+            'tu_1' => [ 'posts' => [] ],
+            'tu_2' => [ 'name' => 'Plume AI' ],
+        ] );
+
+        // One assistant turn with both tool_use blocks + one user turn with both tool_result blocks.
+        $this->assertCount( 2, $messages );
+        $assistant_blocks = $messages[0]['content'];
+        $this->assertCount( 2, $assistant_blocks, 'Assistant turn must carry both reconstructed tool_use blocks' );
+        $this->assertSame( 'tool_use', $assistant_blocks[0]['type'] );
+        $this->assertSame( 'tu_1', $assistant_blocks[0]['id'] );
+        $this->assertSame( 'get_recent_posts', $assistant_blocks[0]['name'] );
+        $this->assertSame( 'tu_2', $assistant_blocks[1]['id'] );
+        // An empty argument set must be encoded as a JSON object, never a JSON array.
+        $this->assertInstanceOf( \stdClass::class, $assistant_blocks[1]['input'] );
+
+        $result_blocks = $messages[1]['content'];
+        $this->assertCount( 2, $result_blocks, 'User turn must carry both tool_result blocks' );
+        $this->assertSame( 'tool_result', $result_blocks[0]['type'] );
+        $this->assertSame( 'tu_1', $result_blocks[0]['tool_use_id'] );
+        $this->assertSame( \wp_json_encode( [ 'posts' => [] ] ), $result_blocks[0]['content'] );
+        $this->assertSame( 'tu_2', $result_blocks[1]['tool_use_id'] );
+        $this->assertSame( \wp_json_encode( [ 'name' => 'Plume AI' ] ), $result_blocks[1]['content'] );
+    }
+
     // ── extract_tool_calls ─────────────────────────────────────────────────────
 
     /**
