@@ -641,17 +641,21 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( 502, $response->get_status(), 'Provider 403 must be masked as 502.' );
     }
 
-    public function test_send_message_returns_500_after_max_iterations(): void {
+    public function test_send_message_returns_200_with_message_after_max_iterations(): void {
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
         Functions\when( 'get_option' )->justReturn( 'claude' );
         Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+        // __() is called to build the limit message; pass strings through untranslated in unit tests.
+        Functions\when( '__' )->returnArg();
+        Functions\when( 'update_user_meta' )->justReturn( true );
 
         $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
         $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
         $store_mock->method( 'get_messages' )->willReturn( [
             [ 'role' => 'user', 'content' => 'Hi' ],
         ] );
+        $store_mock->method( 'add_message' )->willReturn( 99 );
 
         $tool_response = new CompletionResponse(
             content:           '',
@@ -669,7 +673,7 @@ class ChatRestControllerTest extends TestCase {
         $provider_mock = $this->createMock( \Plume\Providers\ProviderInterface::class );
         $provider_mock->method( 'is_available' )->willReturn( true );
         $provider_mock->method( 'supports_tools' )->willReturn( true );
-        // Always returns a tool call response.
+        // Always returns a tool call response — loop will exhaust MAX_TOOL_ITERATIONS.
         $provider_mock->method( 'complete' )->willReturn( $tool_response );
 
         $factory_mock = $this->createMock( \Plume\Providers\ProviderFactory::class );
@@ -687,8 +691,9 @@ class ChatRestControllerTest extends TestCase {
         $response = $controller->send_message( $request );
 
         $this->assertInstanceOf( \WP_REST_Response::class, $response );
-        $this->assertSame( 500, $response->get_status() );
-        $this->assertStringContainsString( 'limit', $response->data['message'] );
+        // Must be 200 with a user-facing message, not a 500 crash.
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertStringContainsString( 'maximum number of steps', $response->data['content'] );
     }
 
     // ── Provider unavailability — 503 / 422 branching ─────────────────────────
