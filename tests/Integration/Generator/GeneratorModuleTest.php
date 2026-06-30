@@ -73,7 +73,7 @@ class GeneratorModuleTest extends IntegrationTestCase {
 	 *
 	 * A free-tier editor submits a title, keywords, tone, and length. The outbound
 	 * HTTP call to the proxy is mocked. The test asserts the 201 response includes
-	 * post_id, edit_url, content, and tokens_used, and that the draft post exists.
+	 * post_id, edit_url, content, and credits_used, and that the draft post exists.
 	 *
 	 * @since 1.0.0
 	 * @return void
@@ -87,11 +87,12 @@ class GeneratorModuleTest extends IntegrationTestCase {
 
 		$this->mock_http_with_claude_fixture(
 			[
-				'content' => '<h2>Intro</h2><p>AI generated body content for the test post.</p>',
-				'usage'   => [
+				'content'         => '<h2>Intro</h2><p>AI generated body content for the test post.</p>',
+				'usage'           => [
 					'input_tokens'  => $prompt_tokens,
 					'output_tokens' => $completion_tokens,
 				],
+				'credits_charged' => 10,
 			]
 		);
 
@@ -112,11 +113,11 @@ class GeneratorModuleTest extends IntegrationTestCase {
 		$this->assertArrayHasKey( 'post_id', $data, 'Response must include post_id.' );
 		$this->assertArrayHasKey( 'edit_url', $data, 'Response must include edit_url.' );
 		$this->assertArrayHasKey( 'content', $data, 'Response must include content.' );
-		$this->assertArrayHasKey( 'tokens_used', $data, 'Response must include tokens_used.' );
+		$this->assertArrayHasKey( 'credits_used', $data, 'Response must include credits_used.' );
 
 		$this->assertIsInt( $data['post_id'], 'post_id must be an integer.' );
 		$this->assertGreaterThan( 0, $data['post_id'], 'post_id must be a positive integer.' );
-		$this->assertSame( $prompt_tokens + $completion_tokens, $data['tokens_used'], 'tokens_used must equal input + output tokens from fixture.' );
+		$this->assertSame( 10, $data['credits_used'], 'credits_used must reflect credits_charged from the Worker fixture.' );
 
 		// Verify the draft post was actually created in the database.
 		$post = get_post( $data['post_id'] );

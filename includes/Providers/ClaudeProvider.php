@@ -199,7 +199,9 @@ class ClaudeProvider extends AbstractProvider {
 			throw new ProviderException( $result->get_error_message(), 'claude' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		}
 
-		// ProxyClient::chat() already called UsageTracker::log_usage() — flag to suppress parent logging.
+		// ProxyClient skips UsageTracker::log_usage() for 'chat' — ChatRestController logs once
+		// after the full agentic loop completes. Set the flag so AbstractProvider::maybe_log()
+		// does not double-log via the parent path.
 		$this->proxy_logged = true;
 
 		// Build CompletionResponse directly from the proxy's normalised shape { content, usage, tool_call? }.
@@ -218,10 +220,19 @@ class ClaudeProvider extends AbstractProvider {
 				cost_usd: $cost,
 				raw: $result,
 				tool_call: $result['tool_call'],
+				credits_charged: (int) ( $result['credits_charged'] ?? 0 ),
 			);
 		}
 
-		return new CompletionResponse( $result['content'] ?? '', $model, $in_tokens, $out_tokens, $cost, $result );
+		return new CompletionResponse(
+			content:          $result['content'] ?? '',
+			model:            $model,
+			prompt_tokens:    $in_tokens,
+			completion_tokens: $out_tokens,
+			cost_usd:         $cost,
+			raw:              $result,
+			credits_charged:  (int) ( $result['credits_charged'] ?? 0 ),
+		);
 	}
 
 	/**

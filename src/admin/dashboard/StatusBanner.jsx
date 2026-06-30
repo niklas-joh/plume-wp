@@ -32,7 +32,7 @@ export default function StatusBanner( { bannerState, urls } ) {
 					</>
 				) : (
 					<>
-						<strong>You are on the free Plugin API.</strong>
+						<strong>You're running low on free credits.</strong>
 						<span>
 							{ ' ' }
 							Add your own key for unlimited access, or upgrade to

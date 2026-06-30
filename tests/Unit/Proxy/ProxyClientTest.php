@@ -8,6 +8,7 @@ use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Plume\Proxy\ProxyClient;
 use Plume\Proxy\SiteRegistration;
+use Plume\Tests\Helpers\WpdbStubFactory;
 
 class ProxyClientTest extends TestCase {
 
@@ -17,6 +18,9 @@ class ProxyClientTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		// Restore a valid $wpdb baseline after any test that installs a Mockery mock.
+		global $wpdb;
+		$wpdb = WpdbStubFactory::create(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		Monkey\tearDown();
 		parent::tearDown();
 	}
@@ -197,6 +201,59 @@ class ProxyClientTest extends TestCase {
 		$this->assertSame( [ 'post_id' => 42 ], $result['tool_call']['arguments'] );
 	}
 
+	public function test_chat_logs_credits_charged_for_non_chat_features(): void {
+		// Non-chat features (generator, seo, image) must still be logged by ProxyClient.
+		$body = json_encode( [ 'content' => 'hello', 'credits_charged' => 10 ] );
+
+		Functions\expect( 'get_option' )
+			->with( SiteRegistration::OPTION_TOKEN, '' )
+			->andReturn( 'test-token' );
+		Functions\expect( 'get_current_user_id' )->andReturn( 1 );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_remote_post' )->justReturn( [] );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		Functions\when( '__' )->alias( fn( $s ) => $s );
+
+		global $wpdb;
+		$wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$wpdb->usermeta      = 'wp_usermeta';
+		$wpdb->rows_affected = 1;
+		$wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing( fn( $sql ) => $sql );
+		$wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+
+		ProxyClient::chat( [ [ 'role' => 'user', 'content' => 'hi' ] ], 'generator' );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_chat_skips_credit_logging_for_chat_feature(): void {
+		// Chat credits are logged once by ChatRestController after the full agentic loop,
+		// so ProxyClient must not call log_usage() for feature='chat'.
+		$body = json_encode( [ 'content' => 'hello', 'credits_charged' => 3 ] );
+
+		Functions\expect( 'get_option' )
+			->with( SiteRegistration::OPTION_TOKEN, '' )
+			->andReturn( 'test-token' );
+		Functions\expect( 'get_current_user_id' )->andReturn( 1 );
+		Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'wp_remote_post' )->justReturn( [] );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		Functions\when( '__' )->alias( fn( $s ) => $s );
+
+		global $wpdb;
+		$wpdb           = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$wpdb->usermeta = 'wp_usermeta';
+		$wpdb->shouldReceive( 'query' )->never();
+
+		ProxyClient::chat( [ [ 'role' => 'user', 'content' => 'hi' ] ], 'chat' );
+
+		$this->addToAssertionCount( 1 );
+	}
+
 	public function test_chat_skips_usage_mirror_when_usage_absent_from_response(): void {
 		// Proxy normalises content to a flat string — NOT a Claude block array.
 		$body = json_encode( [ 'content' => 'hello' ] );
@@ -211,7 +268,7 @@ class ProxyClientTest extends TestCase {
 		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
 		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
 		Functions\when( '__' )->alias( fn( $s ) => $s );
-		// add_user_meta must NOT be called — usage mirroring requires both token counts.
+		// add_user_meta must NOT be called — usage mirroring requires credits_charged in the response.
 		Functions\expect( 'add_user_meta' )->never();
 
 		$result = ProxyClient::chat( [ [ 'role' => 'user', 'content' => 'hi' ] ], 'chat' );

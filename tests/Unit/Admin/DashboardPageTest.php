@@ -49,7 +49,7 @@ class DashboardPageTest extends TestCase {
 	 * @return array<string, mixed> The captured `plumeDashboard` payload.
 	 */
 	private function render_and_capture_payload( string $tier, bool $manage_options = true, int $used = 0 ): array {
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		Functions\when( 'wp_verify_nonce' )->justReturn( false );
 		Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => $v );

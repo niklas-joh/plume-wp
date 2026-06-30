@@ -119,19 +119,10 @@ class ProxyClient {
 			return new WP_Error( 'service_error', $body['error'] ?? sprintf( __( 'Plume AI - Write and Design returned HTTP %d', 'plume' ), $code ) );
 		}
 
-		// Mirror usage locally for dashboard display only — KV is authoritative for quota enforcement.
-		// The proxy stores weighted tokens (raw × model weight), so the KV quota and local counter
-		// will diverge for high-weight models (e.g. Claude Opus at ×15). This is intentional:
-		// the dashboard shows raw API tokens consumed while quota enforcement operates on
-		// weighted tokens in KV to keep billing proportional across providers and models.
-		// Known interim limitation (tracked in the credits-migration gap-tracking table,
-		// docs/task-6-plugin-credits-spec.md §7): this still logs raw tokens, not credits charged.
-		// The Worker doesn't yet return a `credits_charged` field on its response, so the
-		// dashboard's "credits used" figure is a token count, not the true credit cost, until
-		// that field ships and this call is updated to log it instead.
-		if ( isset( $body['usage']['input_tokens'], $body['usage']['output_tokens'] ) ) {
-			$tokens = (int) $body['usage']['input_tokens'] + (int) $body['usage']['output_tokens'];
-			UsageTracker::log_usage( $tokens, $user_id );
+		// Chat credits are logged once by ChatRestController after the full agentic loop
+		// completes, so the per-iteration ProxyClient call must not double-count them.
+		if ( isset( $body['credits_charged'] ) && 'chat' !== $feature ) {
+			UsageTracker::log_usage( (int) $body['credits_charged'], $user_id );
 		}
 
 		return $body;

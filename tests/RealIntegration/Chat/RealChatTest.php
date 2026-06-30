@@ -63,7 +63,7 @@ class RealChatTest extends RealIntegrationTestCase {
 			sprintf( 'Expected 200, got %d. Body: %s', $response->get_status(), wp_json_encode( $data ) )
 		);
 		$this->assertNotEmpty( $data['content'] ?? '' );
-		$this->assertGreaterThan( 0, (int) ( $data['tokens'] ?? 0 ) );
+		$this->assertGreaterThan( 0, (int) ( $data['credits'] ?? 0 ) );
 	}
 
 	/**

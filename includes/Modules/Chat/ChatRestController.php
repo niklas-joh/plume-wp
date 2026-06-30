@@ -24,6 +24,7 @@ use Plume\Tools\ToolExecutor;
 use Plume\Voice\VoiceInjector;
 use Plume\Proxy\SiteRegistration;
 use Plume\Tiers\TierManager;
+use Plume\Tiers\UsageTracker;
 
 /**
  * REST controller for chat conversations, providers, and post search.
@@ -424,13 +425,18 @@ class ChatRestController {
 				);
 			}
 
+			// Log the Worker's reported credit cost exactly once per user message, after all
+			// tool-call iterations are complete. ProxyClient skips logging for 'chat' to
+			// prevent per-iteration double-counting in the agentic loop.
+			UsageTracker::log_usage( $final_response->credits_charged, $user_id );
+
 			$store->add_message( $conv_id, 'assistant', $final_response->content, $final_response->model, $final_response->total_tokens );
 
 			return rest_ensure_response(
 				[
 					'content'      => $final_response->content,
 					'model'        => $final_response->model,
-					'tokens'       => $final_response->total_tokens,
+					'credits'      => $final_response->credits_charged,
 					'cost_usd'     => $final_response->cost_usd,
 					'pending_plan' => $pending_plan,
 					'tools_called' => \array_values( \array_unique( $tools_called ) ),

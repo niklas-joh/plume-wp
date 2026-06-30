@@ -14,19 +14,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Tracks per-user monthly token consumption.
+ * Tracks per-user monthly credit consumption.
  *
  * @since 1.2.0
  */
 class UsageTracker {
 
 	/**
-	 * Fallback monthly credit limit used when the real per-tier limit cannot be
-	 * resolved (transient cache miss with no successful Worker fetch).
+	 * Monthly credit allowance for the free tier.
+	 *
+	 * Mirrors MONTHLY_CREDIT_LIMITS.free in plume-proxy/src/index.ts.
 	 *
 	 * @since NEXT_VERSION
 	 */
-	public const FALLBACK_LIMIT = 100;
+	public const FREE_CREDITS = 100;
+
+	/**
+	 * Monthly credit allowance for the pro_managed tier.
+	 *
+	 * Mirrors MONTHLY_CREDIT_LIMITS.pro_managed in plume-proxy/src/index.ts.
+	 *
+	 * @since NEXT_VERSION
+	 */
+	public const PRO_MANAGED_CREDITS = 500;
+
+	/**
+	 * Fallback monthly credit limit used when the tier is unrecognised.
+	 *
+	 * @since NEXT_VERSION
+	 * @deprecated Use FREE_CREDITS or PRO_MANAGED_CREDITS directly.
+	 */
+	public const FALLBACK_LIMIT = self::FREE_CREDITS;
 
 	/**
 	 * Returns the wp_usermeta key for the current calendar month's token counter.
@@ -36,10 +54,10 @@ class UsageTracker {
 	 * only this method needs updating.
 	 *
 	 * @since 1.11.0
-	 * @return string Meta key in the form plume_usage_YYYY_MM.
+	 * @return string Meta key in the form plume_credits_YYYY_MM.
 	 */
 	public static function get_current_month_key(): string {
-		return 'plume_usage_' . gmdate( 'Y_m' );
+		return 'plume_credits_' . gmdate( 'Y_m' );
 	}
 
 	/**
@@ -118,22 +136,31 @@ class UsageTracker {
 		}
 
 		// TODO: fetch the real limit from the Worker once it exposes one (see PHPDoc above).
-		$limit = self::FALLBACK_LIMIT;
+		$tier_limits = [
+			'free'        => self::FREE_CREDITS,
+			'pro_managed' => self::PRO_MANAGED_CREDITS,
+		];
+		$limit       = $tier_limits[ $tier ] ?? self::FALLBACK_LIMIT;
 		set_transient( $transient_key, $limit, DAY_IN_SECONDS );
 		return $limit;
 	}
 
 	/**
-	 * Increments the current month's token counter for a user.
+	 * Increments the current month's credit counter for a user.
 	 *
 	 * Uses an atomic SQL UPDATE to avoid a read-modify-write race condition under concurrency.
 	 *
 	 * @since 1.2.0
-	 * @param int      $tokens  Number of tokens to add.
+	 * @param int      $credits Number of credits to add.
 	 * @param int|null $user_id User ID; defaults to the current user.
 	 * @return void
 	 */
-	public static function log_usage( int $tokens, ?int $user_id = null ): void {
+	public static function log_usage( int $credits, ?int $user_id = null ): void {
+		// BYOK users bypass the Worker entirely and have no credit limit; credits_charged is
+		// always 0 for them. Skip the DB write to avoid a no-op UPDATE on every chat message.
+		if ( $credits <= 0 ) {
+			return;
+		}
 		global $wpdb;
 		$user_id = $user_id ?? get_current_user_id();
 		$key     = self::get_current_month_key();
@@ -143,13 +170,13 @@ class UsageTracker {
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				"UPDATE {$wpdb->usermeta} SET meta_value = meta_value + %d WHERE user_id = %d AND meta_key = %s",
-				$tokens,
+				$credits,
 				$user_id,
 				$key
 			)
 		);
 		if ( ! $wpdb->rows_affected ) {
-			add_user_meta( $user_id, $key, $tokens, true );
+			add_user_meta( $user_id, $key, $credits, true );
 		}
 	}
 }

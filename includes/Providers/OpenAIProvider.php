@@ -232,10 +232,19 @@ class OpenAIProvider extends AbstractProvider {
 				cost_usd: $cost,
 				raw: $result,
 				tool_call: $result['tool_call'],
+				credits_charged: (int) ( $result['credits_charged'] ?? 0 ),
 			);
 		}
 
-		return new CompletionResponse( $result['content'] ?? '', $model, $in_tokens, $out_tokens, $cost, $result );
+		return new CompletionResponse(
+			content:          $result['content'] ?? '',
+			model:            $model,
+			prompt_tokens:    $in_tokens,
+			completion_tokens: $out_tokens,
+			cost_usd:         $cost,
+			raw:              $result,
+			credits_charged:  (int) ( $result['credits_charged'] ?? 0 ),
+		);
 	}
 
 	/**

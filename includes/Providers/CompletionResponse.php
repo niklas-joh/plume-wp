@@ -39,6 +39,7 @@ final class CompletionResponse {
 	 * @param array|null $tool_call           Tool call data if the response is a tool invocation.
 	 * @param int        $cache_read_tokens   Tokens served from the prompt cache (Anthropic cache_read_input_tokens).
 	 * @param int        $cache_write_tokens  Tokens written to the prompt cache (Anthropic cache_creation_input_tokens).
+	 * @param int        $credits_charged     Credits charged by the Worker for this call; 0 on the BYOK path (no Worker).
 	 */
 	public function __construct(
 		public readonly string $content,
@@ -50,6 +51,7 @@ final class CompletionResponse {
 		public readonly ?array $tool_call = null,
 		public readonly int $cache_read_tokens = 0,
 		public readonly int $cache_write_tokens = 0,
+		public readonly int $credits_charged = 0,
 	) {
 		$this->total_tokens = $prompt_tokens + $completion_tokens;
 	}
@@ -84,6 +86,7 @@ final class CompletionResponse {
 			tool_call:          null,
 			cache_read_tokens:  $this->cache_read_tokens,
 			cache_write_tokens: $this->cache_write_tokens,
+			credits_charged:    $this->credits_charged,
 		);
 	}
 }

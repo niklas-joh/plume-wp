@@ -10,6 +10,7 @@ use Plume\Modules\Chat\ChatRestController;
 use Plume\Tools\ToolRegistry;
 use Plume\Tools\ToolExecutor;
 use Plume\Providers\CompletionResponse;
+use Plume\Tests\Helpers\WpdbStubFactory;
 use PHPUnit\Framework\TestCase;
 
 class ChatRestControllerTest extends TestCase {
@@ -22,9 +23,15 @@ class ChatRestControllerTest extends TestCase {
         Monkey\setUp();
         $this->tool_registry = $this->createMock( ToolRegistry::class );
         $this->tool_executor = $this->createMock( ToolExecutor::class );
+        // Ensure a valid $wpdb stub is always present — other test classes (e.g.
+        // AbstractProviderTest) replace it with a bare stdClass without restoring it.
+        global $wpdb;
+        $wpdb = WpdbStubFactory::create(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
     }
 
     protected function tearDown(): void {
+        global $wpdb;
+        $wpdb = WpdbStubFactory::create(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
         Monkey\tearDown();
         parent::tearDown();
     }
@@ -1483,6 +1490,173 @@ class ChatRestControllerTest extends TestCase {
         $this->assertSame( "I've prepared the changes for your review.", $response->data['content'] );
         $this->assertSame( $pending, $response->data['pending_plan'], 'pending_plan must be surfaced in the REST response' );
         $this->assertContains( 'plan_post', $response->data['tools_called'] );
+    }
+
+    // ── Credit logging ────────────────────────────────────────────────────────
+
+    public function test_send_message_logs_credits_once_after_loop(): void {
+        // Verifies the single UsageTracker::log_usage() call added after the while loop.
+        // A two-iteration exchange (tool call → final answer) must produce exactly one
+        // DB write for credits, reflecting the final response's credits_charged value.
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->alias( fn( $key, $default = '' ) => match ( $key ) {
+            'plume_default_provider' => 'claude',
+            default                  => $default,
+        } );
+        Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+        $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [
+            [ 'role' => 'user', 'content' => 'Hello' ],
+        ] );
+
+        // Iteration 1: tool call (3 credits from Worker, but ProxyClient skips logging).
+        $tool_response = new CompletionResponse(
+            content:           '',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     10,
+            completion_tokens: 5,
+            raw:               [ 'content' => [] ],
+            tool_call:         [ 'id' => 'tc_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+            credits_charged:   3,
+        );
+
+        // Iteration 2: final answer (3 more credits — controller logs this value once).
+        $final_response = new CompletionResponse(
+            content:           'Final answer',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     20,
+            completion_tokens: 15,
+            credits_charged:   3,
+        );
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [] );
+        $this->tool_executor->method( 'execute' )->willReturn( [ 'posts' => [] ] );
+
+        $provider_mock = $this->createMock( \Plume\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( true );
+        $provider_mock->method( 'complete' )->willReturnOnConsecutiveCalls( $tool_response, $final_response );
+
+        $factory_mock = $this->createMock( \Plume\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        // Use a Mockery $wpdb to assert exactly one DB write for credits and capture the value.
+        global $wpdb;
+        $original_wpdb       = $wpdb;
+        $captured_credits    = null;
+        $wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+        $wpdb->usermeta      = 'wp_usermeta';
+        $wpdb->rows_affected = 1;
+        // Capture the first prepared argument (the credit amount) so the test pins the
+        // actual value written, not merely that a single query was issued.
+        $wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing(
+            function ( $sql, $credits ) use ( &$captured_credits ) {
+                $captured_credits = $credits;
+                return $sql;
+            }
+        );
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '42' ] );
+        $request->set_body_params( [ 'content' => 'Hello', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $wpdb = $original_wpdb; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( 3, $response->data['credits'], 'credits field must reflect final_response->credits_charged.' );
+        $this->assertSame( 3, $captured_credits, 'log_usage must write final_response->credits_charged (3) to usermeta.' );
+    }
+
+    public function test_send_message_logs_only_final_iteration_credits_when_amounts_differ(): void {
+        // Locks down the accounting rule (relates to #880): when intermediate and final
+        // iterations charge different amounts, the controller must log exactly the final
+        // response's credits_charged once — never the intermediate value, a sum, or 0.
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->alias( fn( $key, $default = '' ) => match ( $key ) {
+            'plume_default_provider' => 'claude',
+            default                  => $default,
+        } );
+        Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+
+        $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [
+            [ 'role' => 'user', 'content' => 'Hello' ],
+        ] );
+
+        // Iteration 1: tool call charging 3 credits — ProxyClient skips logging for chat.
+        $tool_response = new CompletionResponse(
+            content:           '',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     10,
+            completion_tokens: 5,
+            raw:               [ 'content' => [] ],
+            tool_call:         [ 'id' => 'tc_1', 'name' => 'get_recent_posts', 'arguments' => [ 'count' => 3 ] ],
+            credits_charged:   3,
+        );
+
+        // Iteration 2: final answer charging a DIFFERENT amount (7) — only this is logged.
+        $final_response = new CompletionResponse(
+            content:           'Final answer',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     20,
+            completion_tokens: 15,
+            credits_charged:   7,
+        );
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [] );
+        $this->tool_executor->method( 'execute' )->willReturn( [ 'posts' => [] ] );
+
+        $provider_mock = $this->createMock( \Plume\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( true );
+        $provider_mock->method( 'complete' )->willReturnOnConsecutiveCalls( $tool_response, $final_response );
+
+        $factory_mock = $this->createMock( \Plume\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        global $wpdb;
+        $original_wpdb       = $wpdb;
+        $wpdb                = \Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+        $wpdb->usermeta      = 'wp_usermeta';
+        $wpdb->rows_affected = 1;
+        $logged_credits      = null;
+        $wpdb->shouldReceive( 'prepare' )->once()->andReturnUsing(
+            function ( $sql, $credits = null ) use ( &$logged_credits ) {
+                $logged_credits = $credits;
+                return $sql;
+            }
+        );
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '42' ] );
+        $request->set_body_params( [ 'content' => 'Hello', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $wpdb = $original_wpdb; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( 7, $response->data['credits'], 'credits field must reflect the final iteration, not the intermediate 3.' );
+        $this->assertSame( 7, $logged_credits, 'usermeta must record the final iteration amount (7), not the intermediate 3, their sum (10), or 0.' );
     }
 
     // ── search_posts ──────────────────────────────────────────────────────────

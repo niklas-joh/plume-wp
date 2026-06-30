@@ -75,7 +75,7 @@ class UsageWidgetTest extends TestCase {
 	// ── render() — limited tier (free) ───────────────────────────────────────
 
 	public function test_render_shows_plan_label_and_progress_bar_for_free_tier(): void {
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_user_meta' )->alias(
@@ -106,7 +106,7 @@ class UsageWidgetTest extends TestCase {
 	}
 
 	public function test_render_shows_upgrade_notice_when_above_80_percent(): void {
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		Functions\when( 'get_user_meta' )->alias(
@@ -138,7 +138,7 @@ class UsageWidgetTest extends TestCase {
 	// ── render() — unlimited tier (pro_byok) ─────────────────────────────────
 
 	public function test_render_shows_no_credit_limit_message_for_pro_byok(): void {
-		$month_key = 'plume_usage_' . gmdate( 'Y_m' );
+		$month_key = 'plume_credits_' . gmdate( 'Y_m' );
 
 		Functions\when( 'get_current_user_id' )->justReturn( 1 );
 		// pro_byok lives on the site option now.
