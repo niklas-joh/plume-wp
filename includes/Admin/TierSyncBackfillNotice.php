@@ -93,8 +93,8 @@ class TierSyncBackfillNotice {
 	 */
 	private static function is_plume_admin_page(): bool {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page detection, no state change.
-		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
-		return str_starts_with( $page, 'plume' );
+		$page = isset( $_GET['page'] ) ? \sanitize_key( \wp_unslash( $_GET['page'] ) ) : '';
+		return \str_starts_with( $page, 'plume' );
 	}
 
 	/**
@@ -312,7 +312,9 @@ class TierSyncBackfillNotice {
 
 		$referer = \wp_get_referer();
 		if ( ! $referer ) {
-			$referer = \admin_url();
+			// Fall back to the main Plume page so the page-guard in
+			// maybe_display_result() doesn't suppress the outcome notice.
+			$referer = \admin_url( 'admin.php?page=plume' );
 		}
 
 		$redirect = \add_query_arg( 'plume_rotate', $status, $referer );
