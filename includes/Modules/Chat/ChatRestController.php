@@ -419,10 +419,9 @@ class ChatRestController {
 			}
 
 			if ( null === $final_response ) {
-				return new \WP_REST_Response(
-					[ 'message' => 'Tool call limit reached without a final response.' ],
-					500
-				);
+				// Substitute a displayable message so the chat UI receives a 200 rather than crashing on 500.
+				$limit_message  = \__( 'The assistant reached the maximum number of steps without finishing. Please try rephrasing your request or breaking it into smaller tasks.', 'plume' );
+				$final_response = $response->with_text( $limit_message );
 			}
 
 			// Log the Worker's reported credit cost exactly once per user message, after all
@@ -687,14 +686,27 @@ class ChatRestController {
 			}
 		}
 
-		// Fall back to the single tool_call extracted by the provider if raw parsing found nothing.
+		// Fall back to the tool_call(s) extracted by the provider if raw parsing found nothing.
 		if ( empty( $tool_uses ) ) {
-			$tool_call   = $response->tool_call;
-			$tool_uses[] = [
-				'id'    => $tool_call['id'],
-				'name'  => $tool_call['name'],
-				'input' => $tool_call['arguments'],
-			];
+			$raw = $response->raw;
+			// New Worker shape: tool_calls (plural array); fall back to tool_call (singular) for
+			// backward-compat with any in-flight requests using the old shape.
+			if ( ! empty( $raw['tool_calls'] ) && \is_array( $raw['tool_calls'] ) ) {
+				foreach ( $raw['tool_calls'] as $tc ) {
+					$tool_uses[] = [
+						'id'    => $tc['id'],
+						'name'  => $tc['name'],
+						'input' => $tc['arguments'] ?? [],
+					];
+				}
+			} else {
+				$tool_call   = $response->tool_call;
+				$tool_uses[] = [
+					'id'    => $tool_call['id'],
+					'name'  => $tool_call['name'],
+					'input' => $tool_call['arguments'],
+				];
+			}
 		}
 
 		return $tool_uses;

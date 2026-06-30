@@ -206,21 +206,34 @@ class ClaudeProvider extends AbstractProvider {
 
 		// Build CompletionResponse directly from the proxy's normalised shape { content, usage, tool_call? }.
 		// parse_response() expects the upstream Claude wire format and cannot handle the normalised response.
-		$model      = ! empty( $request->model ) ? $request->model : self::DEFAULT_MODEL;
+		// Prefer the model slug the Worker resolved (it may differ from what the request asked for), then
+		// fall back to the requested model, then the plugin default.
+		$worker_model = \sanitize_text_field( $result['model'] ?? '' );
+		$model        = '' !== $worker_model ? $worker_model : ( ! empty( $request->model ) ? $request->model : self::DEFAULT_MODEL );
 		$in_tokens  = (int) ( $result['usage']['input_tokens'] ?? 0 );
 		$out_tokens = (int) ( $result['usage']['output_tokens'] ?? 0 );
 		$cost       = $this->calculate_cost( $model, $in_tokens, $out_tokens );
 
-		if ( ! empty( $result['tool_call'] ) ) {
+		// Detect a tool-call response — new Worker sends tool_calls (plural array); old shape was tool_call (singular).
+		// The full array is preserved in `raw` for extract_tool_calls(); `tool_call` holds the first entry so
+		// CompletionResponse::is_tool_call() remains a simple null-check.
+		$first_tool_call = null;
+		if ( ! empty( $result['tool_calls'] ) && \is_array( $result['tool_calls'] ) ) {
+			$first_tool_call = $result['tool_calls'][0];
+		} elseif ( ! empty( $result['tool_call'] ) ) {
+			$first_tool_call = $result['tool_call'];
+		}
+
+		if ( null !== $first_tool_call ) {
 			return new CompletionResponse(
-				content: $result['content'] ?? '',
-				model: $model,
-				prompt_tokens: $in_tokens,
+				content:          $result['content'] ?? '',
+				model:            $model,
+				prompt_tokens:    $in_tokens,
 				completion_tokens: $out_tokens,
-				cost_usd: $cost,
-				raw: $result,
-				tool_call: $result['tool_call'],
-				credits_charged: (int) ( $result['credits_charged'] ?? 0 ),
+				cost_usd:         $cost,
+				raw:              $result,
+				tool_call:        $first_tool_call,
+				credits_charged:  (int) ( $result['credits_charged'] ?? 0 ),
 			);
 		}
 
