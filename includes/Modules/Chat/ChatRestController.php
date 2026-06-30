@@ -675,7 +675,9 @@ class ChatRestController {
 				];
 			}
 		} else {
-			foreach ( $response->raw['content'] ?? [] as $block ) {
+			// Proxy responses set raw['content'] to a string; only iterate when it's an array.
+			$raw_content = $response->raw['content'] ?? [];
+			foreach ( \is_array( $raw_content ) ? $raw_content : [] as $block ) {
 				if ( ( $block['type'] ?? '' ) === 'tool_use' ) {
 					$tool_uses[] = [
 						'id'    => $block['id'],
@@ -699,12 +701,12 @@ class ChatRestController {
 						'input' => $tc['arguments'] ?? [],
 					];
 				}
-			} else {
+			} elseif ( ! empty( $response->tool_call ) ) {
 				$tool_call   = $response->tool_call;
 				$tool_uses[] = [
 					'id'    => $tool_call['id'],
 					'name'  => $tool_call['name'],
-					'input' => $tool_call['arguments'],
+					'input' => $tool_call['arguments'] ?? [],
 				];
 			}
 		}

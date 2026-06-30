@@ -204,7 +204,7 @@ class ClaudeProvider extends AbstractProvider {
 		// does not double-log via the parent path.
 		$this->proxy_logged = true;
 
-		// Build CompletionResponse directly from the proxy's normalised shape { content, usage, tool_call? }.
+		// Build CompletionResponse directly from the proxy's normalised shape { content, usage, model, tool_calls? }.
 		// parse_response() expects the upstream Claude wire format and cannot handle the normalised response.
 		// Prefer the model slug the Worker resolved (it may differ from what the request asked for), then
 		// fall back to the requested model, then the plugin default.

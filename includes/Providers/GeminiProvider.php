@@ -208,34 +208,44 @@ class GeminiProvider extends AbstractProvider {
 		// ProxyClient::chat() already called UsageTracker::log_usage() — flag to suppress parent logging.
 		$this->proxy_logged = true;
 
-		// Build CompletionResponse directly from the proxy's normalised shape { content, usage, tool_call? }.
+		// Build CompletionResponse directly from the proxy's normalised shape { content, usage, model, tool_calls? }.
 		// parse_response() expects the upstream Gemini wire format and cannot handle the normalised response.
-		$in_tokens  = (int) ( $result['usage']['input_tokens'] ?? 0 );
-		$out_tokens = (int) ( $result['usage']['output_tokens'] ?? 0 );
-		$pricing    = self::PRICING[ $model ] ?? self::PRICING[ self::DEFAULT_MODEL ];
-		$cost       = ( $in_tokens / 1_000_000 * $pricing['in'] ) + ( $out_tokens / 1_000_000 * $pricing['out'] );
+		$worker_model = \sanitize_text_field( $result['model'] ?? '' );
+		$model        = '' !== $worker_model ? $worker_model : $model;
+		$in_tokens    = (int) ( $result['usage']['input_tokens'] ?? 0 );
+		$out_tokens   = (int) ( $result['usage']['output_tokens'] ?? 0 );
+		$pricing      = self::PRICING[ $model ] ?? self::PRICING[ self::DEFAULT_MODEL ];
+		$cost         = ( $in_tokens / 1_000_000 * $pricing['in'] ) + ( $out_tokens / 1_000_000 * $pricing['out'] );
 
-		if ( ! empty( $result['tool_call'] ) ) {
+		// Worker now sends tool_calls (plural array); fall back to tool_call (singular) for backward compat.
+		$first_tool_call = null;
+		if ( ! empty( $result['tool_calls'] ) && \is_array( $result['tool_calls'] ) ) {
+			$first_tool_call = $result['tool_calls'][0];
+		} elseif ( ! empty( $result['tool_call'] ) ) {
+			$first_tool_call = $result['tool_call'];
+		}
+
+		if ( null !== $first_tool_call ) {
 			return new CompletionResponse(
-				content: '',
-				model: $model,
-				prompt_tokens: $in_tokens,
+				content:           $result['content'] ?? '',
+				model:             $model,
+				prompt_tokens:     $in_tokens,
 				completion_tokens: $out_tokens,
-				cost_usd: $cost,
-				raw: $result,
-				tool_call: $result['tool_call'],
-				credits_charged: (int) ( $result['credits_charged'] ?? 0 ),
+				cost_usd:          $cost,
+				raw:               $result,
+				tool_call:         $first_tool_call,
+				credits_charged:   (int) ( $result['credits_charged'] ?? 0 ),
 			);
 		}
 
 		return new CompletionResponse(
-			content:          $result['content'] ?? '',
-			model:            $model,
-			prompt_tokens:    $in_tokens,
+			content:           $result['content'] ?? '',
+			model:             $model,
+			prompt_tokens:     $in_tokens,
 			completion_tokens: $out_tokens,
-			cost_usd:         $cost,
-			raw:              $result,
-			credits_charged:  (int) ( $result['credits_charged'] ?? 0 ),
+			cost_usd:          $cost,
+			raw:               $result,
+			credits_charged:   (int) ( $result['credits_charged'] ?? 0 ),
 		);
 	}
 
