@@ -726,6 +726,10 @@ class ChatRestController {
 	): array {
 		$tool_call = $tool_response->tool_call;
 
+		// Full ordered set of executed tool calls — every one must be written back so the
+		// model sees all results next turn and does not re-request calls 2..N (#898).
+		$all_tool_calls = $this->extract_tool_calls( $tool_response, $provider_slug );
+
 		// Convenience: result for the primary (first) tool call.
 		$first_result        = reset( $tool_results );
 		$default_result      = $tool_results[ $tool_call['id'] ] ?? ( ! empty( $first_result ) ? $first_result : [] );
@@ -750,15 +754,29 @@ class ChatRestController {
 					array_filter( $raw_content, fn( $b ) => ( $b['type'] ?? '' ) === 'tool_use' )
 				);
 				if ( ! $has_tool_use_block ) {
-					$tool_input  = ! empty( $tool_call['arguments'] ) ? (object) $tool_call['arguments'] : new \stdClass();
-					$raw_content = [
-						[
+					// Rebuild one tool_use block per executed call so parallel calls 2..N survive (#898).
+					$raw_content = [];
+					foreach ( $all_tool_calls as $tc ) {
+						$tool_input    = ! empty( $tc['input'] ) ? (object) $tc['input'] : new \stdClass();
+						$raw_content[] = [
 							'type'  => 'tool_use',
-							'id'    => $tool_call['id'],
-							'name'  => $tool_call['name'],
+							'id'    => $tc['id'],
+							'name'  => $tc['name'],
 							'input' => $tool_input,
-						],
-					];
+						];
+					}
+					// Fall back to the primary tool call if extraction yielded nothing.
+					if ( empty( $raw_content ) ) {
+						$tool_input  = ! empty( $tool_call['arguments'] ) ? (object) $tool_call['arguments'] : new \stdClass();
+						$raw_content = [
+							[
+								'type'  => 'tool_use',
+								'id'    => $tool_call['id'],
+								'name'  => $tool_call['name'],
+								'input' => $tool_input,
+							],
+						];
+					}
 				}
 				$messages[] = [
 					'role'    => 'assistant',
@@ -794,24 +812,43 @@ class ChatRestController {
 
 			case 'openai':
 			case 'grok':
+				// Emit one tool_calls[] entry per executed call so calls 2..N are not dropped (#898).
+				$tool_calls_payload = [];
+				foreach ( $all_tool_calls as $tc ) {
+					$tool_calls_payload[] = [
+						'id'       => $tc['id'],
+						'type'     => 'function',
+						'function' => [
+							'name'      => $tc['name'],
+							'arguments' => \wp_json_encode( $tc['input'] ),
+						],
+					];
+				}
+				// Fall back to the primary tool call if extraction yielded nothing.
+				if ( empty( $tool_calls_payload ) ) {
+					$tool_calls_payload[] = [
+						'id'       => $tool_call['id'],
+						'type'     => 'function',
+						'function' => [
+							'name'      => $tool_call['name'],
+							'arguments' => \wp_json_encode( $tool_call['arguments'] ),
+						],
+					];
+				}
 				$messages[] = [
 					'role'       => 'assistant',
-					'tool_calls' => [
-						[
-							'id'       => $tool_call['id'],
-							'type'     => 'function',
-							'function' => [
-								'name'      => $tool_call['name'],
-								'arguments' => \wp_json_encode( $tool_call['arguments'] ),
-							],
-						],
-					],
+					'tool_calls' => $tool_calls_payload,
 				];
-				$messages[] = [
-					'role'         => 'tool',
-					'tool_call_id' => $tool_call['id'],
-					'content'      => $default_result_json,
-				];
+				// One tool result message per tool_call_id.
+				foreach ( $tool_calls_payload as $tc_entry ) {
+					$tc_id      = $tc_entry['id'];
+					$tc_result  = $tool_results[ $tc_id ] ?? $default_result;
+					$messages[] = [
+						'role'         => 'tool',
+						'tool_call_id' => $tc_id,
+						'content'      => \wp_json_encode( $tc_result ),
+					];
+				}
 				break;
 
 			case 'gemini':
