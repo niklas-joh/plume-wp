@@ -98,6 +98,22 @@ class TierSyncBackfillNotice {
 	}
 
 	/**
+	 * Returns true when the current user may view a Plume admin notice.
+	 *
+	 * Bundles the capability + Plume-page pair shared by can_show_tier_notice()
+	 * and maybe_display_result() so the two guards never drift apart.
+	 *
+	 * @since NEXT_VERSION
+	 * @return bool True when the user has manage_options on a Plume admin page.
+	 */
+	private static function current_user_can_see_plume_notice(): bool {
+		if ( ! \current_user_can( 'manage_options' ) ) {
+			return false;
+		}
+		return self::is_plume_admin_page();
+	}
+
+	/**
 	 * Returns true when the current user may see a tier notice.
 	 *
 	 * Shared preamble for maybe_display() and maybe_display_sig_mismatch() so the
@@ -107,10 +123,7 @@ class TierSyncBackfillNotice {
 	 * @return bool True when the common preconditions are met.
 	 */
 	private static function can_show_tier_notice(): bool {
-		if ( ! \current_user_can( 'manage_options' ) ) {
-			return false;
-		}
-		if ( ! self::is_plume_admin_page() ) {
+		if ( ! self::current_user_can_see_plume_notice() ) {
 			return false;
 		}
 		return SiteRegistration::is_registered();
@@ -224,10 +237,7 @@ class TierSyncBackfillNotice {
 	 * @return void
 	 */
 	public static function maybe_display_result(): void {
-		if ( ! \current_user_can( 'manage_options' ) ) {
-			return;
-		}
-		if ( ! self::is_plume_admin_page() ) {
+		if ( ! self::current_user_can_see_plume_notice() ) {
 			return;
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display of redirect result.
