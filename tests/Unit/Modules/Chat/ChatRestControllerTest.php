@@ -1609,6 +1609,156 @@ class ChatRestControllerTest extends TestCase {
         $this->assertContains( 'plan_post', $response->data['tools_called'] );
     }
 
+    public function test_send_message_uses_analysis_as_content_when_plan_update_includes_it(): void {
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->justReturn( 'claude' );
+        Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+        Functions\when( '__' )->alias( fn( $v ) => $v );
+
+        $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [
+            [ 'role' => 'user', 'content' => 'Please review and tighten this post' ],
+        ] );
+
+        $analysis_text = 'The intro buries the lede and the CTA is missing; tightening both.';
+        $tool_input    = [
+            'analysis'    => $analysis_text,
+            'post_id'     => 7,
+            'changes'     => 'Tightened intro, added CTA',
+            'new_content' => 'Full updated body.',
+        ];
+
+        $plan_response = new CompletionResponse(
+            content:           '',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     10,
+            completion_tokens: 5,
+            cost_usd:          0.0,
+            raw:               [
+                'content' => [
+                    [ 'type' => 'tool_use', 'id' => 'tu_1', 'name' => 'plan_update', 'input' => $tool_input ],
+                ],
+            ],
+            tool_call:         [ 'id' => 'tu_1', 'name' => 'plan_update', 'arguments' => $tool_input ],
+        );
+
+        $pending = [
+            'id'          => 'def45678',
+            'status'      => 'pending_approval',
+            'plan_type'   => 'update',
+            'post_id'     => 7,
+            'changes'     => 'Tightened intro, added CTA',
+            'new_content' => 'Full updated body.',
+            'post_status' => '',
+        ];
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [ [ 'name' => 'plan_update' ] ] );
+        $this->tool_executor->expects( $this->once() )
+            ->method( 'execute' )
+            ->with( 'plan_update', $tool_input, 1 )
+            ->willReturn( $pending );
+
+        $provider_mock = $this->createMock( \Plume\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( true );
+        $provider_mock->method( 'complete' )->willReturn( $plan_response );
+
+        $factory_mock = $this->createMock( \Plume\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '42' ] );
+        $request->set_body_params( [ 'content' => 'Please review and tighten this post', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( $analysis_text, $response->data['content'], 'analysis text must be surfaced as the reply, not the generic fallback' );
+        $this->assertSame( $pending, $response->data['pending_plan'] );
+        $this->assertContains( 'plan_update', $response->data['tools_called'] );
+    }
+
+    public function test_send_message_uses_analysis_as_content_when_plan_post_includes_it(): void {
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->justReturn( 'claude' );
+        Functions\when( 'wp_json_encode' )->alias( fn( $v ) => json_encode( $v ) );
+        Functions\when( '__' )->alias( fn( $v ) => $v );
+
+        $store_mock = $this->createMock( \Plume\DB\ConversationStore::class );
+        $store_mock->method( 'get_conversation' )->willReturn( [ 'user_id' => 1 ] );
+        $store_mock->method( 'get_messages' )->willReturn( [
+            [ 'role' => 'user', 'content' => 'Write a post about widgets' ],
+        ] );
+
+        $analysis_text = 'You asked for a launch announcement, so I drafted one covering the key features.';
+        $tool_input    = [
+            'analysis' => $analysis_text,
+            'title'    => 'Widgets',
+            'content'  => 'Full body.',
+        ];
+
+        $plan_response = new CompletionResponse(
+            content:           '',
+            model:             'claude-3-5-sonnet',
+            prompt_tokens:     10,
+            completion_tokens: 5,
+            cost_usd:          0.0,
+            raw:               [
+                'content' => [
+                    [ 'type' => 'tool_use', 'id' => 'tu_1', 'name' => 'plan_post', 'input' => $tool_input ],
+                ],
+            ],
+            tool_call:         [ 'id' => 'tu_1', 'name' => 'plan_post', 'arguments' => $tool_input ],
+        );
+
+        $pending = [
+            'id'          => 'abc12345',
+            'status'      => 'pending_approval',
+            'plan_type'   => 'create',
+            'title'       => 'Widgets',
+            'content'     => 'Full body.',
+            'post_status' => 'draft',
+        ];
+
+        $this->tool_registry->method( 'get_for_provider' )->willReturn( [ [ 'name' => 'plan_post' ] ] );
+        $this->tool_executor->expects( $this->once() )
+            ->method( 'execute' )
+            ->with( 'plan_post', $tool_input, 1 )
+            ->willReturn( $pending );
+
+        $provider_mock = $this->createMock( \Plume\Providers\ProviderInterface::class );
+        $provider_mock->method( 'is_available' )->willReturn( true );
+        $provider_mock->method( 'supports_tools' )->willReturn( true );
+        $provider_mock->method( 'complete' )->willReturn( $plan_response );
+
+        $factory_mock = $this->createMock( \Plume\Providers\ProviderFactory::class );
+        $factory_mock->method( 'make' )->willReturn( $provider_mock );
+
+        $voice_mock = $this->createMock( \Plume\Voice\VoiceInjector::class );
+        $voice_mock->method( 'build_system_prompt' )->willReturn( '' );
+
+        $controller = $this->make_controller( $store_mock, $factory_mock, $voice_mock );
+
+        $request = new \WP_REST_Request( 'POST' );
+        $request->set_url_params( [ 'id' => '42' ] );
+        $request->set_body_params( [ 'content' => 'Write a post about widgets', 'provider' => 'claude', 'model' => '' ] );
+
+        $response = $controller->send_message( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( $analysis_text, $response->data['content'], 'analysis text must be surfaced as the reply, not the generic fallback' );
+        $this->assertSame( $pending, $response->data['pending_plan'] );
+        $this->assertContains( 'plan_post', $response->data['tools_called'] );
+    }
+
     // ── Credit logging ────────────────────────────────────────────────────────
 
     public function test_send_message_logs_credits_once_after_loop(): void {

@@ -386,7 +386,8 @@ class ChatRestController {
 				}
 
 				// Execute all non-chat_response tools and collect results.
-				$tool_results = [];
+				$tool_results         = [];
+				$pending_plan_message = '';
 				foreach ( $all_tool_uses as $tu ) {
 					if ( 'chat_response' === $tu['name'] ) {
 						continue;
@@ -397,7 +398,8 @@ class ChatRestController {
 					$tools_called[]            = $tool_name;
 
 					if ( 'pending_approval' === ( $result['status'] ?? '' ) ) {
-						$pending_plan = $result;
+						$pending_plan         = $result;
+						$pending_plan_message = \sanitize_textarea_field( $tu['input']['analysis'] ?? '' );
 					}
 				}
 
@@ -407,11 +409,13 @@ class ChatRestController {
 					break;
 				}
 
-				// Safety net for models that ignore the "call chat_response after plan_update/plan_post" instruction.
+				// Safety net for models that omit `analysis` on plan_update/plan_post, or for
+				// legacy tool-call fixtures/providers that don't send it.
 				if ( null !== $pending_plan ) {
-					$final_response = $response->with_text(
-						__( "I've prepared the changes for your review.", 'plume' )
-					);
+					$message        = '' !== $pending_plan_message
+						? $pending_plan_message
+						: __( "I've prepared the changes for your review.", 'plume' );
+					$final_response = $response->with_text( $message );
 					break;
 				}
 

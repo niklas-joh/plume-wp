@@ -172,10 +172,14 @@ class ToolRegistry {
 
 		$this->tools[] = new ToolDefinition(
 			name:                'plan_post',
-			description:         'Propose a new WordPress blog post or page for user approval. Call this tool whenever the user asks you to write, create, draft, or generate a post or page. Provide a title, a brief outline shown on the approval card, and the complete post content that will be published exactly as given when the user approves. After this tool returns, the post is queued for user approval — immediately call chat_response to tell the user it is ready. Do not call plan_post again.',
+			description:         'Propose a new WordPress blog post or page for user approval. Call this tool whenever the user asks you to write, create, draft, or generate a post or page. In a single call, provide: analysis (a short, conversational explanation of why you\'re proposing this new post and what it covers — this is shown to the user as your reply), a title, a brief outline shown on the approval card, and the complete post content that will be published exactly as given when the user approves. No chat_response call is needed for this flow — analysis together with the approval card is the complete reply to the user. Do not call plan_post again.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [
+					'analysis'    => [
+						'type'        => 'string',
+						'description' => 'A short, conversational explanation of why you\'re proposing this new post and what it covers. Shown to the user as your reply, before the approval card.',
+					],
 					'title'       => [
 						'type'        => 'string',
 						'description' => 'The post title.',
@@ -203,7 +207,7 @@ class ToolRegistry {
 						'additionalProperties' => [ 'type' => 'string' ],
 					],
 				],
-				'required'   => [ 'title', 'content' ],
+				'required'   => [ 'analysis', 'title', 'content' ],
 			],
 			capability:          'edit_posts',
 			requires_write_tools: true,
@@ -211,10 +215,14 @@ class ToolRegistry {
 
 		$this->tools[] = new ToolDefinition(
 			name:                'plan_update',
-			description:         'Propose an update to an existing WordPress post for user approval. Call this tool whenever the user asks you to edit, update, revise, improve, or change a post. First retrieve the post content with get_post_content. Before calling plan_update, call chat_response to briefly share your review findings — what you noticed and what you are about to change. Then call plan_update immediately. Do NOT ask the user for further confirmation before calling plan_update — the user\'s request to update is sufficient. Provide a human-readable summary of changes AND the full updated content that will be applied when the user approves. After plan_update returns, the update is queued for user approval — immediately call chat_response to tell the user it is ready. Do not call plan_update again.',
+			description:         'Propose an update to an existing WordPress post for user approval. Call this tool whenever the user asks you to edit, update, revise, improve, or change a post. First retrieve the post content with get_post_content. In a single call, provide: analysis (a short, conversational explanation of what you reviewed and why you are proposing these specific changes — this is shown to the user as your reply), changes (a human-readable summary for the approval card), and new_content (the full updated post body). No chat_response call is needed for this flow — analysis together with the approval card is the complete reply to the user. Do not call plan_update again.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [
+					'analysis'    => [
+						'type'        => 'string',
+						'description' => 'A short, conversational explanation of what you reviewed in the post and why you\'re proposing these specific changes. Shown to the user as your reply, before the approval card.',
+					],
 					'post_id'     => [
 						'type'        => 'integer',
 						'description' => 'The ID of the post to update.',
@@ -242,7 +250,7 @@ class ToolRegistry {
 						'additionalProperties' => [ 'type' => 'string' ],
 					],
 				],
-				'required'   => [ 'post_id', 'changes', 'new_content' ],
+				'required'   => [ 'analysis', 'post_id', 'changes', 'new_content' ],
 			],
 			capability:          'edit_posts',
 			requires_write_tools: true,
