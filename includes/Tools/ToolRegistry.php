@@ -84,7 +84,7 @@ class ToolRegistry {
 	private function register_tools(): void {
 		$this->tools[] = new ToolDefinition(
 			name:                'chat_response',
-			description:         'Send a conversational reply to the user. Call this tool for EVERY response — acknowledgements, explanations, answers, summaries, and follow-ups after completing an action. This is the only way to deliver text back to the user.',
+			description:         'Send a conversational reply to the user. Call this for every text response — acknowledgements, explanations, answers, summaries, and follow-ups. Do NOT call this when proposing a post update or creation via plan_update or plan_post — those tools have an analysis field that is shown to the user as your message instead.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [
@@ -172,7 +172,7 @@ class ToolRegistry {
 
 		$this->tools[] = new ToolDefinition(
 			name:                'plan_post',
-			description:         'Propose a new WordPress blog post or page for user approval. Call this tool whenever the user asks you to write, create, draft, or generate a post or page. In a single call, provide: analysis (a short, conversational explanation of why you\'re proposing this new post and what it covers — this is shown to the user as your reply), a title, a brief outline shown on the approval card, and the complete post content that will be published exactly as given when the user approves. No chat_response call is needed for this flow — analysis together with the approval card is the complete reply to the user. Do not call plan_post again.',
+			description:         'Propose a new WordPress blog post or page for user approval. Call this tool whenever the user asks you to write, create, draft, or generate a post or page. Do NOT send a chat_response before or instead of this tool call. In a single call provide: analysis (a short explanation of what you\'re proposing — shown to the user as your reply), title, outline (brief summary for the approval card), and content (the complete post body in Markdown). Do not call chat_response for this flow. Do not call plan_post again.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [
@@ -215,7 +215,7 @@ class ToolRegistry {
 
 		$this->tools[] = new ToolDefinition(
 			name:                'plan_update',
-			description:         'Propose an update to an existing WordPress post for user approval. Call this tool whenever the user asks you to edit, update, revise, improve, or change a post. First retrieve the post content with get_post_content. In a single call, provide: analysis (a short, conversational explanation of what you reviewed and why you are proposing these specific changes — this is shown to the user as your reply), changes (a human-readable summary for the approval card), and new_content (the full updated post body). No chat_response call is needed for this flow — analysis together with the approval card is the complete reply to the user. Do not call plan_update again.',
+			description:         'Propose an update to an existing WordPress post for user approval. Call this tool whenever the user asks you to edit, update, revise, improve, or change a post. Workflow: (1) call get_post_content to read the post, (2) call plan_update immediately — do NOT send a chat_response first to ask permission or share your review. In a single call provide: analysis (your conversational review of the post — this IS your message to the user), post_id, changes (a human-readable summary for the approval card), and new_content (the complete updated post body in Markdown). Do not call chat_response for this flow.',
 			parameters:          [
 				'type'       => 'object',
 				'properties' => [

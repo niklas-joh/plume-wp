@@ -288,7 +288,10 @@ class ChatRestController {
 		);
 
 		$injector = $this->make_voice_injector();
-		$system   = $injector->build_system_prompt( '', $user_id );
+		$system   = $injector->build_system_prompt(
+			'Tool rule: when the user wants to edit or update a post, call plan_update directly after reading the post — never use chat_response to share your analysis or ask for permission first. Your analysis goes in the plan_update analysis field.',
+			$user_id
+		);
 
 		$context_post_id = absint( $request->get_param( 'context_post_id' ) );
 		if ( $context_post_id > 0 ) {
