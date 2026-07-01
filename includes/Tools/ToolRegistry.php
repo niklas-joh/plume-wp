@@ -178,7 +178,7 @@ class ToolRegistry {
 				'properties' => [
 					'analysis'    => [
 						'type'        => 'string',
-						'description' => 'A short, conversational explanation of why you\'re proposing this new post and what it covers. Shown to the user as your reply, before the approval card.',
+						'description' => '1–2 sentences explaining what you\'re creating and why — shown to the user as your reply; keep it concise.',
 					],
 					'title'       => [
 						'type'        => 'string',
@@ -221,7 +221,7 @@ class ToolRegistry {
 				'properties' => [
 					'analysis'    => [
 						'type'        => 'string',
-						'description' => 'A short, conversational explanation of what you reviewed in the post and why you\'re proposing these specific changes. Shown to the user as your reply, before the approval card.',
+						'description' => '2–3 sentences summarising what you found and what you\'re changing — shown to the user as your message; keep it concise.',
 					],
 					'post_id'     => [
 						'type'        => 'integer',

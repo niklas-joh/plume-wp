@@ -876,7 +876,7 @@ const MONTHLY_CREDIT_LIMITS: Record< ProxyTier, number > = {
 };
 
 const MAX_TOKENS: Record< ProxyTier, number > = {
-	free: 2_000,
+	free: 6_000,
 	pro_managed: 8_000,
 };
 
