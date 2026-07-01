@@ -356,6 +356,7 @@ class ChatRestController {
 					],
 					tools:          $tools,
 					force_tool_use: ! empty( $tools ),
+					max_tokens:     8192,
 				);
 
 				$response = $provider->complete( $req );
